@@ -1,0 +1,40 @@
+{
+  "name": "apinodeexpress",
+  "version": "1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node --watch app.js",
+    "postgres": "node --watch server_postgres.js",
+    "local": "node server_local.js"
+  },
+  "dependencies": {
+    "adm-zip": "0.5.16",
+    "axios": "^1.15.0",
+    "axios-cookiejar-support": "6.0.5",
+    "basic-ftp": "^5.3.0",
+    "cors": "2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "5.2.1",
+    "multer": "2.1.1",
+    "pg-promise": "12.6.1",
+    "tough-cookie": "6.0.0",
+    "zod": "4.3.6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://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@github.com/HattoriHanzo-Ronin/ApiNodeExpress.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/HattoriHanzo-Ronin/ApiNodeExpress/issues"
+  },
+  "homepage": "https://github.com/HattoriHanzo-Ronin/ApiNodeExpress#readme",
+  "devDependencies": {
+    "@types/express": "^5.0.6"
+  }
+}
