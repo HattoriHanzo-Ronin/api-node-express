@@ -1,48 +1,128 @@
-# Router Devices & FTP API
+# ApiNodeExpress
 
-Scalable REST API built with **Node.js** and **Express** to manage allowed router devices (MAC whitelist) and provide FTP-related services.  
-The project is designed with a modular architecture so new features can be easily added in the future.
+ApiNodeExpress is a REST API designed for home network device management and network automation.
+
+The project allows storing and managing devices connected to a local network, including custom device names, MAC addresses, and synchronization with supported network repeaters. It also includes FTP-related functionality and is currently being refactored towards a cleaner and more maintainable backend architecture.
 
 ---
 
 ## Features
 
-- Manage allowed devices (MAC address whitelist)
-- Endpoints for router integration
-- FTP-related services
-- Modular and scalable structure
-- Ready for future authentication and integrations
+- Device registration and management
+- MAC address synchronization
+- Repeater integration support
+- FTP service integration
+- Dockerized deployment
+- Environment-based configuration
+- RESTful API architecture
 
 ---
 
 ## Tech Stack
 
 - Node.js
-- Express
-- JavaScript (ES6+)
+- Express.js
+- Docker
+- Docker Compose
+- JavaScript
 
 ---
 
-## Getting Started
+## Current Refactor Focus
 
-### 1. Clone the repository
+The project is currently focused on improving backend architecture and maintainability by:
 
-```bash
-git clone https://github.com/your-username/your-repo.git
-cd your-repo
-
-### 2. Install dependencies
-
-```bash
-pnpm install
-
-### 3. Run the project
-
-```bash
-pnpm run postgres
+- Moving business logic into dedicated service layers
+- Improving code organization and separation of concerns
+- Centralizing error handling
+- Improving environment configuration management
+- Preparing JWT-based authentication
+- Cleaning and documenting the codebase
+- Preparing the repository for public release
 
 ---
 
-## The API will be available at
-http://localhost:59998
+## Project Structure
 
+```bash
+src/
+├── controllers/
+├── services/
+├── routes/
+├── middleware/
+├── models/
+├── utils/
+└── config/
+```
+
+---
+
+## Environment Variables
+
+Create a `.env` file using `.env.example` as reference.
+
+Example:
+
+```env
+PORT=3000
+JWT_SECRET=your_secret_key
+
+FTP_HOST=localhost
+FTP_USER=user
+FTP_PASSWORD=password
+```
+
+---
+
+## Local Development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run development server:
+
+```bash
+npm run dev
+```
+
+---
+
+## Docker Setup
+
+Start containers:
+
+```bash
+docker-compose up --build
+```
+
+Stop containers:
+
+```bash
+docker-compose down
+```
+
+---
+
+## Planned Improvements
+
+- JWT authentication
+- Centralized validation system
+- API documentation
+- Automated testing
+- Production-ready Docker configuration
+- Additional network automation features
+
+---
+
+## Status
+
+Project currently under active refactor and architecture cleanup.
+
+---
+
+## License
+
+This project is intended for portfolio and educational purposes.
