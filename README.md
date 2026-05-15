@@ -79,13 +79,13 @@ FTP_PASSWORD=password
 Install dependencies:
 
 ```bash
-npm install
+pnpm install
 ```
 
 Run development server:
 
 ```bash
-npm run dev
+pnpm run postgres
 ```
 
 ---
@@ -95,7 +95,7 @@ npm run dev
 Start containers:
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 Stop containers:
