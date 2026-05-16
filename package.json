@@ -5,22 +5,21 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node --watch app.js",
-    "postgres": "node --watch server_postgres.js",
-    "local": "node server_local.js"
+    "postgres": "node server_postgres.js",
+    "wPostgres": "node --watch server_postgres.js"
   },
   "dependencies": {
-    "adm-zip": "0.5.16",
-    "axios": "^1.15.0",
-    "axios-cookiejar-support": "6.0.5",
-    "basic-ftp": "^5.3.0",
+    "adm-zip": "0.5.17",
+    "axios": "1.16.1",
+    "axios-cookiejar-support": "7.0.0",
+    "basic-ftp": "6.0.1",
     "cors": "2.8.6",
-    "dotenv": "^17.4.2",
+    "dotenv": "17.4.2",
     "express": "5.2.1",
     "multer": "2.1.1",
-    "pg-promise": "12.6.1",
-    "tough-cookie": "6.0.0",
-    "zod": "4.3.6"
+    "pg-promise": "12.6.2",
+    "tough-cookie": "6.0.1",
+    "zod": "4.4.3"
   },
   "repository": {
     "type": "git",
