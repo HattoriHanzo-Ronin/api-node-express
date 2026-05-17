@@ -55,6 +55,9 @@ web_modules/
 # Optional npm cache directory
 .npm
 
+# Optional pnpm cache directory
+.pnpm-store
+
 # Optional eslint cache
 .eslintcache
 
@@ -143,5 +146,8 @@ dist
 
 #env file
 .env
+
+# Prettier local configuration
+.prettierrc
 
 # End of https://www.toptal.com/developers/gitignore/api/node
