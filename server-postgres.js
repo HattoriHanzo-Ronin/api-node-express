@@ -1,5 +1,7 @@
 import { createApp } from "./app.js";
-import { DeviceModel } from "./models/postgres/device-model.js";
-import { FtpModel } from "./models/ftp/ftp-model.js";
+import FtpConnection from "./config/ftp-connection.js";
+import FtpController from "./controllers/ftp-controller.js";
+import FtpService from "./services/ftp-service.js";
 
-createApp({ devModel: DeviceModel, ftpModel: FtpModel });
+const ftpController = new FtpController({ ftpService: FtpService });
+createApp({ ftpController });
