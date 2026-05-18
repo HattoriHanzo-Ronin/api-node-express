@@ -1,24 +1,18 @@
 import { Router } from "express";
-import { FtpController } from "../controllers/ftp/ftp-controller.js";
 import Middlewares from "../middlewares/middlewares.js";
 
-export default function createFtpRouter({ ftpModel }) {
+export default function createFtpRouter({ ftpController }) {
     const router = Router();
-    const ftpController = new FtpController({ ftpModel });
 
-    router.get("/", ftpController.dir);
+    router.get("/", asyncHandler(ftpController.dir));
 
-    router.get("/download", ftpController.getFile);
+    router.post("/mkdir", asyncHandler(ftpController.makeDir));
+    router.post("/upload", mult().single("file"), asyncHandler(ftpController.upload));
+    router.post("/download", asyncHandler(ftpController.download));
 
-    router.get("/download/:id", ftpController.getFile);
-
-    router.post("/mkdir", ftpController.makeDir);
-
-    router.post("/upload", Middlewares.mult().single("file"), ftpController.upload);
-
-    router.post("/download", ftpController.download);
-
-    router.delete("/:type", ftpController.delete);
+    router.delete("/:type", asyncHandler(ftpController.delete));
 
     return router;
 }
+
+const { asyncHandler, mult } = Middlewares;

@@ -3,17 +3,13 @@ import cors from "cors";
 import multer from "multer";
 
 /**
- * Contains application middleware configurations and factory methods
+ * Application middleware factory.
  *
  * @author HattoriHanzo-Ronin
  */
 export default class Middlewares {
-    /**
-     * Creates a CORS middleware with optional allowed origins
-     *
-     */
-    static cors = (acceptOrigins) =>
-        cors({
+    static cors(acceptOrigins) {
+        return cors({
             origin: (origin, callback) => {
                 if (acceptOrigins) {
                     if (acceptOrigins.includes(origin)) return callback(null, true);
@@ -22,16 +18,23 @@ export default class Middlewares {
                 return callback(null, true);
             }
         });
+    }
+
+    static json() {
+        return express.json();
+    }
+
+    static mult() {
+        return multer({ storage: multer.memoryStorage() });
+    }
 
     /**
-     * Creates a JSON body parser middleware
+     * Wraps an async Express handler and forwards errors to the next middleware.
      *
+     * @param {Function} fn Async Express route handler
+     * @returns {Function} Express middleware
      */
-    static json = () => express.json();
-
-    /**
-     * Creates a Multer middleware using memory storage
-     *
-     */
-    static mult = () => multer({ storage: multer.memoryStorage() });
+    static asyncHandler(fn) {
+        return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+    }
 }
