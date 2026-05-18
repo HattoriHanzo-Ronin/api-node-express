@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "postgres": "node server_postgres.js",
-    "wPostgres": "node --watch server_postgres.js"
+    "postgres": "node server-postgres.js",
+    "wPostgres": "node --watch server-postgres.js"
   },
   "dependencies": {
     "adm-zip": "0.5.17",
