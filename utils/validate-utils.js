@@ -20,10 +20,15 @@ export default class ValidateUtils {
         requiredEnum: (message) => ({
             error: (issue) => (issue.input === undefined ? "Requerido" : message)
         }),
-        invalidEnum: (name, values) => `Valor inválido para ${name}. Valores permitidos: ${values.join(", ")}`
+        invalidEnum: (name, values) => `Valor inválido para ${name}. Valores permitidos: ${values.join(", ")}`,
+        invalidId: "UUID no válido"
     });
 
     static REGEX = Object.freeze({
+        passwordRegex: /^[A-Za-z0-9!@#$%^&*()_\-+=\[{\]};:'",<.>/?\\|`~]+$/,
+        macRegex: /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/,
+        ipRegex: /^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/,
+        safeTextRegex: /^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 -]+$/,
         pathRegex: /^[\p{L}\p{N} ./_-]+$/u
     });
 
