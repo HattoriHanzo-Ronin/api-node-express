@@ -1,171 +1,117 @@
-import pg from "pg-promise";
-
-const config = {
-    host: process.env.HOSTDB,
-    port: process.env.PORTDB,
-    user: process.env.USERDB,
-    password: process.env.PASSDB,
-    database: process.env.DB
-};
-const db = pg()(config);
-const pghelper = pg().helpers;
-const column = {
-    net: new pghelper.ColumnSet(["pass", "wifipass"], { table: "net" }),
-    device: new pghelper.ColumnSet(["id", "name", "mac", "intrface", "type", "ip"], { table: "device" }),
-    whitelist: new pghelper.ColumnSet(["device_id", "allow_device_id", "key"], { table: "whitelist" })
-};
+import PostgresClient from "../../config/db/postgres-client.js";
+import DbUtils from "../../utils/db-utils.js";
+import deviceColumns from "./device-columns.js";
 
 /**
- * Model for Devices
+ * Device table model
  *
  * @author HattoriHanzo-Ronin
  */
-export class DeviceModel {
+export default class DeviceModel {
     /**
-     * Performs the corresponding select query based on the provided parameters
+     * Retrieves devices
      *
-     * @param intrface Filters by interface
-     * @param passw Retrieves the password
-     * @param whitelist Router or repeater ID, used to perform queries based on the whitelist table
-     * @param white Client device ID, used to perform queries based on the whitelist table
-     * @param allow Retrieves all devices allowed in the MAC filter of a specific router or repeater
-     * @param notAllow Retrieves all devices not allowed in the MAC filter of a specific router or repeater
-     * @returns Returns the query result if everything goes well, otherwise false
+     * @returns {Promise<Object[]>} List of devices
      */
-    static async getAll({ intrface, allow, notAllow, whitelist, white, passw }) {
-        try {
-            if (intrface)
-                return await db.any(
-                    `select ${column.device.names} from device where LOWER(intrface)=$1`,
-                    intrface.toLocaleLowerCase()
-                );
-
-            if (passw) return await db.one(`select pass from net`);
-
-            if (white && whitelist)
-                return await db.one(`select key from whitelist where device_id = $1 and allow_device_id = $2`, [
-                    whitelist,
-                    white
-                ]);
-
-            if (whitelist) return await db.any(`select key from whitelist where device_id = $1`, whitelist);
-
-            if (white) return await db.any(`select * from whitelist where allow_device_id = $1`, white);
-
-            if (allow)
-                return await db.any(
-                    `select ${column.device.names} from device d join whitelist w on w.allow_device_id = d.id where w.device_id = $1`,
-                    allow
-                );
-
-            if (notAllow)
-                return await db.any(
-                    `select ${column.device.names} from device d 
-                left join whitelist w on w.allow_device_id = d.id and w.device_id = $1
-                 where w.allow_device_id is null and LOWER(d.intrface) = 'wifi'`,
-                    notAllow
-                );
-
-            const id = "net";
-            const [net, devices] = await Promise.all([
-                db.one(`select ${column.net.names} from net where id=$1`, id),
-                db.any(`select ${column.device.names} from device where net_id=$1`, id)
-            ]);
-            const result = { net: { ...net, devices: devices } };
-            return result.net;
-        } catch {
-            return false;
-        }
+    static async getAll() {
+        return client.any(`select * from device`);
     }
 
     /**
-     * Searches for a device by its ID
+     * Retrieves a device by identifier
      *
-     * @param id Device ID
-     * @returns Returns the device if found, otherwise false
+     * @param {string} params.id Device identifier
+     * @returns {Promise<Object | null>} Device data
      */
-    static async getId({ id }) {
-        try {
-            const result = await db.one("select * from device where id=$1", id);
-            return result;
-        } catch {
-            return false;
-        }
+    static async getById({ id }) {
+        return client.oneOrNone("select * from device where id = $1", [id]);
     }
 
     /**
-     * Creates a new device
+     * Retrieves allowed devices
      *
-     * @param input Device to create
-     * @returns Returns true if everything goes well, otherwise false
+     * @param {string} params.routerId Router identifier
+     * @returns {Promise<Object[]>} List of allowed devices
      */
-    static async create({ input }) {
-        try {
-            await db.none(pghelper.insert(input, column.device));
-            return true;
-        } catch {
-            return false;
-        }
+    static async getAllowedDevices({ routerId }) {
+        return client.any(
+            `select ${columnsWithAlias(basicInfoColumns, "d")} from device d 
+             join whitelist w on w.allow_device_id = d.id 
+             where w.router_id = $1`,
+            [routerId]
+        );
     }
 
     /**
-     * Adds a device to the corresponding whitelist
+     * Retrieves devices not allowed on a router
      *
-     * @param input Router or repeater ID and device ID to add
-     * @returns Returns true if everything goes well, otherwise false
+     * @param {string} params.routerId Router identifier
+     * @returns {Promise<Object[]>} List of devices not allowed on the router
      */
-    static async addAllow({ input }) {
-        try {
-            await db.none(pghelper.insert(input, column.whitelist));
-            return true;
-        } catch {
-            return false;
-        }
+    static async getNotAllowedDevices({ routerId }) {
+        return client.any(
+            `select ${columnsWithAlias(basicInfoColumns, "d")} from device d 
+             left join whitelist w on w.allow_device_id = d.id and w.router_id = $1
+             where w.allow_device_id is null`,
+            [routerId]
+        );
     }
 
     /**
-     * Removes a device from the corresponding whitelist
+     * Retrieves routers associated with an allowed device
      *
-     * @param input Router or repeater ID and device ID to remove
-     * @returns Returns true if everything goes well, otherwise false
+     * @param {string} params.allowDeviceId Allowed device identifier
+     * @returns {Promise<Object[]>} List of associated routers
      */
-    static async delAllow({ id, allowId }) {
-        try {
-            await db.none("delete from whitelist where device_id = $1 and allow_device_id = $2", [id, allowId]);
-            return true;
-        } catch {
-            return false;
-        }
+    static async getRoutersByAllowDevice({ allowDeviceId }) {
+        return client.any(
+            `select ${columnsWithAlias(basicRouterInfoColumns, "d")}, w.key from whitelist w
+                join device d on d.id = w.router_id where w.allow_device_id = $1`,
+            [allowDeviceId]
+        );
     }
 
     /**
-     * Updates a device
+     * Inserts a device
      *
-     * @param id Device ID to update
-     * @param input Data to update
-     * @returns Returns true if everything goes well, otherwise false
+     * @param {Object} params.device Device data
+     * @returns {Promise<{ id: string }>} Inserted device identifier
      */
-    static async update({ id, input }) {
-        try {
-            await db.none(pghelper.update({ id: id, ...input }, column.device) + " where id = $1", id);
-            return true;
-        } catch {
-            return false;
-        }
+    static async insert({ device }) {
+        return client.one(helpers().insert(device, insertColumns) + " returning id");
+    }
+
+    /**
+     * Updates a device.
+     *
+     * @param {import("pg-promise").IDatabase<any>} params.clientTx Database transaction
+     * @param {string} params.id Device identifier
+     * @param {Object} params.data Device data
+     * @returns {Promise<{ id: string, name: string, mac: string } | null>} Updated device
+     */
+    static async update({ clientTx, id, data }) {
+        return clientTx.oneOrNone(helpers().update(data, updateColumns) + " where id = $1 returning id, name, mac", [
+            id
+        ]);
     }
 
     /**
      * Deletes a device
      *
-     * @param id Device ID to delete
-     * @returns Returns true if everything goes well, otherwise false
+     * @param {string} params.id Device identifier
+     * @returns {Promise<{ id: string } | null>} Deleted device identifier
      */
-    static async del({ id }) {
-        try {
-            await db.none("delete from device where id = $1", id);
-            return true;
-        } catch {
-            return false;
-        }
+    static async delete({ id }) {
+        return client.oneOrNone("delete from device where id = $1 returning id", [id]);
     }
 }
+
+const { getClient, helpers } = PostgresClient;
+const client = getClient();
+const {
+    insert: insertColumns,
+    update: updateColumns,
+    basicInfo: basicInfoColumns,
+    basicRouterInfo: basicRouterInfoColumns
+} = deviceColumns;
+const { pgPromiseColumnsWithAlias: columnsWithAlias } = DbUtils;

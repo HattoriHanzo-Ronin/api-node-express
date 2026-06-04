@@ -1,13 +1,15 @@
 import ApiError from "./api-error.js";
 
 /**
- * Validation utilities.
+ * Validation utilities
  *
  * @author HattoriHanzo-Ronin
  */
 export default class ValidateUtils {
     static ALLOW_ENUMS = Object.freeze({
-        fileType: Object.freeze(["DIR", "FILE"])
+        fileType: Object.freeze(["DIR", "FILE"]),
+        deviceIntrface: Object.freeze(["WAN", "LAN", "WIFI"]),
+        deviceType: Object.freeze(["CLIENT", "ROUTER", "SERVER"])
     });
 
     static ERROR_MESSAGES = Object.freeze({
@@ -33,7 +35,7 @@ export default class ValidateUtils {
     });
 
     /**
-     * Creates a case-insensitive enum schema.
+     * Creates a case-insensitive enum schema
      *
      * @param {typeof import("zod")} z Zod namespace
      * @param {import("zod").ZodEnum} zodEnum Zod enum schema
@@ -44,7 +46,7 @@ export default class ValidateUtils {
     }
 
     /**
-     * Validates data against a schema.
+     * Validates data against a schema
      *
      * @param {Object} data Data to validate
      * @param {import("zod").ZodType} schema Validation schema
@@ -67,7 +69,7 @@ export default class ValidateUtils {
     }
 
     /**
-     * Handles API error conditions.
+     * Handles API error conditions
      *
      * @param {Object[]} errors Error conditions to evaluate
      * @param {boolean} errors[].condition Indicates whether the error should be handled
@@ -91,7 +93,7 @@ export default class ValidateUtils {
     }
 
     /**
-     * Handles schema validation issues.
+     * Handles schema validation issues
      *
      * @param {Object[]} issues Validation issues to evaluate
      * @param {boolean} issues[].condition Indicates whether the issue should be added
