@@ -3,8 +3,9 @@ import "dotenv/config";
 import Middlewares from "./middlewares/middlewares.js";
 import createFtpRouter from "./routes/ftp-router.js";
 import createWhitelistRouter from "./routes/whitelist-router.js";
+import createDeviceRouter from "./routes/device-router.js";
 
-export function createApp({ ftpController, whitelistController }) {
+export function createApp({ ftpController, whitelistController, deviceController }) {
     const app = express();
     const { cors, json } = Middlewares;
     const PORT = process.env.PORT;
@@ -14,8 +15,8 @@ export function createApp({ ftpController, whitelistController }) {
     app.use(cors(), json());
 
     app.use("/ftp", createFtpRouter({ ftpController }));
-
     app.use("/whitelist", createWhitelistRouter({ whitelistController }));
+    app.use("/device", createDeviceRouter({ deviceController }));
 
     app.listen(PORT);
 }
