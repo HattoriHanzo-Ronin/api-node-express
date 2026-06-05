@@ -28,7 +28,6 @@ export default class FtpService {
             const list = await client.list();
             return list.map((it) => ({ name: it.name, type: it.isDirectory ? "DIR" : "FILE" }));
         } catch (err) {
-            console.log(err);
             ftpError("Error al listar la carpeta");
         } finally {
             closeClient(client);

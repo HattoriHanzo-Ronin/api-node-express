@@ -27,6 +27,8 @@ export default class WhitelistController {
 const { validateData } = ValidateUtils;
 
 function validateBody(body) {
-    const { router, allowDevice } = body;
-    return { router: validateData(router, routerSchema), allowDevice: validateData(allowDevice, allowDeviceSchema) };
+    return {
+        router: validateData(body?.router, routerSchema),
+        allowDevice: validateData(body?.allowDevice, allowDeviceSchema)
+    };
 }

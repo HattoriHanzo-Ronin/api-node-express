@@ -13,16 +13,13 @@ export default class ValidateUtils {
     });
 
     static ERROR_MESSAGES = Object.freeze({
-        typeRequired: {
-            error: (issue) => (issue.input === undefined ? "Requerido" : "Tipo no válido")
-        },
+        typeRequired: { error: (issue) => (issue.input === undefined ? "Requerido" : "Tipo no válido") },
         typeNotRequired: { error: "Tipo no válido" },
         format: "Error de formato",
-        length: (num, mode) => `Longitud ${mode === "min" ? "mínima" : "máxima"} ${num} caracteres`,
-        requiredEnum: (message) => ({
-            error: (issue) => (issue.input === undefined ? "Requerido" : message)
-        }),
-        invalidEnum: (name, values) => `Valor inválido para ${name}. Valores permitidos: ${values.join(", ")}`,
+        length: (num, mode) => {
+            return `Longitud ${mode === "min" ? "mínima" : "máxima"} ${num} ${num > 1 ? "caracteres" : "caracter"}`;
+        },
+        invalidEnum: (values) => ({ error: `Valores permitidos: ${values.join(", ")}` }),
         invalidId: "UUID no válido"
     });
 
@@ -39,10 +36,11 @@ export default class ValidateUtils {
      *
      * @param {typeof import("zod")} z Zod namespace
      * @param {import("zod").ZodEnum} zodEnum Zod enum schema
+     * @param {import("zod").RawCreateParams} errorMessage validation error message
      * @returns {import("zod").ZodPipe} Normalized enum schema
      */
-    static zodEnumIgnoreCase(z, zodEnum) {
-        return z.string().trim().toUpperCase().pipe(zodEnum);
+    static zodEnumIgnoreCase(z, zodEnum, errorMessage) {
+        return z.string(errorMessage).trim().toUpperCase().pipe(zodEnum);
     }
 
     /**
@@ -55,14 +53,14 @@ export default class ValidateUtils {
     static validateData(data, schema) {
         const result = schema.safeParse(data);
         if (!result.success) {
-            const error = new Error("Error al validar los datos");
-            error.status = 400;
-            error.details = result.error.issues.map((e) => ({
-                field: e.path[0],
-                message:
-                    e.code === "invalid_type" && e.expected === "object" ? "Debe enviar un objeto válido" : e.message
-            }));
-            throw error;
+            const details = result.error.issues.map((e) => {
+                const field = e.path.join(".");
+                const message =
+                    e.code === "invalid_type" && e.expected === "object" ? "Debe enviar un objeto válido" : e.message;
+
+                return field ? { field, message } : { message };
+            });
+            throw new ApiError("Error al validar los datos", 400, details);
         }
 
         return result.data;

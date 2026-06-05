@@ -46,8 +46,8 @@ const deviceSchema = z.object({
         .max(30, length(30, "max"))
         .regex(safeTextRegex, format),
     mac: z.string(typeRequired).trim().regex(macRegex, format),
-    intrface: zodEnumIgnoreCase(z, z.enum(deviceIntrface, requiredEnum(invalidEnum("interfaz", deviceIntrface)))),
-    type: zodEnumIgnoreCase(z, z.enum(deviceType, requiredEnum(invalidEnum("tipo de dispositivo", deviceType)))),
+    intrface: zodEnumIgnoreCase(z, z.enum(deviceIntrface, invalidEnum(deviceIntrface)), typeRequired),
+    type: zodEnumIgnoreCase(z, z.enum(deviceType, invalidEnum(deviceType)), typeRequired),
     model: z
         .string(typeNotRequired)
         .trim()
