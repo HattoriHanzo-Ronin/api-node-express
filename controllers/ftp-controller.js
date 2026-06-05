@@ -20,7 +20,7 @@ export default class FtpController {
 
     makeDir = async (req, res, next) => {
         const { query, body } = req;
-        const { dir, name } = validateData({ dir: query.dir, name: body.name }, getMakeDirSchema());
+        const { dir, name } = validateData({ dir: query.dir, name: body?.name }, getMakeDirSchema());
         await this.ftpService.makeDir({ dir, name });
         res.status(201).json({ message: "Carpeta creada" });
     };
@@ -34,7 +34,7 @@ export default class FtpController {
 
     download = async (req, res, next) => {
         const { query, body } = req;
-        const { dir, paths } = validateData({ dir: query.dir, paths: body.paths }, getDownloadSchema());
+        const { dir, paths } = validateData({ dir: query.dir, paths: body?.paths }, getDownloadSchema());
         const result = await this.ftpService.download({ dir, paths });
         res.status(200).download(result);
     };
