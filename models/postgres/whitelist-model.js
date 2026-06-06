@@ -14,6 +14,7 @@ export default class WhitelistModel {
      * @returns {{ key: string }[]} Router whitelist keys
      */
     static async getKeys({ router_id }) {
+        await client.one(`select id from device where id=$1`, [router_id]);
         return client.any(`select key from whitelist where router_id = $1`, [router_id]);
     }
 

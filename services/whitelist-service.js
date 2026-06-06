@@ -23,8 +23,8 @@ export default class WhitelistService {
         try {
             const { id: router_id } = router;
             const { id: allow_device_id, mac: deviceMac, name: deviceName } = allowDevice;
-            const routerImpl = getRouterImpl(router);
             const keys = await this.whitelistModel.getKeys({ router_id });
+            const routerImpl = getRouterImpl(router);
             const key = routerImpl.getKey(keys);
             return await client.tx(async (clientTx) => {
                 const result = await this.whitelistModel.insert({
@@ -43,22 +43,8 @@ export default class WhitelistService {
             });
         } catch (err) {
             handleApiErrors([
-                {
-                    condition: err.code === "23503",
-                    execute: () =>
-                        handleApiErrors([
-                            {
-                                condition: err.constraint === "fk_whitelist_router",
-                                message: "El router no existe",
-                                status: 404
-                            },
-                            {
-                                condition: err.constraint === "fk_whitelist_allow_device",
-                                message: "El dispositivo no existe",
-                                status: 404
-                            }
-                        ])
-                },
+                { condition: err.code === 0, message: "El router no existe", status: 404 },
+                { condition: err.code === "23503", message: "El dispositivo no existe", status: 404 },
                 { condition: err.code === "23505", message: "El dispositivo ya se encuentra autorizado", status: 400 }
             ]);
             throw err;
