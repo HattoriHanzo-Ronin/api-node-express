@@ -1,0 +1,306 @@
+# FTP Error Handling Tests
+#
+# Purpose
+# -------
+# Manual test suite for validating:
+#
+# - Schema validation errors.
+# - ApiError responses.
+# - Controlled service errors.
+# - Unexpected application errors.
+# - Error response format consistency.
+#
+# This file may also be used for general API testing by adding
+# custom requests to verify normal FTP operations.
+#
+# Prerequisites
+# -------------
+# - API running on localhost:59998
+# - FTP server configured and accessible
+#
+# Base URL:
+# http://localhost:59998/ftp
+
+@baseUrl = http://localhost:59998/ftp
+
+############################################################
+# Validation: Invalid directory path format
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#     {
+#       "field": "dir",
+#       "message": "Error de formato"
+#     }
+#   ]
+# }
+
+############################################################
+
+GET {{baseUrl}}?dir=****
+
+###
+
+############################################################
+# Validation: Path traversal attempt
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#     {
+#       "field": "path",
+#       "message": "Ruta no válida"
+#     }
+#   ]
+# }
+
+############################################################
+
+DELETE {{baseUrl}}/FILE?path=../secret
+
+###
+
+############################################################
+# Validation: Missing folder name
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#     {
+#       "field": "name",
+#       "message": "Requerido"
+#     }
+#   ]
+# }
+
+############################################################
+
+POST {{baseUrl}}/mkdir?dir=/test
+Content-Type: application/json
+
+{}
+
+###
+
+############################################################
+# Validation: Invalid folder name format
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#     {
+#       "field": "name",
+#       "message": "Error de formato"
+#     }
+#   ]
+# }
+
+############################################################
+
+POST {{baseUrl}}/mkdir?dir=/test
+Content-Type: application/json
+
+{
+    "name": "???"
+}
+
+###
+
+############################################################
+# Validation: Missing download paths
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#     {
+#       "field": "paths",
+#       "message": "Requerido"
+#     }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}/download?dir=/test
+
+###
+
+############################################################
+# Validation: Empty download paths
+#
+# Expected:
+# Status: 400
+#
+# Response:
+#{
+#  "message": "Error al validar los datos",
+#  "details": [
+#    {
+#      "field": "paths",
+#      "message": "Debe contener al menos un elemento"
+#    }
+#  ]
+#}
+
+############################################################
+
+POST {{baseUrl}}/download?dir=/test
+Content-Type: application/json
+
+{
+    "paths": []
+}
+
+###
+
+############################################################
+# Validation: Missing file type
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#     {
+#       "field": "paths.0.type",
+#       "message": "Requerido"
+#     }
+#   ]
+# }
+
+############################################################
+
+POST {{baseUrl}}/download?dir=/test
+Content-Type: application/json
+
+{
+    "paths": [
+        {
+            "name": "test.txt"
+        }
+    ]
+}
+
+###
+
+############################################################
+# Validation: Invalid file type enum
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#     {
+#       "field": "paths.0.type",
+#       "message": "Valor inválido para tipo de archivo. Valores permitidos: DIR, FILE"
+#     }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}/download?dir=/test
+Content-Type: application/json
+
+{
+    "paths": [
+        {
+            "name": "test.txt",
+            "type": "INVALID"
+        }
+    ]
+}
+
+###
+
+############################################################
+# ApiError: Upload without file
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Debe proporcionar un archivo"
+# }
+
+############################################################
+
+POST {{baseUrl}}/upload?dir=/test
+
+###
+
+############################################################
+# Controlled service error
+#
+# How to reproduce:
+# - Stop FTP server
+# - Use invalid FTP credentials
+# - Use invalid FTP host
+#
+# Expected:
+# Status: 500
+#
+# Response:
+# {
+#   "message": "Error al listar la carpeta"
+# }
+# -------
+#
+# Verifies:
+# ApiError generated by the service layer is returned
+# through the global error handler.
+
+############################################################
+
+GET {{baseUrl}}
+
+###
+
+############################################################
+# Unexpected application error
+#
+# How to reproduce:
+#
+# Temporarily add:
+#
+# const { test } = null;
+#
+# inside controller
+#
+# Expected:
+# Status: 500
+#
+# Response:
+# {
+#   "message": "Error inesperado"
+# }
+############################################################
+
+GET {{baseUrl}}
+
+###
