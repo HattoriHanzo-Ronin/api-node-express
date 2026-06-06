@@ -1,0 +1,384 @@
+# Whitelist Error Handling Tests
+#
+# Purpose
+# -------
+# Manual test suite for validating:
+#
+# - Schema validation errors.
+# - ApiError responses.
+# - Service layer errors.
+# - Error handler responses.
+# - Error response format consistency.
+#
+# This file may also be used for general API testing by adding
+# custom requests to verify normal whitelist operations.
+#
+# Prerequisites
+# -------------
+# - API running on localhost:59998
+# - Database configured
+# - At least one router registered in the database
+# - At least one client device registered in the database
+#
+# Note:
+# Full whitelist functionality requires both an existing router
+# and an existing client device, since whitelist entries create
+# a relationship between them and may interact with router
+# implementations.
+#
+# Base URL:
+# http://localhost:59998/whitelist
+
+@baseUrl = http://localhost:59998/whitelist
+
+############################################################
+# Validation: Invalid router id
+# Expected:
+# Status: 400
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#     {
+#       "field": "id",
+#       "message": "UUID no válido"
+#     }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+    "router": {
+        "id": "INVALID_UUID",
+        "name": "Gateway",
+        "mac": "AA:BB:CC:DD:EE:01",
+        "model": "TP-Link Archer AX53",
+        "ip": "192.168.1.1",
+        "admin_pass": "Admin123!",
+        "mac_filter": true
+    },
+    "allowDevice": {
+        "id": "550e8400-e29b-41d4-a716-446655440002",
+        "name": "Test Client",
+        "mac": "AA:BB:CC:DD:EE:10"
+    }
+}
+
+############################################################
+# Validation: Missing router name
+# Expected:
+# Status: 400
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#     {
+#       "field": "name",
+#       "message": "Requerido"
+#     }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+    "router": {
+        "id": "550e8400-e29b-41d4-a716-446655440001",
+        "mac": "AA:BB:CC:DD:EE:01",
+        "model": "TP-Link Archer AX53",
+        "ip": "192.168.1.1",
+        "admin_pass": "Admin123!",
+        "mac_filter": true
+    },
+    "allowDevice": {
+        "id": "550e8400-e29b-41d4-a716-446655440002",
+        "name": "Test Client",
+        "mac": "AA:BB:CC:DD:EE:10"
+    }
+}
+
+############################################################
+# Validation: Invalid router MAC format
+# Expected:
+# Status: 400
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#     {
+#       "field": "mac",
+#       "message": "Error de formato"
+#     }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+    "router": {
+        "id": "550e8400-e29b-41d4-a716-446655440001",
+        "name": "Gateway",
+        "mac": "INVALID_MAC",
+        "model": "TP-Link Archer AX53",
+        "ip": "192.168.1.1",
+        "admin_pass": "Admin123!",
+        "mac_filter": true
+    },
+    "allowDevice": {
+        "id": "550e8400-e29b-41d4-a716-446655440002",
+        "name": "Test Client",
+        "mac": "AA:BB:CC:DD:EE:10"
+    }
+}
+
+###
+
+############################################################
+# Validation: Invalid router IP format
+# Expected:
+# Status: 400
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#     {
+#       "field": "ip",
+#       "message": "Error de formato"
+#     }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+    "router": {
+        "id": "550e8400-e29b-41d4-a716-446655440001",
+        "name": "Gateway",
+        "mac": "AA:BB:CC:DD:EE:01",
+        "model": "TP-Link Archer AX53",
+        "ip": "INVALID_IP",
+        "admin_pass": "Admin123!",
+        "mac_filter": true
+    },
+    "allowDevice": {
+        "id": "550e8400-e29b-41d4-a716-446655440002",
+        "name": "Test Client",
+        "mac": "AA:BB:CC:DD:EE:10"
+    }
+}
+
+###
+
+############################################################
+# Validation: Router password below minimum length
+# Expected:
+# Status: 400
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#     {
+#       "field": "admin_pass",
+#       "message": "Longitud mínima 8 caracteres"
+#     }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+    "router": {
+        "id": "550e8400-e29b-41d4-a716-446655440001",
+        "name": "Gateway",
+        "mac": "AA:BB:CC:DD:EE:01",
+        "model": "TP-Link Archer AX53",
+        "ip": "192.168.1.1",
+        "admin_pass": "123",
+        "mac_filter": true
+    },
+    "allowDevice": {
+        "id": "550e8400-e29b-41d4-a716-446655440002",
+        "name": "Test Client",
+        "mac": "AA:BB:CC:DD:EE:10"
+    }
+}
+
+###
+
+############################################################
+# Service Error: Router implementation not available
+#
+# Prerequisite:
+# Router exists in database but RouterResolver
+# does not provide an implementation.
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "<router-name> no tiene implementación disponible"
+# }
+############################################################
+
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+    "router": {
+        "id": "550e8400-e29b-41d4-a716-446655440001",
+        "name": "Unknown Router",
+        "mac": "AA:BB:CC:DD:EE:01",
+        "model": "UnknownRouter",
+        "ip": "192.168.1.1",
+        "admin_pass": "Admin123!",
+        "mac_filter": true
+    },
+    "allowDevice": {
+        "id": "550e8400-e29b-41d4-a716-446655440002",
+        "name": "Test Client",
+        "mac": "AA:BB:CC:DD:EE:10"
+    }
+}
+
+###
+
+############################################################
+# Service Error: Router allow operation failed
+#
+# Prerequisite:
+# Router implementation exists and supports
+# addAllow capability.
+#
+# Force:
+# Make addAllow return false.
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al insertar el dispositivo en el router"
+# }
+############################################################
+
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+    "router": {
+        "id": "550e8400-e29b-41d4-a716-446655440001",
+        "name": "Gateway",
+        "mac": "AA:BB:CC:DD:EE:01",
+        "model": "TP-Link Archer AX53",
+        "ip": "192.168.1.1",
+        "admin_pass": "Admin123!",
+        "mac_filter": true
+    },
+    "allowDevice": {
+        "id": "550e8400-e29b-41d4-a716-446655440002",
+        "name": "Test Client",
+        "mac": "AA:BB:CC:DD:EE:10"
+    }
+}
+
+###
+
+############################################################
+# Service Error: Router delete operation failed
+#
+# Prerequisite:
+# Router implementation exists and supports
+# deleteAllow capability.
+#
+# Force:
+# Make deleteAllow return false.
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al eliminar el dispositivo del router"
+# }
+############################################################
+
+DELETE {{baseUrl}}
+Content-Type: application/json
+
+{
+    "router": {
+        "id": "550e8400-e29b-41d4-a716-446655440001",
+        "name": "Gateway",
+        "mac": "AA:BB:CC:DD:EE:01",
+        "model": "TP-Link Archer AX53",
+        "ip": "192.168.1.1",
+        "admin_pass": "Admin123!",
+        "mac_filter": true
+    },
+    "allowDevice": {
+        "id": "550e8400-e29b-41d4-a716-446655440002",
+        "name": "Test Client",
+        "mac": "AA:BB:CC:DD:EE:10"
+    }
+}
+
+###
+
+############################################################
+# Validation: Missing request body
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#     {
+#       "message": "Debe enviar un objeto válido"
+#     }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+
+###
+
+############################################################
+# Unexpected application error
+#
+# How to reproduce:
+#
+# Temporarily add:
+#
+# const { test } = null;
+#
+# inside controller
+#
+# Expected:
+# Status: 500
+#
+# Response:
+# {
+#   "message": "Error inesperado"
+# }
+############################################################
+
+POST {{baseUrl}}
+Content-Type: application/json
+
+###
+
