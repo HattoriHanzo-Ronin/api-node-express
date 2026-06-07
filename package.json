@@ -24,16 +24,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://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@github.com/HattoriHanzo-Ronin/ApiNodeExpress.git"
+    "url": "git@github.com:HattoriHanzo-Ronin/api-node-express.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/HattoriHanzo-Ronin/ApiNodeExpress/issues"
+    "url": "https://github.com/HattoriHanzo-Ronin/api-node-express/issues"
   },
-  "homepage": "https://github.com/HattoriHanzo-Ronin/ApiNodeExpress#readme",
+  "homepage": "https://github.com/HattoriHanzo-Ronin/api-node-express#readme",
   "devDependencies": {
     "@types/express": "^5.0.6",
     "vitest": "^4.1.7"
