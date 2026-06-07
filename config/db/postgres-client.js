@@ -1,4 +1,5 @@
 import pgPromise from "pg-promise";
+import fs from "fs";
 
 /**
  * PostgreSQL client utilities
@@ -20,6 +21,6 @@ const client = pgp({
     host: process.env.HOSTDB,
     port: process.env.PORTDB,
     user: process.env.USERDB,
-    password: process.env.PASSDB,
+    password: fs.readFileSync(process.env.PASSDB, "utf8").trim(),
     database: process.env.DB
 });
