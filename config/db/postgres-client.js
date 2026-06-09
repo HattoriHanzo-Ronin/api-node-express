@@ -1,5 +1,5 @@
 import pgPromise from "pg-promise";
-import fs from "fs";
+import { SECRETS } from "../constants.js";
 
 /**
  * PostgreSQL client utilities
@@ -15,12 +15,11 @@ export default class PostgresClient {
         return pgp.helpers;
     }
 }
-
 const pgp = pgPromise();
 const client = pgp({
     host: process.env.HOSTDB,
     port: process.env.PORTDB,
     user: process.env.USERDB,
-    password: fs.readFileSync(process.env.PASSDB, "utf8").trim(),
+    password: SECRETS.passDb,
     database: process.env.DB
 });
