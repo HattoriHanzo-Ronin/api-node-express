@@ -1,7 +1,7 @@
 import fs from "fs";
 
 export const SECRETS = {
-    passDb: getContentFile(process.env.PASSDB)
+    passDb: readSecret(process.env.PASSDB)
 }
 
 function readSecret(path) {
