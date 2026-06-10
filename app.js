@@ -9,12 +9,13 @@ import ApiError from "./utils/api-error.js";
 
 export function createApp({ ftpController, whitelistController, deviceController }) {
     const app = express();
-    const { cors, json, errorHandler } = Middlewares;
+    const { cors, json, errorHandler, requireAuth } = Middlewares;
     const PORT = process.env.PORT;
 
     app.disable("x-powered-by");
 
     app.use(cors(), json());
+    app.use(requireAuth);
 
     app.use("/ftp", createFtpRouter({ ftpController }));
     app.use("/whitelist", createWhitelistRouter({ whitelistController }));
