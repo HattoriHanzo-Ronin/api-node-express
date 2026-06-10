@@ -20,7 +20,8 @@ export default class ValidateUtils {
             return `Longitud ${mode === "min" ? "mínima" : "máxima"} ${num} ${num > 1 ? "caracteres" : "caracter"}`;
         },
         invalidEnum: (values) => ({ error: `Valores permitidos: ${values.join(", ")}` }),
-        invalidId: "UUID no válido"
+        invalidId: "UUID no válido",
+        emptyArray: "Debe contener al menos un elemento"
     });
 
     static REGEX = Object.freeze({
