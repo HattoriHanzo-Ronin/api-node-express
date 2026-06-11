@@ -1,3 +1,5 @@
+import PostgresClient from "../config/db/postgres-client.js";
+
 /**
  * Database utility helpers, provides reusable database helper methods
  *
@@ -17,11 +19,23 @@ export default class DbUtils {
     /**
      * Builds aliased column names from a ColumnSet
      *
-     * @param {import("pg-promise").IColumnSet} columnSet Column set
+     * @param {import("pg-promise").ColumnSet} columnSet Column set
      * @param {string} alias SQL table alias
      * @returns {string} Aliased column names
      */
     static pgPromiseColumnsWithAlias(columnSet, alias) {
         return columnSet.columns.map((c) => `${alias}.${c.name}`).join(", ");
+    }
+
+    /**
+     * Creates a pg-promise ColumnSet for a database table
+     *
+     * @param {Object[]} columns Column definitions
+     * @param {string} table Database table name
+     * @returns {import("pg-promise").ColumnSet} Configured ColumnSet
+     */
+    static createColumnSet(columns, table) {
+        const helpers = PostgresClient.helpers();
+        return new helpers.ColumnSet(columns, { table });
     }
 }
