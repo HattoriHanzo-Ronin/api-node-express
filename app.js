@@ -4,12 +4,13 @@ import Middlewares from "./middlewares/middlewares.js";
 import createFtpRouter from "./routes/ftp-router.js";
 import createWhitelistRouter from "./routes/whitelist-router.js";
 import createDeviceRouter from "./routes/device-router.js";
+import createUsersRouter from "./routes/users-router.js";
 import ValidateUtils from "./utils/validate-utils.js";
 import ApiError from "./utils/api-error.js";
 
-export function createApp({ ftpController, whitelistController, deviceController }) {
+export function createApp({ ftpController, whitelistController, deviceController, usersController }) {
     const app = express();
-    const { cors, json, errorHandler, requireAuth } = Middlewares;
+    const { cors, json, errorHandler, requireAuth, authorizedRoles } = Middlewares;
     const PORT = process.env.PORT;
 
     app.disable("x-powered-by");
@@ -17,9 +18,10 @@ export function createApp({ ftpController, whitelistController, deviceController
     app.use(cors(), json());
     app.use(requireAuth);
 
-    app.use("/ftp", createFtpRouter({ ftpController }));
-    app.use("/whitelist", createWhitelistRouter({ whitelistController }));
-    app.use("/device", createDeviceRouter({ deviceController }));
+    app.use("/ftp", authorizedRoles(["FTP"]), createFtpRouter({ ftpController }));
+    app.use("/whitelist", authorizedRoles(["NET_ADMIN"]), createWhitelistRouter({ whitelistController }));
+    app.use("/device", authorizedRoles(["NET_ADMIN"]), createDeviceRouter({ deviceController }));
+    app.use("/users", createUsersRouter({ usersController }));
 
     app.use((req, res, next) => next(new ApiError("Page not found", 404)));
     app.use(errorHandler);
