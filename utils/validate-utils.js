@@ -9,7 +9,8 @@ export default class ValidateUtils {
     static ALLOW_ENUMS = Object.freeze({
         fileType: Object.freeze(["DIR", "FILE"]),
         deviceIntrface: Object.freeze(["WAN", "LAN", "WIFI"]),
-        deviceType: Object.freeze(["CLIENT", "ROUTER", "SERVER"])
+        deviceType: Object.freeze(["CLIENT", "ROUTER", "SERVER"]),
+        userRoles: Object.freeze(["ADMIN", "FTP", "NET"])
     });
 
     static ERROR_MESSAGES = Object.freeze({
@@ -21,7 +22,8 @@ export default class ValidateUtils {
         },
         invalidEnum: (values) => ({ error: `Valores permitidos: ${values.join(", ")}` }),
         invalidId: "UUID no válido",
-        emptyArray: "Debe contener al menos un elemento"
+        emptyArray: "Debe contener al menos un elemento",
+        emptyString: "No puede estar vacío"
     });
 
     static REGEX = Object.freeze({
@@ -42,6 +44,17 @@ export default class ValidateUtils {
      */
     static zodEnumIgnoreCase(z, zodEnum, errorMessage) {
         return z.string(errorMessage).trim().toUpperCase().pipe(zodEnum);
+    }
+
+    /**
+     * Extends a schema with required properties
+     *
+     * @param {ZodSchema} schema Base schema
+     * @param {object} properties Required properties
+     * @returns {ZodSchema} Extended schema
+     */
+    static useRequiredProperties(schema, properties) {
+        return schema.extend(properties);
     }
 
     /**

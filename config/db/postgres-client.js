@@ -11,6 +11,10 @@ export default class PostgresClient {
         return client;
     }
 
+    static executeTx(callback) {
+        return client.tx(callback);
+    }
+
     static helpers() {
         return pgp.helpers;
     }
