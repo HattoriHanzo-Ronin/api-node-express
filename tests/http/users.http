@@ -1,0 +1,519 @@
+# Users Error Handling Tests
+#
+# Purpose
+# -------
+# Manual test suite for validating:
+#
+# - Schema validation errors.
+# - ACL restrictions.
+# - User management operations.
+#
+# This file may also be used for general API testing.
+#
+# Prerequisites
+# -------------
+# - Execute auth.http first.
+# - Valid access token.
+# - API running on localhost:59998
+#
+# Notes
+# -----
+# - ACL information (roles and scope) is only returned to SUPER ADMIN users.
+# - Regular users can only update their own username and password.
+# - ADMIN users cannot modify ACL information.
+# - Only SUPER ADMIN users can manage roles and scope.
+
+@baseUrl = http://localhost:59998/users
+@token = PASTE_ACCESS_TOKEN
+
+############################################################
+# Get all users
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# [
+#   {
+#       "id": "...",
+#       "username": "test_user",
+#       "active": true
+#   }
+# ]
+#
+# SUPER ADMIN Response:
+# [
+#   {
+#       "id": "...",
+#       "username": "admin_test",
+#       "active": true,
+#       "roles": ["ADMIN"],
+#       "scope": ["FTP", "NET"]
+#   }
+# ]
+############################################################
+
+GET {{baseUrl}}
+Authorization: Bearer {{token}}
+
+###
+
+############################################################
+# Get user by id
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# {
+#   "id": "...",
+#   "username": "test_user",
+#   "active": true
+# }
+#
+# SUPER ADMIN Response:
+# {
+#   "id": "...",
+#   "username": "admin_test",
+#   "active": true,
+#   "roles": ["ADMIN"],
+#   "scope": ["ADMIN", "NET"]
+# }
+############################################################
+
+GET {{baseUrl}}/USER_ID
+Authorization: Bearer {{token}}
+
+###
+
+############################################################
+# Create normal user
+#
+# Expected:
+# Status: 201
+#
+# Response:
+# {
+#   "id": "...",
+#   "username": "test_user",
+#   "active": true
+# }
+#
+# SUPER ADMIN Response:
+# {
+#   "id": "...",
+#   "username": "test_user",
+#   "active": true,
+#   "roles": [...]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "username": "test_user",
+    "password": "Password123!",
+    "active": true
+}
+
+###
+
+############################################################
+# Create ADMIN user
+#
+# Requires SUPER ADMIN
+#
+# Expected:
+# Status: 201
+#
+# Response:
+# {
+#   "id": "...",
+#   "username": "admin_test",
+#   "active": true,
+#   "roles": ["ADMIN"],
+#   "scope": ["FTP", "NET"]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "username": "admin_test",
+    "password": "Password123!",
+    "active": true,
+    "roles": ["ADMIN"],
+    "scope": ["FTP", "NET"]
+}
+
+###
+
+############################################################
+# Update own username
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# {
+#   "username": "updated_username"
+# }
+#
+# ADMIN response:
+# {
+#   "id": "...",
+#   "username": "updated_username",
+#   "active": true
+# }
+#
+# SUPER ADMIN Response:
+# {
+#   "id": "...",
+#   "username": "updated_username",
+#   "active": true,
+#   "roles": ["ADMIN"],
+#   "scope": ["ADMIN", "NET"]
+# }
+############################################################
+
+PATCH {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "id": "USER_ID",
+    "username": "updated_username"
+}
+
+###
+
+############################################################
+# Update password
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# {
+#   "username": "test_user"
+# }
+#
+# ADMIN response:
+# {
+#   "id": "...",
+#   "username": "test_user",
+#   "active": true
+# }
+#
+# SUPER ADMIN Response:
+# {
+#   "id": "...",
+#   "username": "admin_test",
+#   "active": true,
+#   "roles": ["ADMIN"],
+#   "scope": ["FTP", "NET"]
+# }
+############################################################
+
+PATCH {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "id": "USER_ID",
+    "password": "NewPassword123!"
+}
+
+###
+
+############################################################
+# Update roles
+#
+# Requires SUPER ADMIN
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# {
+#   "id": "...",
+#   "username": "test_user",
+#   "active": true,
+#   "roles": ["FTP"]
+# }
+############################################################
+
+PATCH {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "id": "USER_ID",
+    "roles": ["FTP"]
+}
+
+###
+
+############################################################
+# Update scope
+#
+# Requires SUPER ADMIN
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# {
+#   "id": "...",
+#   "username": "admin_test",
+#   "active": true,
+#   "roles": ["ADMIN"],
+#   "scope": ["FTP"]
+# }
+############################################################
+
+PATCH {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "id": "USER_ID",
+    "roles": ["ADMIN"],
+    "scope": ["FTP"]
+}
+
+###
+
+############################################################
+# Activate / Deactivate user
+#
+# Requires ADMIN
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# {
+#   "id": "...",
+#   "username": "test_user",
+#   "active": false
+# }
+#
+# SUPER ADMIN Response:
+# {
+#   "id": "...",
+#   "username": "admin_test",
+#   "active": false,
+#   "roles": ["ADMIN"],
+#   "scope": ["FTP", "NET"]
+# }
+############################################################
+
+PATCH {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "id": "USER_ID",
+    "active": false
+}
+
+###
+
+############################################################
+# Delete user
+#
+# Requires ADMIN
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# {
+#   "id": "..."
+# }
+############################################################
+
+DELETE {{baseUrl}}/USER_ID
+Authorization: Bearer {{token}}
+
+###
+
+############################################################
+# Validation Error - Invalid username
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "username",
+#           "message": "Longitud mínima 3 caracteres"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "username": "ab",
+    "password": "Password123!",
+    "active": true
+}
+
+###
+
+############################################################
+# Validation Error - Empty roles array
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "roles",
+#           "message": "Debe contener al menos un elemento"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "username": "test_user",
+    "password": "Password123!",
+    "active": true,
+    "roles": []
+}
+
+###
+
+############################################################
+# Validation Error - Scope without ADMIN role
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "scope",
+#           "message": "No se puede definir scope para un usuario que no sea administrador"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "username": "test_user",
+    "password": "Password123!",
+    "active": true,
+    "roles": ["FTP"],
+    "scope": ["FTP"]
+}
+
+###
+
+############################################################
+# Validation Error - ADMIN without scope
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "scope",
+#           "message": "Se debe definir scope para un usuario administrador"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "username": "admin_test",
+    "password": "Password123!",
+    "active": true,
+    "roles": ["ADMIN"]
+}
+
+###
+
+############################################################
+# Authorization Error - Non SUPER ADMIN user
+#
+# Prerequisites:
+# - Authenticate with a user without ADMIN scope
+#
+# Expected:
+# Status: 403
+#
+# Response:
+# {
+#   "message": "No tiene permisos para realizar esa acción"
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "username": "admin_test",
+    "password": "Password123!",
+    "active": true,
+    "roles": ["ADMIN"],
+    "scope": ["FTP"]
+}
+
+###
+
+############################################################
+# Business Error - Username already exists
+#
+# Expected:
+# Status: 409
+#
+# Response:
+# {
+#   "message": "El nombre de usuario ya está en uso"
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "username": "existing_user",
+    "password": "Password123!",
+    "active": true
+}

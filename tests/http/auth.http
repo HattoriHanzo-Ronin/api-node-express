@@ -1,0 +1,302 @@
+# Authentication Error Handling Tests
+#
+# Purpose
+# -------
+# Manual test suite for validating:
+#
+# - Authentication requests.
+# - Token refresh.
+# - Logout.
+#
+# This file should be executed before testing
+# protected endpoints.
+#
+# Prerequisites
+# -------------
+# - API running on localhost:59998
+# - Existing user in database
+#
+# Notes
+# -----
+# - Login and refresh always return complete user information.
+
+@baseUrl = http://localhost:59998/auth
+
+############################################################
+# Login
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# {
+#   "id": "..",
+#   "roles": [...],
+#   "scope": [...],
+#   "accessToken": "...",
+#   "refreshToken": "..."
+# }
+############################################################
+
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+    "username": "test_user",
+    "password": "Password123!"
+}
+
+###
+
+############################################################
+# Refresh token
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# {
+#   "id": "..",
+#   "roles": [...],
+#   "scope": [...],
+#   "accessToken": "...",
+#   "refreshToken": "..."
+# }
+############################################################
+
+POST {{baseUrl}}/refresh
+Content-Type: application/json
+
+{
+    "refreshToken": "PASTE_REFRESH_TOKEN"
+}
+
+###
+
+############################################################
+# Logout
+#
+# Expected:
+# Status: 204
+############################################################
+
+POST {{baseUrl}}/logout
+Authorization: Bearer PASTE_ACCESS_TOKEN
+Content-Type: application/json
+
+{
+    "refreshToken": "PASTE_REFRESH_TOKEN"
+}
+
+###
+
+############################################################
+# Validation Error - Missing username
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "username",
+#           "message": "Requerido"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+    "password": "Password123!"
+}
+
+###
+
+############################################################
+# Validation Error - Empty username
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#     {
+#       "field": "username",
+#       "message": "Longitud mínima 3 caracteres"
+#     },
+#     {
+#       "field": "username",
+#       "message": "Error de formato"
+#     }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+    "username": "",
+    "password": "Password123!"
+}
+
+###
+
+############################################################
+# Validation Error - Missing password
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "password",
+#           "message": "Requerido"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+    "username": "admin"
+}
+
+###
+
+############################################################
+# Validation Error - Empty password
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#     {
+#       "field": "password",
+#       "message": "Longitud mínima 12 caracteres"
+#     },
+#     {
+#       "field": "password",
+#       "message": "Error de formato"
+#     }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+    "username": "admin",
+    "password": ""
+}
+
+###
+
+############################################################
+# Validation Error - Missing refresh token
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "refreshToken",
+#           "message": "Requerido"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}/refresh
+Content-Type: application/json
+
+{}
+
+###
+
+############################################################
+# Validation Error - Empty refresh token
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "refreshToken",
+#           "message": "No puede estar vacío"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}/refresh
+Content-Type: application/json
+
+{
+    "refreshToken": ""
+}
+
+###
+
+############################################################
+# Business Error - Invalid credentials
+#
+# Expected:
+# Status: 401
+#
+# Response:
+# {
+#   "message": "Usuario o contraseña incorrectos"
+# }
+############################################################
+
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+    "username": "admin",
+    "password": "WrongPassword123!"
+}
+
+###
+
+############################################################
+# Business Error - Invalid refresh token
+#
+# Expected:
+# Status: 401
+#
+# Response:
+# {
+#   "message": "Token no válido"
+# }
+############################################################
+
+POST {{baseUrl}}/refresh
+Content-Type: application/json
+
+{
+    "refreshToken": "invalid-token"
+}
