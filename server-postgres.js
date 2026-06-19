@@ -20,6 +20,10 @@ import UsersMapper from "./mappers/users-mapper.js";
 import UsersService from "./services/users-service.js";
 import UsersFacade from "./facades/users-facade.js";
 import UsersController from "./controllers/users-controller.js";
+import RefreshTokensModel from "./models/postgres/refresh-tokens-model.js";
+import RefreshTokensService from "./services/refresh-tokens-service.js";
+import AuthFacade from "./facades/auth-facade.js";
+import AuthController from "./controllers/auth-controller.js";
 
 const tx = PostgresClient.executeTx;
 
@@ -34,5 +38,8 @@ const userRolesService = new UserRolesService({ userRolesModel: UserRolesModel }
 const usersService = new UsersService({ usersModel: UsersModel });
 const usersFacade = new UsersFacade({ usersService, userRolesService, usersMapper: UsersMapper, tx });
 const usersController = new UsersController({ usersFacade });
+const refreshTokensService = new RefreshTokensService({ refreshTokensModel: RefreshTokensModel });
+const authFacade = new AuthFacade({ usersFacade, refreshTokensService });
+const authController = new AuthController({ authFacade });
 
-createApp({ ftpController, whitelistController, deviceController, usersController });
+createApp({ ftpController, whitelistController, deviceController, usersController, authController });
