@@ -59,7 +59,7 @@ export default class Middlewares {
             }
 
             const token = authorization.split(" ")[1];
-            req.user = JWTUtils.verifyAccessToken({ token });
+            req.user = JWTUtils.verifyAccessToken(token);
             next();
         } catch (err) {
             next(err);
