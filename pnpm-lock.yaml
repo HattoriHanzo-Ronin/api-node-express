@@ -12,11 +12,11 @@ importers:
         specifier: 0.5.17
         version: 0.5.17
       axios:
-        specifier: 1.16.1
-        version: 1.16.1
+        specifier: 1.18.0
+        version: 1.18.0
       axios-cookiejar-support:
         specifier: 7.0.0
-        version: 7.0.0(axios@1.16.1)(tough-cookie@6.0.1)
+        version: 7.0.0(axios@1.18.0)(tough-cookie@6.0.1)
       basic-ftp:
         specifier: 6.0.1
         version: 6.0.1
@@ -33,8 +33,8 @@ importers:
         specifier: ^9.0.3
         version: 9.0.3
       multer:
-        specifier: 2.1.1
-        version: 2.1.1
+        specifier: 2.2.0
+        version: 2.2.0
       pg-promise:
         specifier: 12.6.2
         version: 12.6.2(pg-query-stream@4.14.0(pg@8.20.0))
@@ -305,8 +305,8 @@ packages:
       axios: '>=0.20.0'
       tough-cookie: '>=4.0.0'
 
-  axios@1.16.1:
-    resolution: {integrity: sha512-caYkukvroVPO8KrzuJEb50Hm07KwfBZPEC3VeFHTsqWHvKTsy54hjJz9BS/cdaypROE2rH6xvm9mHX4fgWkr3A==}
+  axios@1.18.0:
+    resolution: {integrity: sha512-E32NzpYKp++W7XRe52rHiXV2ehxmh3wbdgO7MHeFM+vqxLBYHzt0ElkiImtOBxtOmyp0yoC8C6uESVV84Y2/hw==}
 
   basic-ftp@6.0.1:
     resolution: {integrity: sha512-3ilxa3n4276wGQp/ImRAuz4ALdsj/2Wd3FqoZBZlajDYnByCZ0JMb4+26Rde0wGXIbM0G2HWSfr/Fi8b21KX8g==}
@@ -736,8 +736,8 @@ packages:
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
-  multer@2.1.1:
-    resolution: {integrity: sha512-mo+QTzKlx8R7E5ylSXxWzGoXoZbOsRMpyitcht8By2KHvMbf3tjwosZ/Mu/XYU6UuJ3VZnODIrak5ZrPiPyB6A==}
+  multer@2.2.0:
+    resolution: {integrity: sha512-6rdyFg2kLrMh9Jee7/BMPuV9lEAd7lLW2YUpF9/YxR7njyoUwwQ0ZPh3TaIY50Sw6vlyD2HW3wGOkTS4P79xrQ==}
     engines: {node: '>= 10.16.0'}
 
   nanoid@3.3.12:
@@ -1383,15 +1383,15 @@ snapshots:
 
   asynckit@0.4.0: {}
 
-  axios-cookiejar-support@7.0.0(axios@1.16.1)(tough-cookie@6.0.1):
+  axios-cookiejar-support@7.0.0(axios@1.18.0)(tough-cookie@6.0.1):
     dependencies:
-      axios: 1.16.1
+      axios: 1.18.0
       http-cookie-agent: 8.0.0(tough-cookie@6.0.1)
       tough-cookie: 6.0.1
     transitivePeerDependencies:
       - undici
 
-  axios@1.16.1:
+  axios@1.18.0:
     dependencies:
       follow-redirects: 1.16.0
       form-data: 4.0.5
@@ -1792,7 +1792,7 @@ snapshots:
 
   ms@2.1.3: {}
 
-  multer@2.1.1:
+  multer@2.2.0:
     dependencies:
       append-field: 1.0.0
       busboy: 1.6.0
