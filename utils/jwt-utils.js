@@ -11,24 +11,23 @@ export default class JWTUtils {
     /**
      * Generates an access token containing user identity and roles
      *
-     * @param {string} params.id User identifier
-     * @param {string[]} params.roles User roles
+     * @param {Object} params.payload JWT payload
      * @param {string | number} params.expiresIn Token expiration time
      * @returns {string} JWT token
      */
-    static generateAccessToken({ id, roles, expiresIn }) {
-        return jwt.sign({ id, roles }, jwtSecret, { expiresIn });
+    static generateAccessToken(payload, expiresIn) {
+        return jwt.sign(payload, jwtSecret, { expiresIn });
     }
 
     /**
      * Generates a refresh token associated with a user session
      *
-     * @param {string} params.id User identifier
+     * @param {Object} params.payload JWT payload
      * @param {string | number} params.expiresIn Token expiration time
      * @returns {string} JWT refresh token
      */
-    static generateRefreshToken({ id, expiresIn }) {
-        return jwt.sign({ id }, refreshJwtSecret, { expiresIn });
+    static generateRefreshToken(payload, expiresIn) {
+        return jwt.sign(payload, refreshJwtSecret, { expiresIn });
     }
 
     /**
@@ -37,7 +36,7 @@ export default class JWTUtils {
      * @param {string} params.token JWT access token
      * @returns {import("jsonwebtoken").JwtPayload} Decoded token payload
      */
-    static verifyAccessToken({ token }) {
+    static verifyAccessToken(token) {
         return verifyToken(token, jwtSecret);
     }
 
@@ -47,7 +46,7 @@ export default class JWTUtils {
      * @param {string} params.token JWT refresh token
      * @returns {import("jsonwebtoken").JwtPayload} Decoded token payload
      */
-    static verifyRefreshToken({ token }) {
+    static verifyRefreshToken(token) {
         return verifyToken(token, refreshJwtSecret);
     }
 }
@@ -59,8 +58,9 @@ function verifyToken(token, secret) {
         return jwt.verify(token, secret);
     } catch (err) {
         ValidateUtils.handleApiErrors([
-            { condition: err.name === "TokenExpiredError", message: "Token expirado", status: 401 },
-            { condition: true, message: "Token no válido", status: 401 }
+            { condition: err instanceof jwt.JsonWebTokenError, message: "Token no válido", status: 401 }
         ]);
+
+        throw err;
     }
 }
