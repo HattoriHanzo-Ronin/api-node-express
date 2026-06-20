@@ -1,25 +1,25 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import DeviceController from "../../controllers/device-controller.js";
+import DevicesController from "../../controllers/devices-controller.js";
 
-describe("DeviceController validation", () => {
-    let deviceService;
+describe("DevicesController validation", () => {
+    let devicesService;
     let controller;
     let req;
     let res;
     let next;
 
     beforeEach(() => {
-        deviceService = { create: vi.fn(), update: vi.fn() };
-        controller = new DeviceController({ deviceService });
+        devicesService = { create: vi.fn(), update: vi.fn() };
+        controller = new DevicesController({ devicesService });
         req = { body: { name: "Cliente", mac: "AA:BB:CC:DD:EE:01", intrface: "LAN", type: "CLIENT" } };
         res = { json: vi.fn() };
         next = vi.fn();
     });
 
     it("should create device", async () => {
-        deviceService.create.mockResolvedValue(true);
+        devicesService.create.mockResolvedValue(true);
         await controller.create(req, res, next);
-        expect(deviceService.create).toHaveBeenCalled();
+        expect(devicesService.create).toHaveBeenCalled();
         expect(res.json).toHaveBeenCalledWith(true);
     });
 
@@ -95,9 +95,9 @@ describe("DeviceController validation", () => {
         });
 
         it("should validate with id", async () => {
-            deviceService.update.mockResolvedValue(true);
+            devicesService.update.mockResolvedValue(true);
             await controller.update(req, res, next);
-            expect(deviceService.update).toHaveBeenCalled();
+            expect(devicesService.update).toHaveBeenCalled();
             expect(res.json).toHaveBeenCalledWith(true);
         });
 

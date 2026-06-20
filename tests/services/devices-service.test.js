@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import DeviceService from "../../services/device-service.js";
+import DevicesService from "../../services/devices-service.js";
 
 vi.mock("../../config/db/postgres-client.js", () => ({
     default: {
@@ -9,12 +9,12 @@ vi.mock("../../config/db/postgres-client.js", () => ({
     }
 }));
 
-describe("DeviceService", () => {
-    let deviceModel;
+describe("DevicesService", () => {
+    let devicesModel;
     let whitelistService;
-    let deviceService;
+    let devicesService;
     beforeEach(() => {
-        deviceModel = {
+        devicesModel = {
             getAll: vi.fn(),
             getById: vi.fn(),
             getAllowedDevices: vi.fn(),
@@ -25,46 +25,46 @@ describe("DeviceService", () => {
             delete: vi.fn()
         };
         whitelistService = { create: vi.fn(), delete: vi.fn() };
-        deviceService = new DeviceService({ deviceModel, whitelistService });
+        devicesService = new DevicesService({ devicesModel, whitelistService });
     });
 
     describe("getAll", () => {
         it("should return device list", async () => {
             const devices = [{ id: "1" }];
-            deviceModel.getAll.mockResolvedValue(devices);
-            const result = await deviceService.getAll({ intrface: "LAN", type: "CLIENT" });
+            devicesModel.getAll.mockResolvedValue(devices);
+            const result = await devicesService.getAll({ intrface: "LAN", type: "CLIENT" });
             expect(result).toEqual(devices);
-            expect(deviceModel.getAll).toHaveBeenCalled();
+            expect(devicesModel.getAll).toHaveBeenCalled();
         });
     });
 
     describe("getById", () => {
         it("should return device by id", async () => {
             const device = { id: "1", name: "Cliente" };
-            deviceModel.getById.mockResolvedValue(device);
-            const result = await deviceService.getById({ id: "1" });
+            devicesModel.getById.mockResolvedValue(device);
+            const result = await devicesService.getById({ id: "1" });
             expect(result).toEqual(device);
-            expect(deviceModel.getById).toHaveBeenCalled();
+            expect(devicesModel.getById).toHaveBeenCalled();
         });
 
         it("should fail if device does not exist", async () => {
-            deviceModel.getById.mockResolvedValue(null);
-            await expect(deviceService.getById({ id: "invalid" })).rejects.toThrow("El dispositivo no existe");
+            devicesModel.getById.mockResolvedValue(null);
+            await expect(devicesService.getById({ id: "invalid" })).rejects.toThrow("El dispositivo no existe");
         });
     });
 
     describe("getAllowDevices", () => {
         it("should return allowed devices", async () => {
             const devices = [{ id: "1" }];
-            deviceModel.getAllowedDevices.mockResolvedValue(devices);
-            const result = await deviceService.getAllowDevices({ routerId: "1" });
+            devicesModel.getAllowedDevices.mockResolvedValue(devices);
+            const result = await devicesService.getAllowDevices({ routerId: "1" });
             expect(result).toEqual(devices);
-            expect(deviceModel.getAllowedDevices).toHaveBeenCalled();
+            expect(devicesModel.getAllowedDevices).toHaveBeenCalled();
         });
 
         it("should return empty array if router does not exist", async () => {
-            deviceModel.getAllowedDevices.mockResolvedValue([]);
-            const result = await deviceService.getAllowDevices({ routerId: "invalid" });
+            devicesModel.getAllowedDevices.mockResolvedValue([]);
+            const result = await devicesService.getAllowDevices({ routerId: "invalid" });
             expect(result).toEqual([]);
         });
     });
@@ -72,17 +72,17 @@ describe("DeviceService", () => {
     describe("create", () => {
         it("should create device", async () => {
             const device = { id: "1", name: "Cliente" };
-            deviceModel.insert.mockResolvedValue(device);
-            const result = await deviceService.create({ device });
+            devicesModel.insert.mockResolvedValue(device);
+            const result = await devicesService.create({ device });
             expect(result).toEqual(device);
-            expect(deviceModel.insert).toHaveBeenCalled();
+            expect(devicesModel.insert).toHaveBeenCalled();
         });
 
         it("should fail if device already exists", async () => {
             const error = new Error("Duplicado");
             error.code = "23505";
-            deviceModel.insert.mockRejectedValue(error);
-            await expect(deviceService.create({ device: {} })).rejects.toThrow();
+            devicesModel.insert.mockRejectedValue(error);
+            await expect(devicesService.create({ device: {} })).rejects.toThrow();
         });
     });
 
@@ -91,21 +91,21 @@ describe("DeviceService", () => {
             const oldDevice = { id: "1", name: "Old", mac: "AA:BB:CC:DD:EE:01" };
             const updatedDevice = { id: "1", name: "New", mac: "AA:BB:CC:DD:EE:02" };
             const routers = [{ id: "router-1", name: "Router 1" }];
-            vi.spyOn(deviceService, "getById").mockResolvedValue(oldDevice);
-            deviceModel.update.mockResolvedValue(updatedDevice);
-            deviceModel.getRoutersByAllowDevice.mockResolvedValue(routers);
+            vi.spyOn(devicesService, "getById").mockResolvedValue(oldDevice);
+            devicesModel.update.mockResolvedValue(updatedDevice);
+            devicesModel.getRoutersByAllowDevice.mockResolvedValue(routers);
             whitelistService.delete.mockResolvedValue(true);
             whitelistService.create.mockResolvedValue(true);
-            const result = await deviceService.update({ data: updatedDevice });
+            const result = await devicesService.update({ data: updatedDevice });
             expect(result.id).toBe("1");
-            expect(deviceModel.update).toHaveBeenCalled();
+            expect(devicesModel.update).toHaveBeenCalled();
             expect(whitelistService.delete).toHaveBeenCalledTimes(1);
             expect(whitelistService.create).toHaveBeenCalledTimes(1);
         });
 
         it("should fail if device does not exist", async () => {
-            vi.spyOn(deviceService, "getById").mockRejectedValue(new Error("El dispositivo no existe"));
-            await expect(deviceService.update({ data: { id: "invalid" } })).rejects.toThrow("El dispositivo no existe");
+            vi.spyOn(devicesService, "getById").mockRejectedValue(new Error("El dispositivo no existe"));
+            await expect(devicesService.update({ data: { id: "invalid" } })).rejects.toThrow("El dispositivo no existe");
         });
 
         it("should rollback routers if sync fails", async () => {
@@ -115,12 +115,12 @@ describe("DeviceService", () => {
                 { id: "router-1", name: "Router 1" },
                 { id: "router-2", name: "Router 2" }
             ];
-            vi.spyOn(deviceService, "getById").mockResolvedValue(oldDevice);
-            deviceModel.update.mockResolvedValue(updatedDevice);
-            deviceModel.getRoutersByAllowDevice.mockResolvedValue(routers);
+            vi.spyOn(devicesService, "getById").mockResolvedValue(oldDevice);
+            devicesModel.update.mockResolvedValue(updatedDevice);
+            devicesModel.getRoutersByAllowDevice.mockResolvedValue(routers);
             whitelistService.delete.mockResolvedValue(true);
             whitelistService.create.mockResolvedValueOnce(true).mockRejectedValueOnce(new Error("Router sync failed"));
-            await expect(deviceService.update({ data: updatedDevice })).rejects.toThrow("Router sync failed");
+            await expect(devicesService.update({ data: updatedDevice })).rejects.toThrow("Router sync failed");
             expect(whitelistService.delete).toHaveBeenCalled();
             expect(whitelistService.create).toHaveBeenCalled();
         });
@@ -129,17 +129,17 @@ describe("DeviceService", () => {
     describe("delete", () => {
         it("should delete device", async () => {
             const device = { id: "1", name: "Cliente" };
-            vi.spyOn(deviceService, "getById").mockResolvedValue(device);
-            deviceModel.getRoutersByAllowDevice.mockResolvedValue([]);
-            deviceModel.delete.mockResolvedValue(device);
-            const result = await deviceService.delete({ id: "1" });
+            vi.spyOn(devicesService, "getById").mockResolvedValue(device);
+            devicesModel.getRoutersByAllowDevice.mockResolvedValue([]);
+            devicesModel.delete.mockResolvedValue(device);
+            const result = await devicesService.delete({ id: "1" });
             expect(result).toEqual(device);
-            expect(deviceModel.delete).toHaveBeenCalled();
+            expect(devicesModel.delete).toHaveBeenCalled();
         });
 
         it("should fail if device does not exist", async () => {
-            vi.spyOn(deviceService, "getById").mockRejectedValue(new Error("El dispositivo no existe"));
-            await expect(deviceService.delete({ id: "invalid" })).rejects.toThrow("El dispositivo no existe");
+            vi.spyOn(devicesService, "getById").mockRejectedValue(new Error("El dispositivo no existe"));
+            await expect(devicesService.delete({ id: "invalid" })).rejects.toThrow("El dispositivo no existe");
         });
     });
 });

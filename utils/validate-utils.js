@@ -8,8 +8,8 @@ import ApiError from "./api-error.js";
 export default class ValidateUtils {
     static ALLOW_ENUMS = Object.freeze({
         fileType: Object.freeze(["DIR", "FILE"]),
-        deviceIntrface: Object.freeze(["WAN", "LAN", "WIFI"]),
-        deviceType: Object.freeze(["CLIENT", "ROUTER", "SERVER"]),
+        devicesIntrface: Object.freeze(["WAN", "LAN", "WIFI"]),
+        devicesType: Object.freeze(["CLIENT", "ROUTER", "SERVER"]),
         userRoles: Object.freeze(["ADMIN", "FTP", "NET"])
     });
 

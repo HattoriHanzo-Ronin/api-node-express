@@ -9,9 +9,9 @@ import FtpService from "./services/ftp-service.js";
 import WhitelistModel from "./models/postgres/whitelist-model.js";
 import WhitelistService from "./services/whitelist-service.js";
 import WhitelistController from "./controllers/whitelist-controller.js";
-import DeviceModel from "./models/postgres/device-model.js";
-import DeviceService from "./services/device-service.js";
-import DeviceController from "./controllers/device-controller.js";
+import DevicesModel from "./models/postgres/devices-model.js";
+import DevicesService from "./services/devices-service.js";
+import DevicesController from "./controllers/devices-controller.js";
 
 import UserRolesModel from "./models/postgres/user-roles-model.js";
 import UserRolesService from "./services/user-roles-service.js";
@@ -31,8 +31,8 @@ const ftpController = new FtpController({ ftpService: FtpService });
 
 const whitelistService = new WhitelistService({ whitelistModel: WhitelistModel });
 const whitelistController = new WhitelistController({ whitelistService });
-const deviceService = new DeviceService({ deviceModel: DeviceModel, whitelistService });
-const deviceController = new DeviceController({ deviceService });
+const devicesService = new DevicesService({ devicesModel: DevicesModel, whitelistService });
+const devicesController = new DevicesController({ devicesService });
 
 const userRolesService = new UserRolesService({ userRolesModel: UserRolesModel });
 const usersService = new UsersService({ usersModel: UsersModel });
@@ -42,4 +42,4 @@ const refreshTokensService = new RefreshTokensService({ refreshTokensModel: Refr
 const authFacade = new AuthFacade({ usersFacade, refreshTokensService });
 const authController = new AuthController({ authFacade });
 
-createApp({ ftpController, whitelistController, deviceController, usersController, authController });
+createApp({ ftpController, whitelistController, devicesController, usersController, authController });
