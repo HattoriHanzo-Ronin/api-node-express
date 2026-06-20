@@ -1,4 +1,4 @@
-import { allowDeviceSchema, routerSchema } from "../schemas/whitelist-schema.js";
+import { allowedDeviceSchema, routerSchema } from "../schemas/whitelist-schema.js";
 import ValidateUtils from "../utils/validate-utils.js";
 
 /**
@@ -29,6 +29,6 @@ const { validateData } = ValidateUtils;
 function validateBody(body) {
     return {
         router: validateData(body?.router, routerSchema),
-        allowDevice: validateData(body?.allowDevice, allowDeviceSchema)
+        allowDevice: validateData(body?.allowDevice, allowedDeviceSchema)
     };
 }

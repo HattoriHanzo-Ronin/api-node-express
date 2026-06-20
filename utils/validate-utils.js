@@ -17,9 +17,7 @@ export default class ValidateUtils {
         typeRequired: { error: (issue) => (issue.input === undefined ? "Requerido" : "Tipo no válido") },
         typeNotRequired: { error: "Tipo no válido" },
         format: "Error de formato",
-        length: (num, mode) => {
-            return `Longitud ${mode === "min" ? "mínima" : "máxima"} ${num} ${num > 1 ? "caracteres" : "caracter"}`;
-        },
+        length: (num, mode) => `Longitud ${mode === "min" ? "mínima" : "máxima"} ${num} ${num > 1 ? "caracteres" : "caracter"}`,
         invalidEnum: (values) => ({ error: `Valores permitidos: ${values.join(", ")}` }),
         invalidId: "UUID no válido",
         emptyArray: "Debe contener al menos un elemento",
@@ -55,6 +53,17 @@ export default class ValidateUtils {
      */
     static useRequiredProperties(schema, properties) {
         return schema.extend(properties);
+    }
+
+    /**
+     * Extends a schema with cross-field validation rules
+     *
+     * @param {ZodSchema} schema Base schema
+     * @param {Function} cases Custom validation callback
+     * @returns {ZodSchema} Schema with additional validation rules
+     */
+    static withSuperRefine(schema, cases) {
+        return schema.superRefine((data, ctx) => cases(data, ctx));
     }
 
     /**

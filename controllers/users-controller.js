@@ -24,12 +24,12 @@ export default class UsersController {
     };
 
     create = async (req, res) => {
-        const user = validateData(req.body, getUsersSchema());
+        const user = validateData(req.body, getCreateSchema());
         res.status(201).json(await this.usersFacade.create({ authUser: req.user, user }));
     };
 
     update = async (req, res) => {
-        const data = validateData(req.body, getPartialUserSchemaWithId());
+        const data = validateData(req.body, getUpdateSchema());
         res.json(await this.usersFacade.update({ authUser: req.user, data }));
     };
 
@@ -42,4 +42,4 @@ export default class UsersController {
 }
 
 const { validateData } = ValidateUtils;
-const { getUsersSchema, getPartialUserSchemaWithId } = UsersSchema;
+const { getCreateSchema, getUpdateSchema } = UsersSchema;
