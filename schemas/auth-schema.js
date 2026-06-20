@@ -4,10 +4,10 @@ import UsersSchema from "./users-schema.js";
 
 const { ERROR_MESSAGES } = ValidateUtils;
 const { typeRequired, emptyString } = ERROR_MESSAGES;
-const usersSchema = UsersSchema.getUsersSchema();
+const { username, password } = UsersSchema.getUsersSchema().shape;
 const authLoginSchema = z.object({
-    username: usersSchema.shape.username,
-    password: usersSchema.shape.password
+    username,
+    password
 });
 const authRefreshTokenSchema = z.object({
     refreshToken: z.string(typeRequired).trim().min(1, emptyString)

@@ -1,6 +1,6 @@
 import z from "zod";
 import ValidateUtils from "../utils/validate-utils.js";
-import idSchema from "../schemas/id-schema.js";
+import idSchema from "./id-schema.js";
 
 /**
  * Users validation schemas
@@ -9,17 +9,28 @@ import idSchema from "../schemas/id-schema.js";
  */
 export default class UsersSchema {
     static getUsersSchema() {
+        return usersSchema;
+    }
+
+    static getCreateSchema() {
         return withSuperRefine(usersSchema, cases);
     }
 
-    static getPartialUserSchemaWithId() {
-        const partialSchemaWithId = useRequiredProperties(usersSchema.partial(), idSchema.shape);
-        return withSuperRefine(partialSchemaWithId, cases);
+    static getUpdateSchema() {
+        const updateSchema = useRequiredProperties(usersSchema.partial(), idSchema.shape);
+        return withSuperRefine(updateSchema, cases);
     }
 }
 
-const { ERROR_MESSAGES, REGEX, ALLOW_ENUMS, zodEnumIgnoreCase, useRequiredProperties, handleValidationIssues } =
-    ValidateUtils;
+const {
+    ERROR_MESSAGES,
+    REGEX,
+    ALLOW_ENUMS,
+    zodEnumIgnoreCase,
+    useRequiredProperties,
+    withSuperRefine,
+    handleValidationIssues
+} = ValidateUtils;
 const { typeRequired, format, emptyArray, length, invalidEnum } = ERROR_MESSAGES;
 const { passwordRegex } = REGEX;
 const { userRoles } = ALLOW_ENUMS;
@@ -72,8 +83,4 @@ function cases(data, ctx) {
         ],
         ctx
     );
-}
-
-function withSuperRefine(schema, cases) {
-    return schema.superRefine((data, ctx) => cases(data, ctx));
 }

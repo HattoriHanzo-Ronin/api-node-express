@@ -28,32 +28,34 @@ export default class FtpSchema {
     }
 }
 
-const { ALLOW_ENUMS, ERROR_MESSAGES, REGEX, handleValidationIssues, zodEnumIgnoreCase } = ValidateUtils;
-const { typeRequired, typeNotRequired, format, requiredEnum, emptyArray, length, invalidEnum } = ERROR_MESSAGES;
+const { ALLOW_ENUMS, ERROR_MESSAGES, REGEX, handleValidationIssues, zodEnumIgnoreCase, withSuperRefine } =
+    ValidateUtils;
+const { typeRequired, typeNotRequired, format,  emptyArray, emptyString, invalidEnum } =
+    ERROR_MESSAGES;
 const { fileType } = ALLOW_ENUMS;
 const { pathRegex } = REGEX;
-const dir = safePath(
-    z.string(typeNotRequired).trim().min(1, length(1, "min")).regex(pathRegex, format).nullable().default(null)
+const dir = withSuperRefine(
+    z.string(typeNotRequired).trim().min(1, emptyString).regex(pathRegex, format).nullable().default(null),
+    cases
 );
 const name = z
     .string(typeRequired)
     .trim()
-    .min(1, length(1, "min"))
+    .min(1, emptyString)
     .regex(/^[\p{L}\p{N} ._-]+$/u, format);
-const path = safePath(z.string(typeRequired).trim().min(1, length(1, "min")).regex(pathRegex, format));
+const path = withSuperRefine(z.string(typeRequired).trim().min(1, emptyString).regex(pathRegex, format), cases);
 const type = zodEnumIgnoreCase(z, z.enum(fileType, invalidEnum(fileType)), typeRequired);
 const paths = z.array(z.object({ type, name }), typeRequired).min(1, emptyArray);
 
-function safePath(pathSchema) {
-    return pathSchema.superRefine((path, ctx) => {
-        handleValidationIssues(
-            [
-                {
-                    condition: path && path.split("/").some((it) => it.trim() === ".."),
-                    message: "Ruta no válida"
-                }
-            ],
-            ctx
-        );
-    });
+function cases(data, ctx) {
+    const { path } = data;
+    return handleValidationIssues(
+        [
+            {
+                condition: path && path.split("/").some((it) => it.trim() === ".."),
+                message: "Ruta no válida"
+            }
+        ],
+        ctx
+    );
 }
