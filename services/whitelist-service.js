@@ -1,5 +1,5 @@
 import PostgresClient from "../config/db/postgres-client.js";
-import RouterResolver from "../device-routers/router-resolver.js";
+import RouterResolver from "../devices-routers/router-resolver.js";
 import ValidateUtils from "../utils/validate-utils.js";
 
 /**

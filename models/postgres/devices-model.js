@@ -1,20 +1,20 @@
 import PostgresClient from "../../config/db/postgres-client.js";
 import DbUtils from "../../utils/db-utils.js";
-import deviceColumns from "./device-columns.js";
+import devicesColumns from "./devices-columns.js";
 
 /**
- * Device table model
+ * Devices table model
  *
  * @author HattoriHanzo-Ronin
  */
-export default class DeviceModel {
+export default class DevicesModel {
     /**
      * Retrieves devices
      *
      * @returns {Promise<Object[]>} List of devices
      */
     static async getAll() {
-        return client.any(`select * from device`);
+        return client.any(`select * from devices`);
     }
 
     /**
@@ -24,7 +24,7 @@ export default class DeviceModel {
      * @returns {Promise<Object | null>} Device data
      */
     static async getById({ id }) {
-        return client.oneOrNone("select * from device where id = $1", [id]);
+        return client.oneOrNone("select * from devices where id = $1", [id]);
     }
 
     /**
@@ -35,7 +35,7 @@ export default class DeviceModel {
      */
     static async getAllowedDevices({ routerId }) {
         return client.any(
-            `select ${columnsWithAlias(basicInfoColumns, "d")} from device d 
+            `select ${columnsWithAlias(basicInfoColumns, "d")} from devices d 
              join whitelist w on w.allow_device_id = d.id 
              where w.router_id = $1`,
             [routerId]
@@ -50,7 +50,7 @@ export default class DeviceModel {
      */
     static async getNotAllowedDevices({ routerId }) {
         return client.any(
-            `select ${columnsWithAlias(basicInfoColumns, "d")} from device d 
+            `select ${columnsWithAlias(basicInfoColumns, "d")} from devices d 
              left join whitelist w on w.allow_device_id = d.id and w.router_id = $1
              where w.allow_device_id is null`,
             [routerId]
@@ -66,7 +66,7 @@ export default class DeviceModel {
     static async getRoutersByAllowDevice({ allowDeviceId }) {
         return client.any(
             `select ${columnsWithAlias(basicRouterInfoColumns, "d")}, w.key from whitelist w
-                join device d on d.id = w.router_id where w.allow_device_id = $1`,
+                join devices d on d.id = w.router_id where w.allow_device_id = $1`,
             [allowDeviceId]
         );
     }
@@ -82,7 +82,7 @@ export default class DeviceModel {
     }
 
     /**
-     * Updates a device.
+     * Updates a device
      *
      * @param {import("pg-promise").IDatabase<any>} params.clientTx Database transaction
      * @param {string} params.id Device identifier
@@ -102,7 +102,7 @@ export default class DeviceModel {
      * @returns {Promise<{ id: string } | null>} Deleted device identifier
      */
     static async delete({ id }) {
-        return client.oneOrNone("delete from device where id = $1 returning id", [id]);
+        return client.oneOrNone("delete from devices where id = $1 returning id", [id]);
     }
 }
 
@@ -113,5 +113,5 @@ const {
     update: updateColumns,
     basicInfo: basicInfoColumns,
     basicRouterInfo: basicRouterInfoColumns
-} = deviceColumns;
+} = devicesColumns;
 const { pgPromiseColumnsWithAlias: columnsWithAlias } = DbUtils;

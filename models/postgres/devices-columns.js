@@ -3,10 +3,10 @@ import DbUtils from "../../utils/db-utils.js";
 
 const helpers = PostgresClient.helpers();
 const { skipNullOrUndefined } = DbUtils;
-const deviceColumns = {
+const devicesColumns = {
     basicInfo: new helpers.ColumnSet(
         [{ name: "name" }, { name: "mac" }, { name: "intrface" }, { name: "type" }, { name: "model" }],
-        { table: "device" }
+        { table: "devices" }
     ),
     basicRouterInfo: new helpers.ColumnSet(
         [
@@ -17,7 +17,7 @@ const deviceColumns = {
             { name: "admin_pass" },
             { name: "mac_filter" }
         ],
-        { table: "device" }
+        { table: "devices" }
     ),
     insert: new helpers.ColumnSet(
         [
@@ -31,7 +31,7 @@ const deviceColumns = {
             { name: "admin_pass" },
             { name: "mac_filter" }
         ],
-        { table: "device" }
+        { table: "devices" }
     ),
     update: new helpers.ColumnSet(
         [
@@ -43,8 +43,8 @@ const deviceColumns = {
             { name: "admin_pass", skip: skipNullOrUndefined },
             { name: "mac_filter", skip: skipNullOrUndefined }
         ],
-        { table: "device" }
+        { table: "devices" }
     )
 };
 
-export default deviceColumns;
+export default devicesColumns;

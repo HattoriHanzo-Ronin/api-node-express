@@ -1,15 +1,15 @@
 import PostgresClient from "../config/db/postgres-client.js";
-import RouterResolver from "../device-routers/router-resolver.js";
+import RouterResolver from "../devices-routers/router-resolver.js";
 import ValidateUtils from "../utils/validate-utils.js";
 
 /**
- * Device service
+ * Devices service
  *
  * @author HattoriHanzo-Ronin
  */
-export default class DeviceService {
-    constructor({ deviceModel, whitelistService }) {
-        this.deviceModel = deviceModel;
+export default class DevicesService {
+    constructor({ devicesModel, whitelistService }) {
+        this.devicesModel = devicesModel;
         this.whitelistService = whitelistService;
     }
 
@@ -19,7 +19,7 @@ export default class DeviceService {
      * @returns {Promise<Object[]>} List of devices
      */
     async getAll() {
-        const devices = await this.deviceModel.getAll();
+        const devices = await this.devicesModel.getAll();
         return addCapabilities(devices);
     }
 
@@ -30,7 +30,7 @@ export default class DeviceService {
      * @returns {Promise<Object>} Device
      */
     async getById({ id }) {
-        const result = await this.deviceModel.getById({ id });
+        const result = await this.devicesModel.getById({ id });
         handleApiErrors([{ condition: !result, message: "El dispositivo no existe", status: 404 }]);
         return addCapabilities([result])[0];
     }
@@ -42,7 +42,7 @@ export default class DeviceService {
      * @returns {Promise<Object[]>} List of allowed devices
      */
     async getAllowDevices({ routerId }) {
-        const devices = await this.deviceModel.getAllowedDevices({ routerId });
+        const devices = await this.devicesModel.getAllowedDevices({ routerId });
         return addCapabilities(devices);
     }
 
@@ -53,7 +53,7 @@ export default class DeviceService {
      * @returns {Promise<Object[]>} List of devices not allowed on the router
      */
     async getNotAllowDevices({ routerId }) {
-        const devices = await this.deviceModel.getNotAllowedDevices({ routerId });
+        const devices = await this.devicesModel.getNotAllowedDevices({ routerId });
         return addCapabilities(devices);
     }
 
@@ -65,7 +65,7 @@ export default class DeviceService {
      */
     async create({ device }) {
         try {
-            return await this.deviceModel.insert({ device });
+            return await this.devicesModel.insert({ device });
         } catch (err) {
             handleApiErrors([{ condition: err.code === "23505", message: "El dispositivo ya existe" }]);
             throw err;
@@ -82,9 +82,9 @@ export default class DeviceService {
         const { id, ...updateData } = data;
         const oldDevice = await this.getById({ id });
         return client.tx(async (clientTx) => {
-            const result = await this.deviceModel.update({ clientTx, id, data: updateData });
+            const result = await this.devicesModel.update({ clientTx, id, data: updateData });
             if (updateData.name || updateData.mac) {
-                const routers = await this.deviceModel.getRoutersByAllowDevice({ allowDeviceId: id });
+                const routers = await this.devicesModel.getRoutersByAllowDevice({ allowDeviceId: id });
                 const updatedRouters = [];
                 for (const router of routers) {
                     try {
@@ -120,7 +120,7 @@ export default class DeviceService {
      */
     async delete({ id }) {
         const device = await this.getById({ id });
-        const routers = await this.deviceModel.getRoutersByAllowDevice({ allowDeviceId: id });
+        const routers = await this.devicesModel.getRoutersByAllowDevice({ allowDeviceId: id });
         const updatedRouters = [];
         for (const router of routers) {
             try {
@@ -133,7 +133,7 @@ export default class DeviceService {
             }
             updatedRouters.push(router);
         }
-        return this.deviceModel.delete({ id });
+        return this.devicesModel.delete({ id });
     }
 }
 

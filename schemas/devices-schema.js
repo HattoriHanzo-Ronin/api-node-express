@@ -2,25 +2,25 @@ import z from "zod";
 import ValidateUtils from "../utils/validate-utils.js";
 
 /**
- * Device validation schemas
+ * Devices validation schemas
  *
  * @author HattoriHanzo-Ronin
  */
-export default class DeviceSchema {
-    static getDeviceSchema() {
-        return withSuperRefine(deviceSchema);
+export default class DevicesSchema {
+    static getDevicesSchema() {
+        return withSuperRefine(devicesSchema);
     }
 
-    static getPartialDeviceSchema() {
-        return withSuperRefine(deviceSchema.partial());
+    static getPartialDevicesSchema() {
+        return withSuperRefine(devicesSchema.partial());
     }
 
-    static getDeviceSchemaWithId() {
-        return withSuperRefine(deviceSchemaWithId);
+    static getDevicesSchemaWithId() {
+        return withSuperRefine(devicesSchemaWithId);
     }
 
-    static getPartialDeviceSchemaWithId() {
-        return withSuperRefine(deviceSchemaWithId.partial());
+    static getPartialDevicesSchemaWithId() {
+        return withSuperRefine(devicesSchemaWithId.partial());
     }
 }
 
@@ -31,14 +31,14 @@ const {
     format,
     length,
     requiredEnum,
-    badDeviceIntrface,
-    badDeviceType,
+    badDevicesIntrface,
+    badDevicesType,
     invalidId,
     invalidEnum
 } = ERROR_MESSAGES;
 const { passwordRegex, macRegex, ipRegex, safeTextRegex } = REGEX;
-const { deviceIntrface, deviceType } = ALLOW_ENUMS;
-const deviceSchema = z.object({
+const { devicesIntrface, devicesType } = ALLOW_ENUMS;
+const devicesSchema = z.object({
     name: z
         .string(typeRequired)
         .trim()
@@ -46,8 +46,8 @@ const deviceSchema = z.object({
         .max(30, length(30, "max"))
         .regex(safeTextRegex, format),
     mac: z.string(typeRequired).trim().regex(macRegex, format),
-    intrface: zodEnumIgnoreCase(z, z.enum(deviceIntrface, invalidEnum(deviceIntrface)), typeRequired),
-    type: zodEnumIgnoreCase(z, z.enum(deviceType, invalidEnum(deviceType)), typeRequired),
+    intrface: zodEnumIgnoreCase(z, z.enum(devicesIntrface, invalidEnum(devicesIntrface)), typeRequired),
+    type: zodEnumIgnoreCase(z, z.enum(devicesType, invalidEnum(devicesType)), typeRequired),
     model: z
         .string(typeNotRequired)
         .trim()
@@ -75,7 +75,7 @@ const deviceSchema = z.object({
         .default(null),
     mac_filter: z.boolean(typeNotRequired).nullable().default(null)
 });
-const deviceSchemaWithId = deviceSchema.extend({
+const devicesSchemaWithId = devicesSchema.extend({
     id: z.string(typeRequired).uuid(invalidId)
 });
 

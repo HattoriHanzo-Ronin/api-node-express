@@ -17,7 +17,7 @@
 # - API running on localhost:59998/device
 # - Database configured
 
-@baseUrl = http://localhost:59998/device
+@baseUrl = http://localhost:59998/devices
 
 ############################################################
 # Validation: Missing required field
