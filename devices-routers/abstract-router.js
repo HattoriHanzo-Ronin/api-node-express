@@ -31,7 +31,7 @@ export default class AbstractRouter {
      * @param {string[]} keys Current router whitelist keys
      * @returns {string | null} Generated whitelist key
      */
-    getKey(keys) {
+    generateKey(keys) {
         return null;
     }
 
@@ -39,11 +39,11 @@ export default class AbstractRouter {
      * Adds a device to the router whitelist
      *
      * @param {string | null} params.key Router whitelist key
-     * @param {string} params.deviceMac Device MAC address
-     * @param {string} params.deviceName Device name
+     * @param {string} params.mac Device MAC address
+     * @param {string} params.name Device name
      * @returns {Promise<boolean>} Returns true when the operation succeeds, otherwise false
      */
-    async addAllow({ key, deviceMac, deviceName }) {
+    async addAllow({ key, mac, name }) {
         throw new Error("Not implemented");
     }
 
@@ -51,10 +51,10 @@ export default class AbstractRouter {
      * Removes a device from the router whitelist
      *
      * @param {string | null} params.key Router whitelist key
-     * @param {string} params.deviceMac Device MAC address
+     * @param {string} params.mac Device MAC address
      * @returns {Promise<boolean>} Returns true when the operation succeeds, otherwise false
      */
-    async deleteAllow({ key, deviceMac }) {
+    async deleteAllow({ key, mac }) {
         throw new Error("Not implemented");
     }
 

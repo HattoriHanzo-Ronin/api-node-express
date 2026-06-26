@@ -8,22 +8,29 @@ import idSchema from "./id-schema.js";
  * @author HattoriHanzo-Ronin
  */
 export default class DevicesSchema {
-    static getDevicesSchema() {
+    static getBaseSchema() {
         return devicesSchema;
     }
 
-    static getCreateSchema() {
+    static getValidatedSchema() {
         return withSuperRefine(devicesSchema, cases);
     }
 
-    static getUpdateSchema() {
+    static getPartialSchema() {
         const updateSchema = useRequiredProperties(devicesSchema.partial(), idSchema.shape);
         return withSuperRefine(updateSchema, cases);
     }
 }
 
-const { ERROR_MESSAGES, REGEX, ALLOW_ENUMS, handleValidationIssues, zodEnumIgnoreCase, withSuperRefine } =
-    ValidateUtils;
+const {
+    ERROR_MESSAGES,
+    REGEX,
+    ALLOW_ENUMS,
+    handleValidationIssues,
+    zodEnumIgnoreCase,
+    useRequiredProperties,
+    withSuperRefine
+} = ValidateUtils;
 const { typeRequired, typeNotRequired, format, length, invalidEnum } = ERROR_MESSAGES;
 const { passwordRegex, macRegex, ipRegex, safeTextRegex } = REGEX;
 const { devicesIntrface, devicesType } = ALLOW_ENUMS;
@@ -65,8 +72,8 @@ const devicesSchema = z.object({
     mac_filter: z.boolean(typeNotRequired).nullable().default(null)
 });
 
-function cases(data, ctx) {
-    const isRouter = data.type === "ROUTER";
+function cases({ type, mac_filter, admin_pass, ip, wifi_pass, model }, ctx) {
+    const isRouter = type === "ROUTER";
     handleValidationIssues(
         [
             {
@@ -75,17 +82,22 @@ function cases(data, ctx) {
                     handleValidationIssues(
                         [
                             {
-                                condition: data.mac_filter === null,
+                                condition: mac_filter === null,
                                 path: ["mac_filter"],
                                 message: "Debe especificar si el router soporta filtrado MAC"
                             },
                             {
-                                condition: data.admin_pass === null,
+                                condition: mac_filter && model === null,
+                                path: ["model"],
+                                message: "Debe especificar el modelo del router para gestionar el filtrado MAC"
+                            },
+                            {
+                                condition: admin_pass === null,
                                 path: ["admin_pass"],
                                 message: "Debe especificar contraseña de acceso al router"
                             },
                             {
-                                condition: data.ip === null,
+                                condition: ip === null,
                                 path: ["ip"],
                                 message: "Debe especificar ip del router"
                             }
@@ -100,17 +112,17 @@ function cases(data, ctx) {
                     handleValidationIssues(
                         [
                             {
-                                condition: data.mac_filter !== null,
+                                condition: mac_filter !== null,
                                 path: ["mac_filter"],
                                 message: "Solo el router soporta filtrado MAC"
                             },
                             {
-                                condition: data.admin_pass !== null,
+                                condition: admin_pass !== null,
                                 path: ["admin_pass"],
                                 message: "Solo el router soporta contraseña de acceso"
                             },
                             {
-                                condition: data.wifi_pass !== null,
+                                condition: wifi_pass !== null,
                                 path: ["wifi_pass"],
                                 message: "Solo el router soporta contraseña Wi-Fi"
                             }
@@ -120,7 +132,7 @@ function cases(data, ctx) {
                 }
             },
             {
-                condition: data.type === "SERVER" && data.ip === null,
+                condition: type === "SERVER" && ip === null,
                 path: ["ip"],
                 message: "Debe especificar ip del servidor"
             }

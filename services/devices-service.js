@@ -1,5 +1,5 @@
-import PostgresClient from "../config/db/postgres-client.js";
-import RouterResolver from "../devices-routers/router-resolver.js";
+import DevicesSchema from "../schemas/devices-schema.js";
+import PostgresErrors from "../utils/postgres-errors.js";
 import ValidateUtils from "../utils/validate-utils.js";
 
 /**
@@ -8,9 +8,8 @@ import ValidateUtils from "../utils/validate-utils.js";
  * @author HattoriHanzo-Ronin
  */
 export default class DevicesService {
-    constructor({ devicesModel, whitelistService }) {
+    constructor({ devicesModel }) {
         this.devicesModel = devicesModel;
-        this.whitelistService = whitelistService;
     }
 
     /**
@@ -19,8 +18,7 @@ export default class DevicesService {
      * @returns {Promise<Object[]>} List of devices
      */
     async getAll() {
-        const devices = await this.devicesModel.getAll();
-        return addCapabilities(devices);
+        return this.devicesModel.getAll();
     }
 
     /**
@@ -31,8 +29,10 @@ export default class DevicesService {
      */
     async getById({ id }) {
         const result = await this.devicesModel.getById({ id });
-        handleApiErrors([{ condition: !result, message: "El dispositivo no existe", status: 404 }]);
-        return addCapabilities([result])[0];
+        handleApiErrors([
+            { condition: !result, message: "El dispositivo no existe", status: 404, code: "DEVICE_NOT_FOUND" }
+        ]);
+        return result;
     }
 
     /**
@@ -41,9 +41,8 @@ export default class DevicesService {
      * @param {string} params.routerId Router identifier
      * @returns {Promise<Object[]>} List of allowed devices
      */
-    async getAllowDevices({ routerId }) {
-        const devices = await this.devicesModel.getAllowedDevices({ routerId });
-        return addCapabilities(devices);
+    async getAllowedDevices({ routerId }) {
+        return this.devicesModel.getAllowedDevices({ routerId });
     }
 
     /**
@@ -52,22 +51,31 @@ export default class DevicesService {
      * @param {string} params.routerId Router identifier
      * @returns {Promise<Object[]>} List of devices not allowed on the router
      */
-    async getNotAllowDevices({ routerId }) {
-        const devices = await this.devicesModel.getNotAllowedDevices({ routerId });
-        return addCapabilities(devices);
+    async getNotAllowedDevices({ routerId }) {
+        return this.devicesModel.getNotAllowedDevices({ routerId });
+    }
+
+    /**
+     * Retrieves routers associated with an allowed device
+     *
+     * @param {string} params.allowedDeviceId Allowed device identifier
+     * @returns {Promise<Object[]>} Routers associated with the allowed device
+     */
+    async getRoutersByAllowedDevice({ allowedDeviceId }) {
+        return this.devicesModel.getRoutersByAllowedDevice({ allowedDeviceId });
     }
 
     /**
      * Creates a device
      *
      * @param {Object} params.device Device data
-     * @returns {Promise<{ id: string }>} Created device identifier
+     * @returns {Promise<Object>} Created device
      */
     async create({ device }) {
         try {
             return await this.devicesModel.insert({ device });
         } catch (err) {
-            handleApiErrors([{ condition: err.code === "23505", message: "El dispositivo ya existe" }]);
+            postgresError(err);
             throw err;
         }
     }
@@ -75,41 +83,20 @@ export default class DevicesService {
     /**
      * Updates a device
      *
+     * @param {import("pg-promise").ITask<any>} params.clientTx Database transaction
+     * @param {string} params.id Device identifier
      * @param {Object} params.data Device data
-     * @returns {Promise<{ id: string }>} Updated device identifier
+     * @returns {Promise<Object>} Updated device
      */
-    async update({ data }) {
-        const { id, ...updateData } = data;
-        const oldDevice = await this.getById({ id });
-        return client.tx(async (clientTx) => {
-            const result = await this.devicesModel.update({ clientTx, id, data: updateData });
-            if (updateData.name || updateData.mac) {
-                const routers = await this.devicesModel.getRoutersByAllowDevice({ allowDeviceId: id });
-                const updatedRouters = [];
-                for (const router of routers) {
-                    try {
-                        await this.whitelistService.delete({ router, allowDevice: oldDevice });
-                        await this.whitelistService.create({ router, allowDevice: result });
-                    } catch (err) {
-                        for (const updatedRouter of updatedRouters.reverse()) {
-                            await this.whitelistService.delete({ router: updatedRouter, allowDevice: result });
-                            await this.whitelistService.create({ router: updatedRouter, allowDevice: oldDevice });
-                        }
-                        handleApiErrors([
-                            {
-                                condition: err?.message === "Error al insertar el dispositivo en el router",
-                                message: `Error al actualizar el dispositivo ${result.name} en el router ${router.name}, el dispositivo a quedado eliminado debe restaurarlo de forma manual`
-                            }
-                        ]);
-                        throw err;
-                    }
-                    updatedRouters.push(router);
-                }
-            }
-
-            const { mac: _, name: __, ...response } = result;
-            return response;
-        });
+    async update({ clientTx, id, data }) {
+        try {
+            const result = await this.devicesModel.update({ clientTx, id, data });
+            validateData(result, DevicesSchema.getValidatedSchema());
+            return result;
+        } catch (err) {
+            postgresError(err);
+            throw err;
+        }
     }
 
     /**
@@ -119,36 +106,9 @@ export default class DevicesService {
      * @returns {Promise<{ id: string }>} Deleted device identifier
      */
     async delete({ id }) {
-        const device = await this.getById({ id });
-        const routers = await this.devicesModel.getRoutersByAllowDevice({ allowDeviceId: id });
-        const updatedRouters = [];
-        for (const router of routers) {
-            try {
-                await this.whitelistService.delete({ router, allowDevice: device });
-            } catch (err) {
-                for (const updatedRouter of updatedRouters.reverse()) {
-                    await this.whitelistService.create({ router: updatedRouter, allowDevice: device });
-                }
-                throw err;
-            }
-            updatedRouters.push(router);
-        }
         return this.devicesModel.delete({ id });
     }
 }
 
-const { ALLOW_ENUMS, ERROR_MESSAGES, handleApiErrors } = ValidateUtils;
-const client = PostgresClient.getClient();
-
-function addCapabilities(devices) {
-    return devices.map((device) => {
-        if (device.type === "ROUTER") {
-            const routerImpl = RouterResolver.getRouter(device);
-            if (routerImpl) {
-                return { ...device, capabilities: routerImpl.getCapabilities() };
-            }
-        }
-
-        return device;
-    });
-}
+const { handleApiErrors, validateData } = ValidateUtils;
+const { devices: postgresError } = PostgresErrors;

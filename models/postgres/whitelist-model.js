@@ -2,7 +2,7 @@ import PostgresClient from "../../config/db/postgres-client.js";
 import whitelistColumns from "./whitelist-columns.js";
 
 /**
- * Whitelist database model, handles whitelist persistence operations
+ * Whitelist table model
  *
  * @author HattoriHanzo-Ronin
  */
@@ -10,38 +10,36 @@ export default class WhitelistModel {
     /**
      * Retrieves router whitelist keys
      *
-     * @param {string} params.router_id Router device identifier
-     * @returns {{ key: string }[]} Router whitelist keys
+     * @param {string} params.routerId Router identifier
+     * @returns {Promise<{ key: string | null }[]>} Router whitelist keys
      */
-    static async getKeys({ router_id }) {
-        await client.one(`select id from device where id=$1`, [router_id]);
-        return client.any(`select key from whitelist where router_id = $1`, [router_id]);
+    static async getKeys({ routerId }) {
+        return client.any(`select key from whitelist where router_id = $1`, [routerId]);
     }
 
     /**
-     * Inserts a whitelist entry.
+     * Inserts a whitelist entry
      *
-     * @param {import("pg-promise").IDatabase<any>} params.clientTx Database transaction
+     * @param {import("pg-promise").ITask<any>} params.clientTx Database transaction
      * @param {Object} params.whitelist Whitelist entry
-     * @returns {{ router_id: string, allow_device_id: string }} Inserted whitelist entry
+     * @returns {Promise<{ allowed_device_id: string }>} Allowed device identifier
      */
     static async insert({ clientTx, whitelist }) {
-        return clientTx.one(helpers().insert(whitelist, insertColumns) + " returning router_id, allow_device_id");
+        return clientTx.one(helpers().insert(whitelist, insertColumns) + " returning allowed_device_id");
     }
 
     /**
      * Deletes a whitelist entry
      *
-     * @param {import("pg-promise").IDatabase<any>} params.clientTx Database transaction
-     * @param {string} params.routerId Router device identifier
-     * @param {string} params.allowDeviceId Allowed device identifier
-     * @returns {{ router_id: string, allow_device_id: string, key: string | null } | null} Deleted whitelist entry
+     * @param {import("pg-promise").ITask<any>} params.clientTx Database transaction
+     * @param {string} params.routerId Router identifier
+     * @param {string} params.allowedDeviceId Allowed device identifier
+     * @returns {Promise<{ allowed_device_id: string, key: string | null } | null>} Deleted whitelist entry
      */
-    static async delete({ clientTx, routerId, allowDeviceId }) {
+    static async delete({ clientTx, routerId, allowedDeviceId }) {
         return clientTx.oneOrNone(
-            `delete from whitelist where router_id = $1 and allow_device_id = $2 
-             returning *`,
-            [routerId, allowDeviceId]
+            `delete from whitelist where router_id = $1 and allowed_device_id = $2 returning allowed_device_id, key`,
+            [routerId, allowedDeviceId]
         );
     }
 }

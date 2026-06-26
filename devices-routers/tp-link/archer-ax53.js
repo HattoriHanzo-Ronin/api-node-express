@@ -15,11 +15,11 @@ export default class ArcherAX53Router extends AbstractRouter {
         };
     }
 
-    async addAllow({ deviceName, deviceMac }) {
+    async addAllow({ name, mac }) {
         try {
-            deviceMac = deviceMac.replaceAll(":", "-");
+            mac = mac.replaceAll(":", "-");
             const page = await this.#openAccessControl();
-            await delay(4500);
+            await delay(4800);
             const buttons = await page.$$('div[role="button"]');
             for (const button of buttons) {
                 const text = await page.evaluate((el) => el.textContent, button);
@@ -38,13 +38,13 @@ export default class ArcherAX53Router extends AbstractRouter {
                 }
             }
             await page.waitForSelector("input.su-input__content");
-            const deviceNameInput = await page.$("input.su-input__content");
-            await deviceNameInput.click({
+            const nameInput = await page.$("input.su-input__content");
+            await nameInput.click({
                 clickCount: 3
             });
-            await deviceNameInput.type(deviceName);
+            await nameInput.type(name);
             const macInputs = await page.$$("input.su-mac-input__partition");
-            const macParts = deviceMac.split("-");
+            const macParts = mac.split("-");
             for (let i = 0; i < 6; i++) {
                 await macInputs[i].click();
                 await macInputs[i].type(macParts[i]);
@@ -58,6 +58,7 @@ export default class ArcherAX53Router extends AbstractRouter {
                     return true;
                 }
             }
+            return false;
         } catch {
             return false;
         } finally {
@@ -65,15 +66,15 @@ export default class ArcherAX53Router extends AbstractRouter {
         }
     }
 
-    async deleteAllow({ deviceMac }) {
+    async deleteAllow({ mac }) {
         try {
-            deviceMac = deviceMac.replaceAll(":", "-");
+            mac = mac.replaceAll(":", "-");
             const page = await this.#openAccessControl();
             await page.waitForSelector("tr.su-table__row");
             const rows = await page.$$("tr.su-table__row");
             for (const row of rows) {
                 const rowText = await page.evaluate((el) => el.innerText, row);
-                if (!rowText.includes(deviceMac)) {
+                if (!rowText.includes(mac)) {
                     continue;
                 }
                 await page.waitForSelector('div[role="button"]');
@@ -96,6 +97,7 @@ export default class ArcherAX53Router extends AbstractRouter {
                     }
                 }
             }
+            return false;
         } catch {
             return false;
         } finally {

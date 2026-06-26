@@ -1,8 +1,7 @@
-import PostgresClient from "../../config/db/postgres-client.js";
+import DbUtils from "../../utils/db-utils.js";
 
-const helpers = PostgresClient.helpers();
 const whitelistColumns = {
-    insert: new helpers.ColumnSet(["router_id", "allow_device_id", "key"], { table: "whitelist" })
+    insert: DbUtils.createColumnSet(["router_id", "allowed_device_id", "key"], { table: "whitelist" })
 };
 
 export default whitelistColumns;

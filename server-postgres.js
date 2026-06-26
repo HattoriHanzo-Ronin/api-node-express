@@ -1,17 +1,19 @@
 import { createApp } from "./app.js";
 
 import PostgresClient from "./config/db/postgres-client.js";
-import FtpConnection from "./config/ftp-connection.js";
 
 import FtpController from "./controllers/ftp-controller.js";
 import FtpService from "./services/ftp-service.js";
 
-import WhitelistModel from "./models/postgres/whitelist-model.js";
-import WhitelistService from "./services/whitelist-service.js";
-import WhitelistController from "./controllers/whitelist-controller.js";
 import DevicesModel from "./models/postgres/devices-model.js";
 import DevicesService from "./services/devices-service.js";
+import DevicesMapper from "./mappers/devices-mapper.js";
+import DevicesFacade from "./facades/devices-facade.js";
 import DevicesController from "./controllers/devices-controller.js";
+import WhitelistModel from "./models/postgres/whitelist-model.js";
+import WhitelistService from "./services/whitelist-service.js";
+import WhitelistFacade from "./facades/whitelist-facade.js";
+import WhitelistController from "./controllers/whitelist-controller.js";
 
 import UserRolesModel from "./models/postgres/user-roles-model.js";
 import UserRolesService from "./services/user-roles-service.js";
@@ -30,9 +32,11 @@ const tx = PostgresClient.executeTx;
 const ftpController = new FtpController({ ftpService: FtpService });
 
 const whitelistService = new WhitelistService({ whitelistModel: WhitelistModel });
-const whitelistController = new WhitelistController({ whitelistService });
-const devicesService = new DevicesService({ devicesModel: DevicesModel, whitelistService });
-const devicesController = new DevicesController({ devicesService });
+const devicesService = new DevicesService({ devicesModel: DevicesModel });
+const devicesFacade = new DevicesFacade({ devicesService, devicesMapper: DevicesMapper, tx });
+const devicesController = new DevicesController({ devicesFacade });
+const whitelistFacade = new WhitelistFacade({ whitelistService, devicesService, tx });
+const whitelistController = new WhitelistController({ whitelistFacade });
 
 const userRolesService = new UserRolesService({ userRolesModel: UserRolesModel });
 const usersService = new UsersService({ usersModel: UsersModel });
