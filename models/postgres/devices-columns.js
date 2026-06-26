@@ -1,49 +1,23 @@
-import PostgresClient from "../../config/db/postgres-client.js";
 import DbUtils from "../../utils/db-utils.js";
 
-const helpers = PostgresClient.helpers();
-const { skipNullOrUndefined } = DbUtils;
+const { skipNullOrUndefined, createColumnSet } = DbUtils;
+const TABLE = "devices";
+const commonColumns = [{ name: "name" }, { name: "model" }];
+const infoCommonColumns = [{ name: "id" }, ...commonColumns];
+const allowedColumns = [
+    { name: "mac" },
+    { name: "intrface", cast: "device_intrface_enum" },
+    { name: "type", cast: "device_type_enum" }
+];
+const routerColumns = [{ name: "ip" }, { name: "admin_pass" }, { name: "mac_filter" }];
+const insertionColumns = [...commonColumns, ...allowedColumns, ...routerColumns, { name: "wifi_pass" }];
 const devicesColumns = {
-    basicInfo: new helpers.ColumnSet(
-        [{ name: "name" }, { name: "mac" }, { name: "intrface" }, { name: "type" }, { name: "model" }],
-        { table: "devices" }
-    ),
-    basicRouterInfo: new helpers.ColumnSet(
-        [
-            { name: "id" },
-            { name: "name" },
-            { name: "model" },
-            { name: "ip" },
-            { name: "admin_pass" },
-            { name: "mac_filter" }
-        ],
-        { table: "devices" }
-    ),
-    insert: new helpers.ColumnSet(
-        [
-            { name: "name" },
-            { name: "mac" },
-            { name: "intrface" },
-            { name: "type" },
-            { name: "model" },
-            { name: "ip" },
-            { name: "wifi_pass" },
-            { name: "admin_pass" },
-            { name: "mac_filter" }
-        ],
-        { table: "devices" }
-    ),
-    update: new helpers.ColumnSet(
-        [
-            { name: "name", skip: skipNullOrUndefined },
-            { name: "mac", skip: skipNullOrUndefined },
-            { name: "model", skip: skipNullOrUndefined },
-            { name: "ip", skip: skipNullOrUndefined },
-            { name: "wifi_pass", skip: skipNullOrUndefined },
-            { name: "admin_pass", skip: skipNullOrUndefined },
-            { name: "mac_filter", skip: skipNullOrUndefined }
-        ],
-        { table: "devices" }
+    allowedInfo: createColumnSet([...infoCommonColumns, ...allowedColumns], TABLE),
+    routerInfo: createColumnSet([...infoCommonColumns, ...routerColumns], TABLE),
+    insert: createColumnSet(insertionColumns, TABLE),
+    update: createColumnSet(
+        insertionColumns.map((it) => ({ ...it, skip: skipNullOrUndefined })),
+        TABLE
     )
 };
 

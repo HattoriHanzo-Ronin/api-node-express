@@ -1,4 +1,5 @@
-import { allowedDeviceSchema, routerSchema } from "../schemas/whitelist-schema.js";
+import idSchema from "../schemas/id-schema.js";
+import allowedDeviceSchema from "../schemas/whitelist-schema.js";
 import ValidateUtils from "../utils/validate-utils.js";
 
 /**
@@ -7,28 +8,26 @@ import ValidateUtils from "../utils/validate-utils.js";
  * @author HattoriHanzo-Ronin
  */
 export default class WhitelistController {
-    constructor({ whitelistService }) {
-        this.whitelistService = whitelistService;
+    constructor({ whitelistFacade }) {
+        this.whitelistFacade = whitelistFacade;
     }
 
-    create = async (req, res, next) => {
-        const body = validateBody(req.body);
-        const result = await this.whitelistService.create(body);
+    create = async (req, res) => {
+        const whitelist = validateRequest(req);
+        const result = await this.whitelistFacade.create(whitelist);
         res.json(result);
     };
 
-    delete = async (req, res, next) => {
-        const body = validateBody(req.body);
-        const result = await this.whitelistService.delete(body);
+    delete = async (req, res) => {
+        const whitelist = validateRequest(req);
+        const result = await this.whitelistFacade.delete(whitelist);
         res.json(result);
     };
 }
 
 const { validateData } = ValidateUtils;
 
-function validateBody(body) {
-    return {
-        router: validateData(body?.router, routerSchema),
-        allowDevice: validateData(body?.allowDevice, allowedDeviceSchema)
-    };
+function validateRequest({ params, body }) {
+    const { id: routerId } = validateData(params, idSchema);
+    return { routerId, allowedDevice: validateData(body, allowedDeviceSchema) };
 }

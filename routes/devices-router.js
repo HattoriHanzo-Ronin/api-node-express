@@ -5,8 +5,8 @@ export default function createDevicesRouter({ devicesController }) {
     const devicesRouter = Router();
 
     devicesRouter.get("/", asyncHandler(devicesController.getAll));
-    devicesRouter.get("/allow/:routerId", asyncHandler(devicesController.getAllowDevicess));
-    devicesRouter.get("/notallow/:routerId", asyncHandler(devicesController.getNotAllowDevicess));
+    devicesRouter.get("/allowed/:id", asyncHandler(devicesController.getAllowedDevices));
+    devicesRouter.get("/notallowed/:id", asyncHandler(devicesController.getNotAllowedDevices));
 
     devicesRouter.post("/", asyncHandler(devicesController.create));
 

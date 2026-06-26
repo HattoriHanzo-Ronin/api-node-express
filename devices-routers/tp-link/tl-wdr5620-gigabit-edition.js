@@ -15,7 +15,7 @@ export default class TLWDR5620GigabitEditionRouter extends AbstractRouter {
         };
     }
 
-    getKey(keys) {
+    generateKey(keys) {
         let num = 0;
         keys.sort((a, b) => {
             const aK = Number(a.key.split("_").pop()),
@@ -31,12 +31,12 @@ export default class TLWDR5620GigabitEditionRouter extends AbstractRouter {
         return `white_list_${num + 1}`;
     }
 
-    async addAllow({ key, deviceMac, deviceName }) {
+    async addAllow({ key, mac, name }) {
         return this.#postOnRouter({
             method: "add",
             wlan_access: {
                 name: key,
-                para: { mac: deviceMac.replaceAll(":", "-"), name: deviceName },
+                para: { mac: mac.replaceAll(":", "-"), name },
                 table: "white_list"
             }
         });
@@ -77,12 +77,11 @@ export default class TLWDR5620GigabitEditionRouter extends AbstractRouter {
                 "yLwVl0zKqws7LgKPRQ84Mdt708T1qQ3Ha7xv3H7NyU84p21BriUWBU43odz3iP4rBL3cD02KZciXTys" +
                 "VXiV8ngg6vL48rPJyAUw0HurW20xqxv9aYb4M9wK1Ae0wlro510qXeU07kV57fQMc8L6aLgMLwygtc0F10a0Dg70TOoou" +
                 "yFhdysuRMO51yY5ZlOZZLEal1h0t9YQW0Ko7oBwmCAHoic4HYbUyVeU3sfQ1xtXcPcf1aT303wAQhv66qzW";
-
+            const g = key.length;
+            const h = password.length;
+            const k = dict.length;
+            const f = g > h ? g : h;
             let e = "";
-            let g = key.length;
-            let h = password.length;
-            let k = dict.length;
-            let f = g > h ? g : h;
 
             for (let p = 0; p < f; p++) {
                 let l = 187;

@@ -4,9 +4,9 @@ import Middlewares from "../middlewares/middlewares.js";
 export default function createWhitelistRouter({ whitelistController }) {
     const whitelistRouter = Router();
 
-    whitelistRouter.post("/", asyncHandler(whitelistController.create));
+    whitelistRouter.post("/:id", asyncHandler(whitelistController.create));
 
-    whitelistRouter.delete("/", asyncHandler(whitelistController.delete));
+    whitelistRouter.delete("/:id", asyncHandler(whitelistController.delete));
 
     return whitelistRouter;
 }

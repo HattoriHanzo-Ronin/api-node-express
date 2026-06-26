@@ -1,5 +1,4 @@
-import PostgresClient from "../config/db/postgres-client.js";
-import RouterResolver from "../devices-routers/router-resolver.js";
+import PostgresErrors from "../utils/postgres-errors.js";
 import ValidateUtils from "../utils/validate-utils.js";
 
 /**
@@ -13,40 +12,28 @@ export default class WhitelistService {
     }
 
     /**
+     * Generates a whitelist key for a router
+     *
+     * @param {string} params.routerId Router identifier
+     * @param {(keys: Object[]) => string | null} params.generateKey Callback that generates the router whitelist key
+     * @returns {Promise<string | null>} Generated whitelist key
+     */
+    async getKey({ routerId, generateKey }) {
+        return generateKey(await this.whitelistModel.getKeys({ routerId }));
+    }
+
+    /**
      * Creates a whitelist entry
      *
-     * @param {Object} params.router Router data
-     * @param {Object} params.allowDevice Allowed device data
-     * @returns {{ router_id: string, allow_device_id: string }} Created whitelist entry
+     * @param {import("pg-promise").ITask<any>} params.clientTx Database transaction
+     * @param {Object} params.whitelist Whitelist entry
+     * @returns {Promise<{ allowed_device_id: string }>} Allowed device identifier
      */
-    async create({ router, allowDevice }) {
+    async create({ clientTx, whitelist }) {
         try {
-            const { id: router_id } = router;
-            const { id: allow_device_id, mac: deviceMac, name: deviceName } = allowDevice;
-            const keys = await this.whitelistModel.getKeys({ router_id });
-            const routerImpl = getRouterImpl(router);
-            const key = routerImpl.getKey(keys);
-            return await client.tx(async (clientTx) => {
-                const result = await this.whitelistModel.insert({
-                    clientTx,
-                    whitelist: { router_id, allow_device_id, key }
-                });
-                const capabilities = routerImpl.getCapabilities();
-                if (capabilities.addAllow) {
-                    const added = await routerImpl.addAllow({ key, deviceMac, deviceName });
-                    handleApiErrors([
-                        { condition: !added, message: "Error al insertar el dispositivo en el router", status: 400 }
-                    ]);
-                }
-
-                return result;
-            });
+            return await this.whitelistModel.insert({ clientTx, whitelist });
         } catch (err) {
-            handleApiErrors([
-                { condition: err.code === 0, message: "El router no existe", status: 404 },
-                { condition: err.code === "23503", message: "El dispositivo no existe", status: 404 },
-                { condition: err.code === "23505", message: "El dispositivo ya se encuentra autorizado", status: 400 }
-            ]);
+            postgresError(err);
             throw err;
         }
     }
@@ -54,40 +41,24 @@ export default class WhitelistService {
     /**
      * Deletes a whitelist entry
      *
-     * @param {Object} params.router Router data
-     * @param {Object} params.allowDevice Allowed device data
-     * @returns {{ router_id: string, allow_device_id: string }} Deleted whitelist entry
+     * @param {import("pg-promise").ITask<any>} params.clientTx Database transaction
+     * @param {string} params.routerId Router identifier
+     * @param {string} params.allowedDeviceId Allowed device identifier
+     * @returns {Promise<{ allowed_device_id: string, key: string }>} Deleted whitelist entry
      */
-    async delete({ router, allowDevice }) {
-        const { id: routerId } = router;
-        const { id: allowDeviceId, mac: deviceMac } = allowDevice;
-        const routerImpl = getRouterImpl(router);
-        return client.tx(async (clientTx) => {
-            const result = await this.whitelistModel.delete({ clientTx, routerId, allowDeviceId });
-            handleApiErrors([
-                { condition: !result, message: "El dispositivo no se encuentra autorizado", status: 404 }
-            ]);
-            const { key, ...response } = result;
-            const capabilities = routerImpl.getCapabilities();
-            if (capabilities.deleteAllow) {
-                const deleted = await routerImpl.deleteAllow({ key, deviceMac });
-                handleApiErrors([
-                    { condition: !deleted, message: "Error al eliminar el dispositivo del router", status: 400 }
-                ]);
+    async delete({ clientTx, routerId, allowedDeviceId }) {
+        const result = await this.whitelistModel.delete({ clientTx, routerId, allowedDeviceId });
+        handleApiErrors([
+            {
+                condition: !result,
+                message: "El dispositivo no se encuentra autorizado",
+                status: 404,
+                code: "WHITELIST_NOT_ALLOWED"
             }
-
-            return response;
-        });
+        ]);
+        return result;
     }
 }
 
-const client = PostgresClient.getClient();
 const { handleApiErrors } = ValidateUtils;
-
-function getRouterImpl(router) {
-    const routerImpl = RouterResolver.getRouter(router);
-    handleApiErrors([
-        { condition: !routerImpl, message: `${router.name} no tiene implementación disponible`, status: 400 }
-    ]);
-    return routerImpl;
-}
+const { whitelist: postgresError } = PostgresErrors;

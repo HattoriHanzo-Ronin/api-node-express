@@ -8,55 +8,50 @@ import idSchema from "../schemas/id-schema.js";
  * @author HattoriHanzo-Ronin
  */
 export default class DevicesController {
-    constructor({ devicesService }) {
-        this.devicesService = devicesService;
+    constructor({ devicesFacade }) {
+        this.devicesFacade = devicesFacade;
     }
 
-    getAll = async (req, res, next) => {
-        const result = await this.devicesService.getAll();
+    getAll = async (req, res) => {
+        const result = await this.devicesFacade.getAll();
         res.json(result);
     };
 
-    getById = async (req, res, next) => {
-        const { id } = req.params;
-        validateData({ id }, idSchema);
-        const result = await this.devicesService.getById({ id });
-        res.json(result);
+    getById = async (req, res) => {
+        const { id } = validateData(req.params, idSchema);
+        res.json(await this.devicesFacade.getById({ id }));
     };
 
-    getAllowDevices = async (req, res, next) => {
-        const { routerId } = req.params;
-        validateData({ id: routerId }, idSchema);
-        const result = await this.devicesService.getAllowedDevices({ routerId });
-        res.json(result);
+    getAllowedDevices = async (req, res) => {
+        const routerId = validateRouterId(req);
+        res.json(await this.devicesFacade.getAllowedDevices({ routerId }));
     };
 
-    getNotAllowDevices = async (req, res, next) => {
-        const { routerId } = req.params;
-        validateData({ id: routerId }, idSchema);
-        const result = await this.devicesService.getNotAllowedDevices({ routerId });
-        res.json(result);
+    getNotAllowedDevices = async (req, res) => {
+        const routerId = validateRouterId(req);
+        res.json(await this.devicesFacade.getNotAllowedDevices({ routerId }));
     };
 
-    create = async (req, res, next) => {
-        const device = validateData(req.body, getCreateSchema());
-        const result = await this.devicesService.create({ device });
-        res.json(result);
+    create = async (req, res) => {
+        const device = validateData(req.body, getValidatedSchema());
+        res.status(201).json(await this.devicesFacade.create({ device }));
     };
 
-    update = async (req, res, next) => {
-        const data = validateData(req.body, getUpdateSchema());
-        const result = await this.devicesService.update({ data });
-        res.json(result);
+    update = async (req, res) => {
+        const data = validateData(req.body, getPartialSchema());
+        res.json(await this.devicesFacade.update({ data }));
     };
 
-    delete = async (req, res, next) => {
-        const { id } = req.params;
-        validateData({ id }, idSchema);
-        const result = await this.devicesService.delete({ id });
-        res.json(result);
+    delete = async (req, res) => {
+        const { id } = validateData(req.params, idSchema);
+        res.json(await this.devicesFacade.delete({ id }));
     };
 }
 
+function validateRouterId({ params }) {
+    const { id: routerId } = validateData(params, idSchema);
+    return routerId;
+}
+
 const { validateData } = ValidateUtils;
-const { getCreateSchema, getUpdateSchema } = DevicesSchema;
+const { getValidatedSchema, getPartialSchema } = DevicesSchema;
