@@ -1,3 +1,4 @@
+import PostgresErrors from "../utils/postgres-errors.js";
 import ValidateUtils from "../utils/validate-utils.js";
 
 /**
@@ -17,7 +18,7 @@ export default class RefreshTokensService {
      */
     async getByToken({ token }) {
         const result = await this.refreshTokensModel.getByToken({ token });
-        handleApiErrors([{ condition: !result, message: "Token no válido", status: 401 }]);
+        handleApiErrors([{ condition: !result, message: "Token no válido", status: 401, code: "INVALID_TOKEN" }]);
     }
 
     /**
@@ -30,7 +31,7 @@ export default class RefreshTokensService {
         try {
             await this.refreshTokensModel.insert({ refreshToken: { user_id: userId, token } });
         } catch (err) {
-            handleApiErrors([{ condition: err.code === "23503", message: "El usuario no existe", status: 404 }]);
+            postgresError(err);
             throw err;
         }
     }
@@ -47,3 +48,4 @@ export default class RefreshTokensService {
 }
 
 const { handleApiErrors } = ValidateUtils;
+const { refreshTokens: postgresError } = PostgresErrors;

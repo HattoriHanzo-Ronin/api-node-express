@@ -1,5 +1,4 @@
 import JWTUtils from "../utils/jwt-utils.js";
-import ValidateUtils from "../utils/validate-utils.js";
 
 /**
  * Authentication service
@@ -37,7 +36,7 @@ export default class AuthFacade {
             await this.refreshTokensService.delete({ token: refreshToken });
             return this.#createPayload(user);
         } catch (err) {
-            if (err.message === "Token no válido") {
+            if (err.code === "INVALID_TOKEN") {
                 await this.refreshTokensService.delete({ token: refreshToken });
             }
 
