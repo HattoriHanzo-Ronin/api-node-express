@@ -1,3 +1,4 @@
+import PostgresErrors from "../utils/postgres-errors.js";
 import ValidateUtils from "../utils/validate-utils.js";
 
 /**
@@ -27,7 +28,7 @@ export default class UsersService {
      */
     async getById({ id }) {
         const result = await this.usersModel.getById({ id });
-        handleApiErrors([{ condition: !result, message: "El usuario no existe", status: 404 }]);
+        handleApiErrors([{ condition: !result, message: "El usuario no existe", status: 404, code: "USER_NOT_FOUND" }]);
         return result;
     }
 
@@ -41,7 +42,14 @@ export default class UsersService {
     async authenticate({ username, password }) {
         const result = await this.usersModel.authenticate({ username, password });
         const invalidUser = !result || !result.active;
-        handleApiErrors([{ condition: invalidUser, message: "Usuario o contraseña incorrectos", status: 401 }]);
+        handleApiErrors([
+            {
+                condition: invalidUser,
+                message: "Usuario o contraseña incorrectos",
+                status: 401,
+                code: "USER_INVALID_CREDENTIALS"
+            }
+        ]);
         return result;
     }
 
@@ -56,7 +64,7 @@ export default class UsersService {
         try {
             return await this.usersModel.insert({ clientTx, user });
         } catch (err) {
-            usernameConflict(err);
+            postgresError(err);
             throw err;
         }
     }
@@ -73,7 +81,7 @@ export default class UsersService {
         try {
             return await this.usersModel.update({ clientTx, id, data });
         } catch (err) {
-            usernameConflict(err);
+            postgresError(err);
             throw err;
         }
     }
@@ -82,7 +90,7 @@ export default class UsersService {
      * Deletes a user
      *
      * @param {string} params.id User identifier
-     * @returns {Promise<{ id: string } | null>} Deleted user identifier
+     * @returns {Promise<{ id: string }>} Deleted user identifier
      */
     async delete({ id }) {
         return this.usersModel.delete({ id });
@@ -90,13 +98,4 @@ export default class UsersService {
 }
 
 const { handleApiErrors } = ValidateUtils;
-
-function usernameConflict(err) {
-    handleApiErrors([
-        {
-            condition: err.constraint === "users_username_key",
-            message: "El nombre de usuario ya está en uso",
-            status: 409
-        }
-    ]);
-}
+const { users: postgresError } = PostgresErrors;

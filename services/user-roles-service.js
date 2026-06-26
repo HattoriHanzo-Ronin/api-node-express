@@ -30,7 +30,6 @@ export default class UserRolesService {
      * @returns {Promise<Object[]>} Created user role assignments
      */
     async createMany({ clientTx, userId, roles, scope }) {
-        handleApiErrors([{ condition: !roles, message: "Se debe definir roles para el usuario" }]);
         try {
             const userRoles = roles.map((it) => ({
                 user_id: userId,
@@ -39,7 +38,9 @@ export default class UserRolesService {
             }));
             return await this.userRolesModel.insertMany({ clientTx, userRoles });
         } catch (err) {
-            handleApiErrors([{ condition: true, message: "Error al crear los roles del usuario" }]);
+            handleApiErrors([
+                { condition: true, message: "Error al crear los roles del usuario", code: "ACL_ROLE_CREATE_FAILED" }
+            ]);
         }
     }
 
@@ -57,7 +58,13 @@ export default class UserRolesService {
             await this.userRolesModel.deleteByUser({ clientTx, userId });
             return await this.createMany({ clientTx, userId, roles, scope });
         } catch (err) {
-            handleApiErrors([{ condition: true, message: "Error al actualizar los roles del usuario" }]);
+            handleApiErrors([
+                {
+                    condition: true,
+                    message: "Error al actualizar los roles del usuario",
+                    code: "ACL_ROLE_UPDATE_FAILED"
+                }
+            ]);
         }
     }
 }

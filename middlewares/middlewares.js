@@ -55,7 +55,7 @@ export default class Middlewares {
         try {
             const { authorization } = req.headers;
             if (!authorization?.startsWith("Bearer ")) {
-                throw new ApiError("No hay sesión", 401);
+                throw new ApiError({ message: "No hay sesión", status: 401, code: "AUTHENTICATION_REQUIRED" });
             }
 
             const token = authorization.split(" ")[1];
@@ -77,7 +77,11 @@ export default class Middlewares {
             try {
                 const { roles: userRoles } = req.user;
                 if (!roles.some((it) => userRoles.includes(it))) {
-                    throw new ApiError("No tiene permisos para realizar esa acción", 403);
+                    throw new ApiError({
+                        message: "No tiene permisos para realizar esa acción",
+                        status: 403,
+                        code: "ACL_PERMISSION_DENIED"
+                    });
                 }
 
                 next();

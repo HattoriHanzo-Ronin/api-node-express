@@ -15,7 +15,7 @@ export default class FtpService {
      * Lists the content of a remote FTP directory
      *
      * @param {string | null} params.dir FTP directory path
-     * @returns {Promise<Array<{ name: string, type: "FILE" | "DIR" }>>} list of directory resources
+     * @returns {Promise<Array<{ name: string, type: "FILE" | "DIR" }>>} List of directory resources
      */
     static async dir({ dir }) {
         let client;
@@ -28,7 +28,7 @@ export default class FtpService {
             const list = await client.list();
             return list.map((it) => ({ name: it.name, type: it.isDirectory ? "DIR" : "FILE" }));
         } catch (err) {
-            ftpError("Error al listar la carpeta");
+            ftpError("Error al listar la carpeta", "FTP_DIR_FAILED");
         } finally {
             closeClient(client);
         }
@@ -51,7 +51,7 @@ export default class FtpService {
             const list = await client.list();
             await client.ensureDir(await getFileName(name, list));
         } catch (err) {
-            ftpError("Error al crear la carpeta");
+            ftpError("Error al crear la carpeta", "FTP_MKDIR_FAILED");
         } finally {
             closeClient(client);
         }
@@ -64,7 +64,9 @@ export default class FtpService {
      * @param {{ originalname: string, mimetype: string, buffer: Buffer }} params.file Uploaded file
      */
     static async upload({ dir, file }) {
-        handleApiErrors([{ condition: !file, message: "Debe proporcionar un archivo", status: 400 }]);
+        handleApiErrors([
+            { condition: !file, message: "Debe proporcionar un archivo", status: 400, code: "FTP_FILE_REQUIRED" }
+        ]);
         const { originalname, mimetype, buffer } = file;
         let client;
         let newName;
@@ -103,7 +105,7 @@ export default class FtpService {
                 }
             }
         } catch (err) {
-            ftpError("Error al subir los datos");
+            ftpError("Error al subir los datos", "FTP_UPLOAD_FAILED");
         } finally {
             closeClient(client);
             if (tempDir) {
@@ -156,7 +158,7 @@ export default class FtpService {
             await zip.writeZipPromise(zipFile);
             return zipFile;
         } catch (err) {
-            ftpError("Error al descargar");
+            ftpError("Error al descargar", "FTP_DOWNLOAD_FAILED");
         } finally {
             closeClient(client);
             setTimeout(async () => {
@@ -181,7 +183,7 @@ export default class FtpService {
                 await client.remove(path);
             }
         } catch (err) {
-            ftpError("Error al borrar");
+            ftpError("Error al borrar", "FTP_DELETE_FAILED");
         } finally {
             closeClient(client);
         }
@@ -213,6 +215,6 @@ async function getFileName(name, list) {
     return name;
 }
 
-function ftpError(message) {
-    handleApiErrors([{ condition: true, message }]);
+function ftpError(message, code) {
+    handleApiErrors([{ condition: true, message, code }]);
 }

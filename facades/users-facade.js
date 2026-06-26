@@ -43,7 +43,8 @@ export default class UsersFacade {
             {
                 condition: authUser && !allowedManage(authUser, user.roles),
                 message: "El usuario no existe",
-                status: 404
+                status: 404,
+                code: "USER_NOT_FOUND"
             }
         ]);
         return filterAcl(authUser, user);
@@ -199,9 +200,8 @@ export default class UsersFacade {
 
 const { handleApiErrors } = ValidateUtils;
 
-function allowedManage(authUser, userRoles) {
-    const { scope } = authUser;
-    return userRoles.every((it) => scope.includes(it)) || scope.includes("ADMIN");
+function allowedManage({ scope }, userRoles) {
+    return scope.includes("ADMIN") || userRoles.every((it) => scope.includes(it));
 }
 
 /**
@@ -218,5 +218,7 @@ function filterAcl(authUser, source) {
 }
 
 function forbiddendError(condition) {
-    handleApiErrors([{ condition, message: "No tiene permisos para realizar esa acción", status: 403 }]);
+    handleApiErrors([
+        { condition, message: "No tiene permisos para realizar esa acción", status: 403, code: "ACL_PERMISSION_DENIED" }
+    ]);
 }

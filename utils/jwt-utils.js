@@ -58,7 +58,12 @@ function verifyToken(token, secret) {
         return jwt.verify(token, secret);
     } catch (err) {
         ValidateUtils.handleApiErrors([
-            { condition: err instanceof jwt.JsonWebTokenError, message: "Token no válido", status: 401 }
+            {
+                condition: err instanceof jwt.JsonWebTokenError,
+                message: "Token no válido",
+                status: 401,
+                code: "INVALID_TOKEN"
+            }
         ]);
 
         throw err;

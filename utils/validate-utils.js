@@ -17,7 +17,8 @@ export default class ValidateUtils {
         typeRequired: { error: (issue) => (issue.input === undefined ? "Requerido" : "Tipo no válido") },
         typeNotRequired: { error: "Tipo no válido" },
         format: "Error de formato",
-        length: (num, mode) => `Longitud ${mode === "min" ? "mínima" : "máxima"} ${num} ${num > 1 ? "caracteres" : "caracter"}`,
+        length: (num, mode) =>
+            `Longitud ${mode === "min" ? "mínima" : "máxima"} ${num} ${num > 1 ? "caracteres" : "caracter"}`,
         invalidEnum: (values) => ({ error: `Valores permitidos: ${values.join(", ")}` }),
         invalidId: "UUID no válido",
         emptyArray: "Debe contener al menos un elemento",
@@ -59,7 +60,7 @@ export default class ValidateUtils {
      * Extends a schema with cross-field validation rules
      *
      * @param {ZodSchema} schema Base schema
-     * @param {Function} cases Custom validation callback
+     * @param {(ctx: import("zod").RefinementCtx) => void} cases Custom validation callback
      * @returns {ZodSchema} Schema with additional validation rules
      */
     static withSuperRefine(schema, cases) {
@@ -83,31 +84,37 @@ export default class ValidateUtils {
 
                 return field ? { field, message } : { message };
             });
-            throw new ApiError("Error al validar los datos", 400, details);
+            throw new ApiError({
+                message: "Error al validar los datos",
+                status: 400,
+                details,
+                code: "VALIDATION_FAILED"
+            });
         }
 
         return result.data;
     }
 
     /**
-     * Handles API error conditions
+     * Evaluates a list of conditional actions and throws an ApiError when required
      *
      * @param {Object[]} errors Error conditions to evaluate
-     * @param {boolean} errors[].condition Indicates whether the error should be handled
-     * @param {Function | undefined} errors[].execute Function to execute when condition is met
-     * @param {string | undefined} errors[].message Error message
-     * @param {number | undefined} errors[].status HTTP status code
+     * @param {boolean} errors[].condition Indicates whether the rule matches
+     * @param {Function} [errors[].execute] Action executed when the condition matches
+     * @param {string} [errors[].message] Error message
+     * @param {number} [errors[].status] HTTP status code
+     * @param {string} [errors[].code] Application error code
      */
     static handleApiErrors(errors) {
         for (const error of errors) {
-            const { condition, execute, message, status } = error;
+            const { condition, execute, message, status, code } = error;
             if (condition) {
                 if (execute) {
                     execute();
                 }
 
                 if (message) {
-                    throw new ApiError(message, status);
+                    throw new ApiError({ message, status, code });
                 }
             }
         }

@@ -6,7 +6,6 @@ import createWhitelistRouter from "./routes/whitelist-router.js";
 import createDevicesRouter from "./routes/devices-router.js";
 import createUsersRouter from "./routes/users-router.js";
 import createAuthRouter from "./routes/auth-router.js";
-import ValidateUtils from "./utils/validate-utils.js";
 import ApiError from "./utils/api-error.js";
 
 export function createApp({ ftpController, whitelistController, devicesController, usersController, authController }) {
@@ -23,11 +22,13 @@ export function createApp({ ftpController, whitelistController, devicesControlle
     app.use(requireAuth);
 
     app.use("/ftp", authorizedRoles(["FTP"]), createFtpRouter({ ftpController }));
-    app.use("/whitelist", authorizedRoles(["NET_ADMIN"]), createWhitelistRouter({ whitelistController }));
-    app.use("/devices", authorizedRoles(["NET_ADMIN"]), createDevicesRouter({ devicesController }));
+    app.use("/whitelist", authorizedRoles(["NET"]), createWhitelistRouter({ whitelistController }));
+    app.use("/devices", authorizedRoles(["NET"]), createDevicesRouter({ devicesController }));
     app.use("/users", createUsersRouter({ usersController }));
 
-    app.use((req, res, next) => next(new ApiError("Page not found", 404)));
+    app.use((req, res, next) => {
+        next(new ApiError({ message: "Page not found", status: 404, code: "ROUTE_NOT_FOUND" }));
+    });
     app.use(errorHandler);
 
     app.listen(PORT);
