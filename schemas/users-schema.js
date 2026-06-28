@@ -8,15 +8,15 @@ import idSchema from "./id-schema.js";
  * @author HattoriHanzo-Ronin
  */
 export default class UsersSchema {
-    static getUsersSchema() {
+    static getBaseSchema() {
         return usersSchema;
     }
 
-    static getCreateSchema() {
+    static getValidatedSchema() {
         return withSuperRefine(usersSchema, cases);
     }
 
-    static getUpdateSchema() {
+    static getPartialSchema() {
         const updateSchema = useRequiredProperties(usersSchema.partial(), idSchema.shape);
         return withSuperRefine(updateSchema, cases);
     }
@@ -56,8 +56,7 @@ const usersSchema = z.object({
     active: z.boolean(typeRequired)
 });
 
-function cases(data, ctx) {
-    const { roles, scope } = data;
+function cases({ roles, scope }, ctx) {
     return handleValidationIssues(
         [
             {

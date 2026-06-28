@@ -11,39 +11,38 @@ export default class FtpController {
         this.ftpService = ftpService;
     }
 
-    dir = async (req, res, next) => {
-        const { query } = req;
-        const { dir } = validateData({ dir: query.dir }, getDirSchema());
+    dir = async (req, res) => {
+        const { dir } = validateData(req.query, getDirSchema());
         const result = await this.ftpService.dir({ dir });
         res.status(200).json(result);
     };
 
-    makeDir = async (req, res, next) => {
+    makeDir = async (req, res) => {
         const { query, body } = req;
         const { dir, name } = validateData({ dir: query.dir, name: body?.name }, getMakeDirSchema());
         await this.ftpService.makeDir({ dir, name });
-        res.status(201).json({ message: "Carpeta creada" });
+        res.status(201);
     };
 
-    upload = async (req, res, next) => {
+    upload = async (req, res) => {
         const { query, file } = req;
-        const { dir } = validateData({ dir: query.dir }, getUploadSchema());
+        const { dir } = validateData(query, getUploadSchema());
         await this.ftpService.upload({ dir, file });
-        res.status(201).json({ message: "Datos subidos correctamente" });
+        res.status(201);
     };
 
-    download = async (req, res, next) => {
+    download = async (req, res) => {
         const { query, body } = req;
         const { dir, paths } = validateData({ dir: query.dir, paths: body?.paths }, getDownloadSchema());
         const result = await this.ftpService.download({ dir, paths });
         res.status(200).download(result);
     };
 
-    delete = async (req, res, next) => {
+    delete = async (req, res) => {
         const { params, query } = req;
         const { path, type } = validateData({ path: query.path, type: params.type }, getDeleteSchema());
         await this.ftpService.delete({ path, type });
-        res.status(200).json({ message: "Borrado existoso" });
+        res.status(200);
     };
 }
 

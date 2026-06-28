@@ -31,6 +31,13 @@ export default class UserRolesService {
      */
     async createMany({ clientTx, userId, roles, scope }) {
         try {
+            handleApiErrors([
+                {
+                    condition: !roles,
+                    message: "Se debe especificar al menos un rol para el usuario",
+                    code: "ACL_ROLE_REQUIRED"
+                }
+            ]);
             const userRoles = roles.map((it) => ({
                 user_id: userId,
                 role: it,
