@@ -1,0 +1,911 @@
+# Devices Error Handling Tests
+#
+# Purpose
+# -------
+# Manual test suite for validating:
+#
+# - Device CRUD operations.
+# - Schema validation errors.
+# - Business rules.
+# - Error handler responses.
+#
+# This file may also be used for general API testing.
+#
+# Prerequisites
+# -------------
+# - Execute auth.http first.
+# - Valid access token.
+# - API running on localhost:59998
+#
+# Notes
+# -----
+# - CLIENT devices do not require an IP.
+# - SERVER devices require a valid IP.
+# - ROUTER devices require a valid IP, admin_pass and mac_filter.
+# - ROUTER devices require model when mac_filter is true.
+# - Only ROUTER devices can use admin_pass, wifi_pass and mac_filter.
+# - MAC addresses must be unique.
+
+@baseUrl = http://localhost:59998/devices
+@token = PASTE_ACCESS_TOKEN
+
+############################################################
+# Get all devices
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# [
+#   {
+#       "id": "...",
+#       "name": "Desktop Test",
+#       "model": "Custom PC",
+#       "mac": "AA:BB:CC:DD:EE:10",
+#       "intrface": "LAN",
+#       "type": "CLIENT"
+#   },
+#   {
+#       "id": "...",
+#       "name": "Router Test",
+#       "model": "Mikrotik RB5009",
+#       "mac": "AA:BB:CC:DD:EE:20",
+#       "intrface": "LAN",
+#       "type": "ROUTER",
+#       "ip": "192.168.1.1",
+#       "admin_pass": "Admin123!",
+#       "wifi_pass": "WifiPass123!",
+#       "mac_filter": true,
+#       "capabilities": [...]
+#   }
+# ]
+############################################################
+
+GET {{baseUrl}}
+Authorization: Bearer {{token}}
+
+###
+
+############################################################
+# Get allowed devices
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# [
+#   {
+#       "id": "...",
+#       "name": "Desktop Test",
+#       "model": "Custom PC",
+#       "mac": "AA:BB:CC:DD:EE:10",
+#       "intrface": "LAN",
+#       "type": "CLIENT"
+#   }
+# ]
+############################################################
+
+GET {{baseUrl}}/allowed/ROUTER_ID
+Authorization: Bearer {{token}}
+
+###
+
+############################################################
+# Get not allowed devices
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# [
+#   {
+#       "id": "...",
+#       "name": "Server Test",
+#       "model": "Proxmox VE",
+#       "mac": "AA:BB:CC:DD:EE:30",
+#       "intrface": "LAN",
+#       "type": "SERVER"
+#   }
+# ]
+############################################################
+
+GET {{baseUrl}}/notallowed/ROUTER_ID
+Authorization: Bearer {{token}}
+
+###
+
+############################################################
+# Create client
+#
+# Expected:
+# Status: 201
+#
+# Response:
+# {
+#   "id": "...",
+#   "name": "Desktop Test",
+#   "model": "Custom PC",
+#   "mac": "AA:BB:CC:DD:EE:10",
+#   "intrface": "LAN",
+#   "type": "CLIENT"
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Desktop Test",
+    "model": "Custom PC",
+    "mac": "AA:BB:CC:DD:EE:10",
+    "intrface": "LAN",
+    "type": "CLIENT"
+}
+
+###
+
+############################################################
+# Create router
+#
+# Expected:
+# Status: 201
+#
+# Response:
+# {
+#   "id": "...",
+#   "name": "Router Test",
+#   "model": "Mikrotik RB5009",
+#   "mac": "AA:BB:CC:DD:EE:20",
+#   "ip": "192.168.1.1",
+#   "intrface": "LAN",
+#   "type": "ROUTER",
+#   "admin_pass": "Admin123!",
+#   "wifi_pass": "WifiPass123!",
+#   "mac_filter": true,
+#   "capabilities": [...]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Router Test",
+    "model": "Mikrotik RB5009",
+    "mac": "AA:BB:CC:DD:EE:20",
+    "ip": "192.168.1.1",
+    "intrface": "LAN",
+    "type": "ROUTER",
+    "admin_pass": "Admin123!",
+    "wifi_pass": "WifiPass123!",
+    "mac_filter": true
+}
+
+###
+
+############################################################
+# Update device
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# {
+#   "id": "...",
+#   "name": "Desktop Updated",
+#   "model": "Updated PC",
+#   "mac": "AA:BB:CC:DD:EE:10",
+#   "intrface": "LAN",
+#   "type": "CLIENT"
+# }
+############################################################
+
+PUT {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "id": "79c30cba-6c6f-4498-8edc-fda473f91d61",
+    "name": "Desktop Updated",
+    "model": "Updated PC",
+    "mac": "AA:BB:CC:DD:EE:10",
+    "intrface": "LAN",
+    "type": "CLIENT"
+}
+
+###
+
+############################################################
+# Delete device
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# {
+#   "id": "..."
+# }
+############################################################
+
+DELETE {{baseUrl}}/DEVICE_ID
+Authorization: Bearer {{token}}
+
+###
+
+############################################################
+# Business Error - Device not found
+#
+# Expected:
+# Status: 404
+#
+# Response:
+# {
+#   "message": "El dispositivo no existe"
+# }
+############################################################
+
+PUT {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "id": "00000000-0000-0000-0000-000000000000",
+    "name": "Unknown Device"
+}
+
+###
+
+############################################################
+# Business Error - Delete device not found
+#
+# Expected:
+# Status: 404
+#
+# Response:
+# {
+#   "message": "El dispositivo no existe"
+# }
+############################################################
+
+DELETE {{baseUrl}}/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{token}}
+
+###
+
+############################################################
+# Business Error - MAC already exists
+#
+# Expected:
+# Status: 409
+#
+# Response:
+# {
+#   "message": "Ya existe un dispositivo con esa MAC"
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Duplicate MAC",
+    "model": "Custom PC",
+    "mac": "AA:BB:CC:DD:EE:10",
+    "intrface": "LAN",
+    "type": "CLIENT"
+}
+
+###
+
+############################################################
+# Validation Error - Missing request body
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "message": "Debe enviar un objeto válido"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+
+###
+
+############################################################
+# Validation Error - Missing name
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "name",
+#           "message": "Requerido"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "model": "Custom PC",
+    "mac": "AA:BB:CC:DD:EE:60",
+    "intrface": "LAN",
+    "type": "CLIENT"
+}
+
+###
+
+############################################################
+# Validation Error - Empty name
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "name",
+#           "message": "Longitud mínima 4 caracteres"
+#       },
+#       {
+#           "field": "name",
+#           "message": "Error de formato"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "",
+    "model": "Custom PC",
+    "mac": "AA:BB:CC:DD:EE:60",
+    "intrface": "LAN",
+    "type": "CLIENT"
+}
+
+###
+
+############################################################
+# Validation Error - Name below minimum length
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "name",
+#           "message": "Longitud mínima 4 caracteres"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "abc",
+    "model": "Custom PC",
+    "mac": "AA:BB:CC:DD:EE:61",
+    "intrface": "LAN",
+    "type": "CLIENT"
+}
+
+###
+
+############################################################
+# Validation Error - Invalid MAC
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "mac",
+#           "message": "Error de formato"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Desktop Test",
+    "model": "Custom PC",
+    "mac": "INVALID",
+    "intrface": "LAN",
+    "type": "CLIENT"
+}
+
+###
+
+############################################################
+# Validation Error - Invalid IP
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "ip",
+#           "message": "Error de formato"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Router Test",
+    "model": "Mikrotik RB5009",
+    "mac": "AA:BB:CC:DD:EE:62",
+    "ip": "999.999.999.999",
+    "intrface": "LAN",
+    "type": "ROUTER",
+    "admin_pass": "Admin123!",
+    "mac_filter": true
+}
+
+###
+
+############################################################
+# Validation Error - Invalid interface
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "intrface",
+#           "message": "Valores permitidos: WAN, LAN, WIFI"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Desktop Test",
+    "model": "Custom PC",
+    "mac": "AA:BB:CC:DD:EE:63",
+    "intrface": "INVALID",
+    "type": "CLIENT"
+}
+
+###
+
+############################################################
+# Validation Error - Invalid device type
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "type",
+#           "message": "Valores permitidos: CLIENT, ROUTER, SERVER"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Desktop Test",
+    "model": "Custom PC",
+    "mac": "AA:BB:CC:DD:EE:64",
+    "intrface": "LAN",
+    "type": "INVALID"
+}
+
+###
+
+############################################################
+# Validation Error - Missing MAC
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "mac",
+#           "message": "Requerido"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Desktop Test",
+    "model": "Custom PC",
+    "intrface": "LAN",
+    "type": "CLIENT"
+}
+
+###
+
+############################################################
+# Validation Error - Missing interface
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "intrface",
+#           "message": "Requerido"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Desktop Test",
+    "model": "Custom PC",
+    "mac": "AA:BB:CC:DD:EE:65",
+    "type": "CLIENT"
+}
+
+###
+
+############################################################
+# Validation Error - Missing type
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "type",
+#           "message": "Requerido"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Desktop Test",
+    "model": "Custom PC",
+    "mac": "AA:BB:CC:DD:EE:66",
+    "intrface": "LAN"
+}
+
+###
+
+############################################################
+# Validation Error - Missing IP for ROUTER
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "ip",
+#           "message": "Debe especificar ip del router"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Router Test",
+    "model": "Mikrotik RB5009",
+    "mac": "AA:BB:CC:DD:EE:67",
+    "intrface": "LAN",
+    "type": "ROUTER",
+    "admin_pass": "Admin123!",
+    "mac_filter": true
+}
+
+###
+
+############################################################
+# Validation Error - Missing admin password for ROUTER
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "admin_pass",
+#           "message": "Debe especificar contraseña de acceso al router"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Router Test",
+    "model": "Mikrotik RB5009",
+    "mac": "AA:BB:CC:DD:EE:68",
+    "ip": "192.168.1.3",
+    "intrface": "LAN",
+    "type": "ROUTER",
+    "mac_filter": true
+}
+
+###
+
+############################################################
+# Validation Error - Missing MAC filter support for ROUTER
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "mac_filter",
+#           "message": "Debe especificar si el router soporta filtrado MAC"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Router Test",
+    "model": "Mikrotik RB5009",
+    "mac": "AA:BB:CC:DD:EE:69",
+    "ip": "192.168.1.4",
+    "intrface": "LAN",
+    "type": "ROUTER",
+    "admin_pass": "Admin123!"
+}
+
+###
+
+############################################################
+# Validation Error - Missing model for ROUTER with MAC filter
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "model",
+#           "message": "Debe especificar el modelo del router para gestionar el filtrado MAC"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Router Test",
+    "mac": "AA:BB:CC:DD:EE:70",
+    "ip": "192.168.1.5",
+    "intrface": "LAN",
+    "type": "ROUTER",
+    "admin_pass": "Admin123!",
+    "mac_filter": true
+}
+
+###
+
+############################################################
+# Validation Error - CLIENT cannot use MAC filtering
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "mac_filter",
+#           "message": "Solo el router soporta filtrado MAC"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Desktop Test",
+    "model": "Custom PC",
+    "mac": "AA:BB:CC:DD:EE:71",
+    "intrface": "LAN",
+    "type": "CLIENT",
+    "mac_filter": true
+}
+
+###
+
+############################################################
+# Validation Error - CLIENT cannot use admin password
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "admin_pass",
+#           "message": "Solo el router soporta contraseña de acceso"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Desktop Test",
+    "model": "Custom PC",
+    "mac": "AA:BB:CC:DD:EE:72",
+    "intrface": "LAN",
+    "type": "CLIENT",
+    "admin_pass": "Admin123!"
+}
+
+###
+
+############################################################
+# Validation Error - CLIENT cannot use Wi-Fi password
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "wifi_pass",
+#           "message": "Solo el router soporta contraseña Wi-Fi"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Desktop Test",
+    "model": "Custom PC",
+    "mac": "AA:BB:CC:DD:EE:73",
+    "intrface": "LAN",
+    "type": "CLIENT",
+    "wifi_pass": "WifiPass123!"
+}
+
+###
+
+############################################################
+# Validation Error - Missing IP for SERVER
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "ip",
+#           "message": "Debe especificar ip del servidor"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Server Test",
+    "model": "Proxmox VE",
+    "mac": "AA:BB:CC:DD:EE:74",
+    "intrface": "LAN",
+    "type": "SERVER"
+}

@@ -1,5 +1,3 @@
-import ValidateUtils from "../utils/validate-utils.js";
-
 /**
  * Maps user data between persistence and domain representations
  *
@@ -33,9 +31,5 @@ export default class UsersMapper {
 function mapRolesToDomain(roles) {
     const adminRole = roles.find((it) => it.role === "ADMIN");
     roles = roles.map((it) => it.role);
-    ValidateUtils.handleApiErrors([
-        { condition: roles.length === 0, message: "Usuario sin roles" },
-        { condition: adminRole && !adminRole.scope, message: "ADMIN sin scope" }
-    ]);
     return adminRole ? { roles, scope: adminRole.scope.split(",") } : { roles };
 }

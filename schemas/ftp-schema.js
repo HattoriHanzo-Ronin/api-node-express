@@ -30,8 +30,7 @@ export default class FtpSchema {
 
 const { ALLOW_ENUMS, ERROR_MESSAGES, REGEX, handleValidationIssues, zodEnumIgnoreCase, withSuperRefine } =
     ValidateUtils;
-const { typeRequired, typeNotRequired, format,  emptyArray, emptyString, invalidEnum } =
-    ERROR_MESSAGES;
+const { typeRequired, typeNotRequired, format, emptyArray, emptyString, invalidEnum } = ERROR_MESSAGES;
 const { fileType } = ALLOW_ENUMS;
 const { pathRegex } = REGEX;
 const dir = withSuperRefine(
@@ -47,8 +46,7 @@ const path = withSuperRefine(z.string(typeRequired).trim().min(1, emptyString).r
 const type = zodEnumIgnoreCase(z, z.enum(fileType, invalidEnum(fileType)), typeRequired);
 const paths = z.array(z.object({ type, name }), typeRequired).min(1, emptyArray);
 
-function cases(data, ctx) {
-    const { path } = data;
+function cases({ path }, ctx) {
     return handleValidationIssues(
         [
             {

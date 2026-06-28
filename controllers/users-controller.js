@@ -18,28 +18,26 @@ export default class UsersController {
 
     getById = async (req, res) => {
         const { params, user: authUser } = req;
-        const { id } = params;
-        validateData({ id }, idSchema);
+        const id = validateData(params, idSchema);
         res.json(await this.usersFacade.getById({ authUser, id }));
     };
 
     create = async (req, res) => {
-        const user = validateData(req.body, getCreateSchema());
+        const user = validateData(req.body, getValidatedSchema());
         res.status(201).json(await this.usersFacade.create({ authUser: req.user, user }));
     };
 
     update = async (req, res) => {
-        const data = validateData(req.body, getUpdateSchema());
+        const data = validateData(req.body, getPartialSchema());
         res.json(await this.usersFacade.update({ authUser: req.user, data }));
     };
 
     delete = async (req, res) => {
         const { params, user: authUser } = req;
-        const { id } = params;
-        validateData({ id }, idSchema);
+        const id = validateData(params, idSchema);
         res.json(await this.usersFacade.delete({ authUser, id }));
     };
 }
 
 const { validateData } = ValidateUtils;
-const { getCreateSchema, getUpdateSchema } = UsersSchema;
+const { getValidatedSchema, getPartialSchema } = UsersSchema;
