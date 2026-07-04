@@ -13,16 +13,16 @@ export default class DevicesService {
     }
 
     /**
-     * Retrieves all devices
+     * Returns all devices
      *
-     * @returns {Promise<Object[]>} List of devices
+     * @returns {Promise<Object[]>} Devices
      */
     async getAll() {
         return this.devicesModel.getAll();
     }
 
     /**
-     * Retrieves a device by identifier
+     * Returns a device by its identifier
      *
      * @param {string} params.id Device identifier
      * @returns {Promise<Object>} Device
@@ -36,44 +36,59 @@ export default class DevicesService {
     }
 
     /**
-     * Retrieves allowed devices for a router
+     * Returns the devices allowed on a router
      *
      * @param {string} params.routerId Router identifier
-     * @returns {Promise<Object[]>} List of allowed devices
+     * @returns {Promise<{ devices: Object[], connections: Object[] }>} Devices and connections
      */
     async getAllowedDevices({ routerId }) {
-        return this.devicesModel.getAllowedDevices({ routerId });
+        const result = await this.devicesModel.getAllowedDevices({ routerId });
+        return createDevicesSource(result);
     }
 
     /**
-     * Retrieves devices not allowed on a router
+     * Returns the devices not allowed on a router
      *
      * @param {string} params.routerId Router identifier
-     * @returns {Promise<Object[]>} List of devices not allowed on the router
+     * @returns {Promise<{ devices: Object[], connections: Object[] }>} Devices and connections
      */
     async getNotAllowedDevices({ routerId }) {
-        return this.devicesModel.getNotAllowedDevices({ routerId });
+        const result = await this.devicesModel.getNotAllowedDevices({ routerId });
+        return createDevicesSource(result);
     }
 
     /**
-     * Retrieves routers associated with an allowed device
+     * Returns the routers associated with an allowed device
      *
      * @param {string} params.allowedDeviceId Allowed device identifier
-     * @returns {Promise<Object[]>} Routers associated with the allowed device
+     * @returns {Promise<Object[]>} Associated routers
      */
     async getRoutersByAllowedDevice({ allowedDeviceId }) {
-        return this.devicesModel.getRoutersByAllowedDevice({ allowedDeviceId });
+        const result = await this.devicesModel.getRoutersByAllowedDevice({ allowedDeviceId });
+        const routers = new Map();
+        for (const row of result) {
+            const { ctype, mac, key, ...router } = row;
+            let routerEntrie = routers.get(router.id);
+            if (!routerEntrie) {
+                routerEntrie = { ...router, connections: [] };
+                routers.set(router.id, routerEntrie);
+            }
+
+            routerEntrie.connections.push({ ctype, mac, key });
+        }
+        return [...routers.values()];
     }
 
     /**
      * Creates a device
      *
+     * @param {import("pg-promise").ITask<any>} params.clientTx Database transaction
      * @param {Object} params.device Device data
      * @returns {Promise<Object>} Created device
      */
-    async create({ device }) {
+    async create({ clientTx, device }) {
         try {
-            return await this.devicesModel.insert({ device });
+            return await this.devicesModel.insert({ clientTx, device });
         } catch (err) {
             postgresError(err);
             throw err;
@@ -91,8 +106,7 @@ export default class DevicesService {
     async update({ clientTx, id, data }) {
         try {
             const result = await this.devicesModel.update({ clientTx, id, data });
-            validateData(result, DevicesSchema.getValidatedSchema());
-            return result;
+            return validateData(result, DevicesSchema.getDeviceSchema());
         } catch (err) {
             postgresError(err);
             throw err;
@@ -112,3 +126,12 @@ export default class DevicesService {
 
 const { handleApiErrors, validateData } = ValidateUtils;
 const { devices: postgresError } = PostgresErrors;
+
+function createDevicesSource(result) {
+    const connections = [];
+    const devices = result.map(({ ctype, mac, ...device }) => {
+        connections.push({ device_id: device.id, ctype, mac });
+        return device;
+    });
+    return { devices, connections };
+}

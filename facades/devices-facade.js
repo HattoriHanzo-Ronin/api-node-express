@@ -7,38 +7,39 @@ import RouterResolver from "../devices-routers/router-resolver.js";
  * @author HattoriHanzo-Ronin
  */
 export default class DevicesFacade {
-    constructor({ devicesService, devicesMapper, tx }) {
+    constructor({ devicesService, devicesMapper, connectionsService, tx }) {
         this.devicesService = devicesService;
         this.devicesMapper = devicesMapper;
+        this.connectionsService = connectionsService;
         this.tx = tx;
     }
 
     /**
-     * Retrieves all devices
+     * Returns all devices
      *
      * @returns {Promise<Object[]>} Devices
      */
     async getAll() {
         const result = await this.devicesService.getAll();
-        return this.devicesMapper.devicesToDomain(result);
+        return this.#mapResult({ result });
     }
 
     /**
-     * Retrieves a device by its identifier
+     * Returns a device by its identifier
      *
      * @param {string} params.id Device identifier
      * @returns {Promise<Object>} Device
      */
     async getById({ id }) {
         const result = await this.devicesService.getById({ id });
-        return this.devicesMapper.deviceToDomain(result);
+        return this.#mapResult({ id, result });
     }
 
     /**
-     * Retrieves devices allowed by a router
+     * Returns the devices allowed on a router
      *
      * @param {string} params.routerId Router identifier
-     * @returns {Promise<Object[]>} List of allowed devices
+     * @returns {Promise<Object[]>} Allowed devices
      */
     async getAllowedDevices({ routerId }) {
         const result = await this.devicesService.getAllowedDevices({ routerId });
@@ -46,10 +47,10 @@ export default class DevicesFacade {
     }
 
     /**
-     * Retrieves devices not allowed by a router
+     * Returns the devices not allowed on a router
      *
      * @param {string} params.routerId Router identifier
-     * @returns {Promise<Object[]>} List of not allowed devices
+     * @returns {Promise<Object[]>} Devices not allowed on the router
      */
     async getNotAllowedDevices({ routerId }) {
         const result = await this.devicesService.getNotAllowedDevices({ routerId });
@@ -63,91 +64,142 @@ export default class DevicesFacade {
      * @returns {Promise<Object>} Created device
      */
     async create({ device }) {
-        const result = await this.devicesService.create({ device });
-        return this.devicesMapper.deviceToDomain(result);
+        return this.tx(async (clientTx) => {
+            const { connections, ...newDevice } = device;
+            const result = await this.devicesService.create({ clientTx, device: newDevice });
+            const deviceConnections = await this.connectionsService.createMany({
+                clientTx,
+                deviceId: result.id,
+                connections
+            });
+            return this.devicesMapper.deviceToDomain({ ...result, connections: deviceConnections });
+        });
     }
 
     /**
-     * Updates a device and synchronizes the changes with the corresponding routers
+     * Updates a device
      *
      * @param {Object} params.data Device data
      * @returns {Promise<Object>} Updated device
      */
     async update({ data }) {
-        const { id, ...newData } = data;
-        const oldDevice = await this.devicesService.getById({ id });
-        const { name: newDataName, mac: newDataMac } = newData;
-        const isNameUpdated = newDataName && newDataName !== oldDevice.name;
-        const isMacUpdated = newDataMac && newDataMac !== oldDevice.mac;
-        return this.tx(async (clientTx) => {
+        const { id, connections, ...newData } = data;
+        const { name: newDataName } = newData;
+        let { name: oldDeviceName, connections: oldConnections } = await this.getById({ id });
+        const isNameUpdated = newDataName && newDataName !== oldDeviceName;
+        const result = await this.tx(async (clientTx) => {
+            let device;
             const result = await this.devicesService.update({ clientTx, id, data: newData });
-            if (isNameUpdated || isMacUpdated) {
-                const callback = async (key, routerImpl) => {
-                    await routerImpl.delete({ key, ...oldDevice });
-                    await routerImpl.create({ key, ...result });
+            const updateRouterWhitelist = async (connections) => {
+                const callback = async ({ key, addDevice, delDevice, routerImpl }) => {
+                    await routerImpl.delete({ key, ...delDevice });
+                    await routerImpl.create({ key, ...addDevice });
                 };
-                const rollbackCallback = async (key, routerImpl) => {
-                    await routerImpl.delete({ key, ...result });
-                    await routerImpl.create({ key, ...oldDevice });
+                const rollbackCallback = async ({ key, addDevice, delDevice, routerImpl }) => {
+                    await routerImpl.delete({ key, ...delDevice });
+                    await routerImpl.create({ key, ...addDevice, name: oldDeviceName });
                 };
-                await this.#executeRouterOperation(result, callback, rollbackCallback);
+                device = this.devicesMapper.deviceToDomain({ ...result, connections });
+                await this.#executeRouterOperation(device, callback, rollbackCallback);
+            };
+            const excludeProcessedConnections = (connections) =>
+                oldConnections.filter(
+                    ({ ctype }) => !connections.some(({ ctype: connectionCtype }) => ctype === connectionCtype)
+                );
+            if (connections) {
+                const { deletedConnections, updatedConnections } = await this.connectionsService.update({
+                    clientTx,
+                    deviceId: result.id,
+                    connections,
+                    oldConnections
+                });
+                if (deletedConnections) {
+                    device = this.devicesMapper.deviceToDomain({ ...result, connections: deletedConnections });
+                    await this.#deleteRouterWhitelist(device);
+                    oldConnections = excludeProcessedConnections(deletedConnections);
+                }
+
+                if (updatedConnections) {
+                    await updateRouterWhitelist(updatedConnections);
+                    oldConnections = excludeProcessedConnections(updatedConnections);
+                }
             }
 
-            return this.devicesMapper.deviceToDomain(result);
+            if (isNameUpdated) {
+                await updateRouterWhitelist(oldConnections.map((it) => ({ device_id: id, ...it })));
+            }
+
+            return result;
         });
+        return this.#mapResult({ id, result });
     }
 
     /**
-     * Deletes a device and removes it from all associated routers
+     * Deletes a device
      *
      * @param {string} params.id Device identifier
      * @returns {Promise<{ id: string }>} Deleted device identifier
      */
     async delete({ id }) {
         const device = await this.getById({ id });
-        const callback = async (key, routerImpl) => await routerImpl.delete({ key, ...device });
-        const rollbackCallback = async (key, routerImpl) => await routerImpl.create({ key, ...device });
-        await this.#executeRouterOperation(device, callback, rollbackCallback);
+        await this.#deleteRouterWhitelist(device);
         return this.devicesService.delete({ id });
     }
 
     /**
-     * Executes a router operation
+     * Executes a router operation and restores the previous state if any router fails
      *
-     * @param {{ id: string, name: string }} device Allowed device data
-     * @param {(key: string | null, router: RouterResolver) => Promise<void>} callback Router operation
-     * @param {(key: string | null, router: RouterResolver) => Promise<void>} rollbackCallback Rollback operation
+     * @param {{ id: string, name: string, connections: Object[] }} device Allowed device
+     * @param {Function} callback Router operation
+     * @param {Function} rollbackCallback Rollback operation
      */
-    async #executeRouterOperation({ id, name }, callback, rollbackCallback) {
+    async #executeRouterOperation({ id, name, connections }, callback, rollbackCallback) {
         const routers = await this.devicesService.getRoutersByAllowedDevice({ allowedDeviceId: id });
-        let routerImpl;
-        const updatedRouters = [];
+        const updatedRouters = new Map();
+        let currentMac;
         for (const router of routers) {
-            const { name: routerName, key } = router;
+            const { name: routerName, connections: oldConnections } = router;
             try {
-                routerImpl = new RouterResolver(router);
-                await callback(key, routerImpl);
-                updatedRouters.push(router);
+                const routerImpl = new RouterResolver(router);
+                for (const { mac: oldMac, key, ctype } of oldConnections) {
+                    const allowedDevice = connections.find(({ ctype: connectionCtype }) => connectionCtype === ctype);
+                    if (allowedDevice) {
+                        const addDevice = { mac: allowedDevice.mac, name };
+                        const delDevice = { mac: oldMac };
+                        currentMac = oldMac;
+                        await callback({ key, addDevice, delDevice, routerImpl });
+                        let updatedRouter = updatedRouters.get(routerName);
+                        if (!updatedRouter) {
+                            updatedRouter = { routerImpl, updatedMacs: [] };
+                            updatedRouters.set(routerName, updatedRouter);
+                        }
+
+                        updatedRouter.updatedMacs.push({ key, addDevice, delDevice });
+                    }
+                }
             } catch (err) {
                 const restoredRouters = [];
                 const { code: errorCode } = err;
                 const addFailed = errorCode === "ROUTER_ADD_FAILED";
                 const affectedRouters = addFailed ? [routerName] : [];
                 let message;
-                for (const updatedRouter of [...updatedRouters].reverse()) {
-                    const { name: updatedRouterName, key } = updatedRouter;
+                for (const updatedRouterName of updatedRouters.keys()) {
+                    const { routerImpl, updatedMacs } = updatedRouters.get(updatedRouterName);
+                    let currentUpdatedMac;
                     try {
-                        routerImpl = new RouterResolver(updatedRouter);
-                        await rollbackCallback(key, routerImpl);
+                        for (const { key, addDevice, delDevice } of updatedMacs) {
+                            currentUpdatedMac = delDevice.mac;
+                            await rollbackCallback({ key, addDevice: delDevice, delDevice: addDevice, routerImpl });
+                        }
                         restoredRouters.push(updatedRouterName);
                     } catch (err) {
-                        affectedRouters.push(
-                            ...updatedRouters
-                                .filter(({ name }) => !restoredRouters.includes(name) && name !== updatedRouterName)
-                                .map((it) => it.name)
-                        );
+                        updatedRouters.forEach((_, key) => {
+                            if (!restoredRouters.includes(key) && key !== updatedRouterName) {
+                                affectedRouters.push(key);
+                            }
+                        });
                         message =
-                            `Error al tratar de recuperar el dispositivo ${name} en el router ${updatedRouterName}\n` +
+                            `Error al tratar de recuperar la mac ${currentUpdatedMac} en el router ${updatedRouterName}\n` +
                             `Routers afectados: ${affectedRouters.join(", ")}`;
                         handleApiErrors([
                             {
@@ -160,12 +212,35 @@ export default class DevicesFacade {
                     }
                 }
                 message =
-                    `Error al actualizar el dispositivo en el router ${routerName}, el dispositivo ${name}` +
-                    ` ha quedado eliminado de la lista debe restaurarlo de forma manual`;
+                    `Error al actualizar la mac ${currentMac}, ha quedado eliminada de la lista en el router ${routerName}` +
+                    ` debe restaurarla de forma manual`;
                 handleApiErrors([{ condition: addFailed, message, code: errorCode }]);
                 throw err;
             }
         }
+    }
+
+    async #deleteRouterWhitelist(device) {
+        const callback = async ({ key, delDevice, routerImpl }) => await routerImpl.delete({ key, ...delDevice });
+        const rollbackCallback = async ({ key, addDevice, routerImpl }) => {
+            await routerImpl.create({ key, ...addDevice, name: device.name });
+        };
+        await this.#executeRouterOperation(device, callback, rollbackCallback);
+    }
+
+    async #mapResult({ id = null, result }) {
+        let connections;
+        if (id) {
+            connections = await this.connectionsService.getByDevices({ devicesId: [id] });
+            return this.devicesMapper.deviceToDomain({ ...result, connections });
+        }
+
+        if (result.length === 0) {
+            return this.devicesMapper.devicesToDomain({ devices: result, connections: [] });
+        }
+
+        connections = await this.connectionsService.getByDevices({ devicesId: result.map(({ id }) => id) });
+        return this.devicesMapper.devicesToDomain({ devices: result, connections });
     }
 }
 

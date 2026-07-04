@@ -24,10 +24,13 @@
 # - ROUTER devices require a valid IP, admin_pass and mac_filter.
 # - ROUTER devices require model when mac_filter is true.
 # - Only ROUTER devices can use admin_pass, wifi_pass and mac_filter.
-# - MAC addresses must be unique.
+# - Device connections must include at least one MAC and ctype.
+# - Connection MAC addresses must be unique.
 
 @baseUrl = http://localhost:59998/devices
 @token = PASTE_ACCESS_TOKEN
+@deviceId = PASTE_DEVICE_ID
+@routerId = PASTE_ROUTER_ID
 
 ############################################################
 # Get all devices
@@ -40,23 +43,33 @@
 #   {
 #       "id": "...",
 #       "name": "Desktop Test",
-#       "model": "Custom PC",
-#       "mac": "AA:BB:CC:DD:EE:10",
-#       "intrface": "LAN",
-#       "type": "CLIENT"
+#       "type": "CLIENT",
+#       "connections": [
+#           {
+#               "mac": "AA:BB:CC:DD:EE:10",
+#               "ctype": "LAN"
+#           }
+#       ]
 #   },
 #   {
 #       "id": "...",
 #       "name": "Router Test",
-#       "model": "Mikrotik RB5009",
-#       "mac": "AA:BB:CC:DD:EE:20",
-#       "intrface": "LAN",
+#       "model": "TP-Link Archer AX53",
 #       "type": "ROUTER",
 #       "ip": "192.168.1.1",
 #       "admin_pass": "Admin123!",
 #       "wifi_pass": "WifiPass123!",
 #       "mac_filter": true,
-#       "capabilities": [...]
+#       "capabilities": {
+#           "addAllow": true,
+#           "deleteAllow": true
+#       },
+#       "connections": [
+#           {
+#               "mac": "AA:BB:CC:DD:EE:30",
+#               "ctype": "LAN"
+#           }
+#       ]
 #   }
 # ]
 ############################################################
@@ -67,7 +80,7 @@ Authorization: Bearer {{token}}
 ###
 
 ############################################################
-# Get allowed devices
+# Get allowed devices by router
 #
 # Expected:
 # Status: 200
@@ -77,21 +90,24 @@ Authorization: Bearer {{token}}
 #   {
 #       "id": "...",
 #       "name": "Desktop Test",
-#       "model": "Custom PC",
-#       "mac": "AA:BB:CC:DD:EE:10",
-#       "intrface": "LAN",
-#       "type": "CLIENT"
+#       "type": "CLIENT",
+#       "connections": [
+#           {
+#               "mac": "AA:BB:CC:DD:EE:10",
+#               "ctype": "LAN"
+#           }
+#       ]
 #   }
 # ]
 ############################################################
 
-GET {{baseUrl}}/allowed/ROUTER_ID
+GET {{baseUrl}}/allowed/{{routerId}}
 Authorization: Bearer {{token}}
 
 ###
 
 ############################################################
-# Get not allowed devices
+# Get not allowed devices by router
 #
 # Expected:
 # Status: 200
@@ -101,15 +117,19 @@ Authorization: Bearer {{token}}
 #   {
 #       "id": "...",
 #       "name": "Server Test",
-#       "model": "Proxmox VE",
-#       "mac": "AA:BB:CC:DD:EE:30",
-#       "intrface": "LAN",
-#       "type": "SERVER"
+#       "type": "SERVER",
+#       "ip": "192.168.1.20",
+#       "connections": [
+#           {
+#               "mac": "AA:BB:CC:DD:EE:20",
+#               "ctype": "LAN"
+#           }
+#       ]
 #   }
 # ]
 ############################################################
 
-GET {{baseUrl}}/notallowed/ROUTER_ID
+GET {{baseUrl}}/notallowed/{{routerId}}
 Authorization: Bearer {{token}}
 
 ###
@@ -124,10 +144,13 @@ Authorization: Bearer {{token}}
 # {
 #   "id": "...",
 #   "name": "Desktop Test",
-#   "model": "Custom PC",
-#   "mac": "AA:BB:CC:DD:EE:10",
-#   "intrface": "LAN",
-#   "type": "CLIENT"
+#   "type": "CLIENT",
+#   "connections": [
+#       {
+#           "mac": "AA:BB:CC:DD:EE:10",
+#           "ctype": "LAN"
+#       }
+#   ]
 # }
 ############################################################
 
@@ -137,10 +160,46 @@ Content-Type: application/json
 
 {
     "name": "Desktop Test",
-    "model": "Custom PC",
-    "mac": "AA:BB:CC:DD:EE:10",
-    "intrface": "LAN",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:10", "ctype": "LAN" }
+    ],
     "type": "CLIENT"
+}
+
+###
+
+############################################################
+# Create server
+#
+# Expected:
+# Status: 201
+#
+# Response:
+# {
+#   "id": "...",
+#   "name": "Server Test",
+#   "type": "SERVER",
+#   "ip": "192.168.1.20",
+#   "connections": [
+#       {
+#           "mac": "AA:BB:CC:DD:EE:20",
+#           "ctype": "LAN"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Server Test",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:20", "ctype": "LAN" }
+    ],
+    "type": "SERVER",
+    "ip": "192.168.1.20"
 }
 
 ###
@@ -155,15 +214,26 @@ Content-Type: application/json
 # {
 #   "id": "...",
 #   "name": "Router Test",
-#   "model": "Mikrotik RB5009",
-#   "mac": "AA:BB:CC:DD:EE:20",
-#   "ip": "192.168.1.1",
-#   "intrface": "LAN",
+#   "model": "TP-Link Archer AX53",
 #   "type": "ROUTER",
+#   "ip": "192.168.1.1",
 #   "admin_pass": "Admin123!",
 #   "wifi_pass": "WifiPass123!",
 #   "mac_filter": true,
-#   "capabilities": [...]
+#   "capabilities": {
+#       "addAllow": true,
+#       "deleteAllow": true
+#   },
+#   "connections": [
+#       {
+#           "mac": "AA:BB:CC:DD:EE:30",
+#           "ctype": "LAN"
+#       },
+#       {
+#           "mac": "AA:BB:CC:DD:EE:31",
+#           "ctype": "WIFI"
+#       }
+#   ]
 # }
 ############################################################
 
@@ -173,11 +243,13 @@ Content-Type: application/json
 
 {
     "name": "Router Test",
-    "model": "Mikrotik RB5009",
-    "mac": "AA:BB:CC:DD:EE:20",
-    "ip": "192.168.1.1",
-    "intrface": "LAN",
+    "model": "TP-Link Archer AX53",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:30", "ctype": "LAN" },
+        { "mac": "AA:BB:CC:DD:EE:31", "ctype": "WIFI" }
+    ],
     "type": "ROUTER",
+    "ip": "192.168.1.1",
     "admin_pass": "Admin123!",
     "wifi_pass": "WifiPass123!",
     "mac_filter": true
@@ -195,10 +267,13 @@ Content-Type: application/json
 # {
 #   "id": "...",
 #   "name": "Desktop Updated",
-#   "model": "Updated PC",
-#   "mac": "AA:BB:CC:DD:EE:10",
-#   "intrface": "LAN",
-#   "type": "CLIENT"
+#   "type": "CLIENT",
+#   "connections": [
+#       {
+#           "mac": "AA:BB:CC:DD:EE:11",
+#           "ctype": "LAN"
+#       }
+#   ]
 # }
 ############################################################
 
@@ -207,12 +282,11 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "id": "79c30cba-6c6f-4498-8edc-fda473f91d61",
+    "id": "{{deviceId}}",
     "name": "Desktop Updated",
-    "model": "Updated PC",
-    "mac": "AA:BB:CC:DD:EE:10",
-    "intrface": "LAN",
-    "type": "CLIENT"
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:11", "ctype": "LAN" }
+    ]
 }
 
 ###
@@ -229,7 +303,7 @@ Content-Type: application/json
 # }
 ############################################################
 
-DELETE {{baseUrl}}/DEVICE_ID
+DELETE {{baseUrl}}/{{deviceId}}
 Authorization: Bearer {{token}}
 
 ###
@@ -275,14 +349,40 @@ Authorization: Bearer {{token}}
 ###
 
 ############################################################
-# Business Error - MAC already exists
+# Business Error - Device name already exists
 #
 # Expected:
 # Status: 409
 #
 # Response:
 # {
-#   "message": "Ya existe un dispositivo con esa MAC"
+#   "message": "El nombre del dispositivo ya está en uso"
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Desktop Test",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:40", "ctype": "LAN" }
+    ],
+    "type": "CLIENT"
+}
+
+###
+
+############################################################
+# Business Error - Connection MAC already exists
+#
+# Expected:
+# Status: 409
+#
+# Response:
+# {
+#   "message": "La mac ya está en uso"
 # }
 ############################################################
 
@@ -292,9 +392,9 @@ Content-Type: application/json
 
 {
     "name": "Duplicate MAC",
-    "model": "Custom PC",
-    "mac": "AA:BB:CC:DD:EE:10",
-    "intrface": "LAN",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:10", "ctype": "LAN" }
+    ],
     "type": "CLIENT"
 }
 
@@ -323,7 +423,7 @@ Authorization: Bearer {{token}}
 ###
 
 ############################################################
-# Validation Error - Missing name
+# Validation Error - Invalid name format
 #
 # Expected:
 # Status: 400
@@ -332,41 +432,6 @@ Authorization: Bearer {{token}}
 # {
 #   "message": "Error al validar los datos",
 #   "details": [
-#       {
-#           "field": "name",
-#           "message": "Requerido"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-    "model": "Custom PC",
-    "mac": "AA:BB:CC:DD:EE:60",
-    "intrface": "LAN",
-    "type": "CLIENT"
-}
-
-###
-
-############################################################
-# Validation Error - Empty name
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "name",
-#           "message": "Longitud mínima 4 caracteres"
-#       },
 #       {
 #           "field": "name",
 #           "message": "Error de formato"
@@ -380,10 +445,10 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "name": "",
-    "model": "Custom PC",
-    "mac": "AA:BB:CC:DD:EE:60",
-    "intrface": "LAN",
+    "name": "Desktop@Test",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:41", "ctype": "LAN" }
+    ],
     "type": "CLIENT"
 }
 
@@ -413,108 +478,9 @@ Content-Type: application/json
 
 {
     "name": "abc",
-    "model": "Custom PC",
-    "mac": "AA:BB:CC:DD:EE:61",
-    "intrface": "LAN",
-    "type": "CLIENT"
-}
-
-###
-
-############################################################
-# Validation Error - Invalid MAC
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "mac",
-#           "message": "Error de formato"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-    "name": "Desktop Test",
-    "model": "Custom PC",
-    "mac": "INVALID",
-    "intrface": "LAN",
-    "type": "CLIENT"
-}
-
-###
-
-############################################################
-# Validation Error - Invalid IP
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "ip",
-#           "message": "Error de formato"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-    "name": "Router Test",
-    "model": "Mikrotik RB5009",
-    "mac": "AA:BB:CC:DD:EE:62",
-    "ip": "999.999.999.999",
-    "intrface": "LAN",
-    "type": "ROUTER",
-    "admin_pass": "Admin123!",
-    "mac_filter": true
-}
-
-###
-
-############################################################
-# Validation Error - Invalid interface
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "intrface",
-#           "message": "Valores permitidos: WAN, LAN, WIFI"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-    "name": "Desktop Test",
-    "model": "Custom PC",
-    "mac": "AA:BB:CC:DD:EE:63",
-    "intrface": "INVALID",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:42", "ctype": "LAN" }
+    ],
     "type": "CLIENT"
 }
 
@@ -544,16 +510,16 @@ Content-Type: application/json
 
 {
     "name": "Desktop Test",
-    "model": "Custom PC",
-    "mac": "AA:BB:CC:DD:EE:64",
-    "intrface": "LAN",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:43", "ctype": "LAN" }
+    ],
     "type": "INVALID"
 }
 
 ###
 
 ############################################################
-# Validation Error - Missing MAC
+# Validation Error - Empty connections
 #
 # Expected:
 # Status: 400
@@ -563,8 +529,8 @@ Content-Type: application/json
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
-#           "field": "mac",
-#           "message": "Requerido"
+#           "field": "connections",
+#           "message": "Debe contener al menos un elemento"
 #       }
 #   ]
 # }
@@ -576,15 +542,14 @@ Content-Type: application/json
 
 {
     "name": "Desktop Test",
-    "model": "Custom PC",
-    "intrface": "LAN",
+    "connections": [],
     "type": "CLIENT"
 }
 
 ###
 
 ############################################################
-# Validation Error - Missing interface
+# Validation Error - Invalid connection MAC
 #
 # Expected:
 # Status: 400
@@ -594,8 +559,8 @@ Content-Type: application/json
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
-#           "field": "intrface",
-#           "message": "Requerido"
+#           "field": "connections.0.mac",
+#           "message": "Error de formato"
 #       }
 #   ]
 # }
@@ -607,15 +572,16 @@ Content-Type: application/json
 
 {
     "name": "Desktop Test",
-    "model": "Custom PC",
-    "mac": "AA:BB:CC:DD:EE:65",
+    "connections": [
+        { "mac": "INVALID", "ctype": "LAN" }
+    ],
     "type": "CLIENT"
 }
 
 ###
 
 ############################################################
-# Validation Error - Missing type
+# Validation Error - Invalid connection ctype
 #
 # Expected:
 # Status: 400
@@ -625,8 +591,8 @@ Content-Type: application/json
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
-#           "field": "type",
-#           "message": "Requerido"
+#           "field": "connections.0.ctype",
+#           "message": "Valores permitidos: WAN, LAN, WIFI"
 #       }
 #   ]
 # }
@@ -638,83 +604,16 @@ Content-Type: application/json
 
 {
     "name": "Desktop Test",
-    "model": "Custom PC",
-    "mac": "AA:BB:CC:DD:EE:66",
-    "intrface": "LAN"
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:44", "ctype": "INVALID" }
+    ],
+    "type": "CLIENT"
 }
 
 ###
 
 ############################################################
-# Validation Error - Missing IP for ROUTER
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "ip",
-#           "message": "Debe especificar ip del router"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-    "name": "Router Test",
-    "model": "Mikrotik RB5009",
-    "mac": "AA:BB:CC:DD:EE:67",
-    "intrface": "LAN",
-    "type": "ROUTER",
-    "admin_pass": "Admin123!",
-    "mac_filter": true
-}
-
-###
-
-############################################################
-# Validation Error - Missing admin password for ROUTER
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "admin_pass",
-#           "message": "Debe especificar contraseña de acceso al router"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-    "name": "Router Test",
-    "model": "Mikrotik RB5009",
-    "mac": "AA:BB:CC:DD:EE:68",
-    "ip": "192.168.1.3",
-    "intrface": "LAN",
-    "type": "ROUTER",
-    "mac_filter": true
-}
-
-###
-
-############################################################
-# Validation Error - Missing MAC filter support for ROUTER
+# SuperRefine - Router missing mac_filter
 #
 # Expected:
 # Status: 400
@@ -737,18 +636,19 @@ Content-Type: application/json
 
 {
     "name": "Router Test",
-    "model": "Mikrotik RB5009",
-    "mac": "AA:BB:CC:DD:EE:69",
-    "ip": "192.168.1.4",
-    "intrface": "LAN",
+    "model": "TP-Link Archer AX53",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:45", "ctype": "LAN" }
+    ],
     "type": "ROUTER",
+    "ip": "192.168.1.2",
     "admin_pass": "Admin123!"
 }
 
 ###
 
 ############################################################
-# Validation Error - Missing model for ROUTER with MAC filter
+# SuperRefine - Router with mac_filter missing model
 #
 # Expected:
 # Status: 400
@@ -771,9 +671,80 @@ Content-Type: application/json
 
 {
     "name": "Router Test",
-    "mac": "AA:BB:CC:DD:EE:70",
-    "ip": "192.168.1.5",
-    "intrface": "LAN",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:46", "ctype": "LAN" }
+    ],
+    "type": "ROUTER",
+    "ip": "192.168.1.3",
+    "admin_pass": "Admin123!",
+    "mac_filter": true
+}
+
+###
+
+############################################################
+# SuperRefine - Router missing admin_pass
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "admin_pass",
+#           "message": "Debe especificar contraseña de acceso al router"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Router Test",
+    "model": "TP-Link Archer AX53",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:47", "ctype": "LAN" }
+    ],
+    "type": "ROUTER",
+    "ip": "192.168.1.4",
+    "mac_filter": true
+}
+
+###
+
+############################################################
+# SuperRefine - Router missing ip
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "ip",
+#           "message": "Debe especificar ip del router"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Router Test",
+    "model": "TP-Link Archer AX53",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:48", "ctype": "LAN" }
+    ],
     "type": "ROUTER",
     "admin_pass": "Admin123!",
     "mac_filter": true
@@ -782,7 +753,7 @@ Content-Type: application/json
 ###
 
 ############################################################
-# Validation Error - CLIENT cannot use MAC filtering
+# SuperRefine - Client cannot use mac_filter
 #
 # Expected:
 # Status: 400
@@ -805,9 +776,9 @@ Content-Type: application/json
 
 {
     "name": "Desktop Test",
-    "model": "Custom PC",
-    "mac": "AA:BB:CC:DD:EE:71",
-    "intrface": "LAN",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:49", "ctype": "LAN" }
+    ],
     "type": "CLIENT",
     "mac_filter": true
 }
@@ -815,7 +786,7 @@ Content-Type: application/json
 ###
 
 ############################################################
-# Validation Error - CLIENT cannot use admin password
+# SuperRefine - Client cannot use admin_pass
 #
 # Expected:
 # Status: 400
@@ -838,9 +809,9 @@ Content-Type: application/json
 
 {
     "name": "Desktop Test",
-    "model": "Custom PC",
-    "mac": "AA:BB:CC:DD:EE:72",
-    "intrface": "LAN",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:50", "ctype": "LAN" }
+    ],
     "type": "CLIENT",
     "admin_pass": "Admin123!"
 }
@@ -848,7 +819,7 @@ Content-Type: application/json
 ###
 
 ############################################################
-# Validation Error - CLIENT cannot use Wi-Fi password
+# SuperRefine - Client cannot use wifi_pass
 #
 # Expected:
 # Status: 400
@@ -871,9 +842,9 @@ Content-Type: application/json
 
 {
     "name": "Desktop Test",
-    "model": "Custom PC",
-    "mac": "AA:BB:CC:DD:EE:73",
-    "intrface": "LAN",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:51", "ctype": "LAN" }
+    ],
     "type": "CLIENT",
     "wifi_pass": "WifiPass123!"
 }
@@ -881,7 +852,7 @@ Content-Type: application/json
 ###
 
 ############################################################
-# Validation Error - Missing IP for SERVER
+# SuperRefine - Server missing ip
 #
 # Expected:
 # Status: 400
@@ -904,8 +875,41 @@ Content-Type: application/json
 
 {
     "name": "Server Test",
-    "model": "Proxmox VE",
-    "mac": "AA:BB:CC:DD:EE:74",
-    "intrface": "LAN",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:52", "ctype": "LAN" }
+    ],
     "type": "SERVER"
+}
+
+###
+
+############################################################
+# SuperRefine - Duplicated connection ctype
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "connections.ctype",
+#           "message": "El ctype LAN se encuentra duplicado"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Desktop Test",
+    "connections": [
+        { "mac": "AA:BB:CC:DD:EE:53", "ctype": "LAN" },
+        { "mac": "AA:BB:CC:DD:EE:54", "ctype": "LAN" }
+    ],
+    "type": "CLIENT"
 }
