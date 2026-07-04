@@ -8,7 +8,7 @@ import ApiError from "./api-error.js";
 export default class ValidateUtils {
     static ALLOW_ENUMS = Object.freeze({
         fileType: Object.freeze(["DIR", "FILE"]),
-        devicesIntrface: Object.freeze(["WAN", "LAN", "WIFI"]),
+        connectionsCtype: Object.freeze(["WAN", "LAN", "WIFI"]),
         devicesType: Object.freeze(["CLIENT", "ROUTER", "SERVER"]),
         userRoles: Object.freeze(["ADMIN", "FTP", "NET"])
     });
@@ -17,8 +17,9 @@ export default class ValidateUtils {
         typeRequired: { error: (issue) => (issue.input === undefined ? "Requerido" : "Tipo no válido") },
         typeNotRequired: { error: "Tipo no válido" },
         format: "Error de formato",
-        length: (num, mode) =>
-            `Longitud ${mode === "min" ? "mínima" : "máxima"} ${num} ${num > 1 ? "caracteres" : "caracter"}`,
+        length: (num, mode) => {
+            return `Longitud ${mode === "min" ? "mínima" : "máxima"} ${num} ${num > 1 ? "caracteres" : "caracter"}`;
+        },
         invalidEnum: (values) => ({ error: `Valores permitidos: ${values.join(", ")}` }),
         invalidId: "UUID no válido",
         emptyArray: "Debe contener al menos un elemento",
