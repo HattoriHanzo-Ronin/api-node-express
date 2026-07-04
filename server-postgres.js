@@ -5,6 +5,8 @@ import PostgresClient from "./config/db/postgres-client.js";
 import FtpController from "./controllers/ftp-controller.js";
 import FtpService from "./services/ftp-service.js";
 
+import ConnectionsModel from "./models/postgres/connections-model.js";
+import ConnectionsService from "./services/connections-service.js";
 import DevicesModel from "./models/postgres/devices-model.js";
 import DevicesService from "./services/devices-service.js";
 import DevicesMapper from "./mappers/devices-mapper.js";
@@ -31,11 +33,12 @@ const tx = PostgresClient.executeTx;
 
 const ftpController = new FtpController({ ftpService: FtpService });
 
-const whitelistService = new WhitelistService({ whitelistModel: WhitelistModel });
+const connectionsService = new ConnectionsService({ connectionsModel: ConnectionsModel });
 const devicesService = new DevicesService({ devicesModel: DevicesModel });
-const devicesFacade = new DevicesFacade({ devicesService, devicesMapper: DevicesMapper, tx });
+const devicesFacade = new DevicesFacade({ devicesService, devicesMapper: DevicesMapper, connectionsService, tx });
 const devicesController = new DevicesController({ devicesFacade });
-const whitelistFacade = new WhitelistFacade({ whitelistService, devicesService, tx });
+const whitelistService = new WhitelistService({ whitelistModel: WhitelistModel });
+const whitelistFacade = new WhitelistFacade({ whitelistService, devicesFacade, tx });
 const whitelistController = new WhitelistController({ whitelistFacade });
 
 const userRolesService = new UserRolesService({ userRolesModel: UserRolesModel });

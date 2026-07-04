@@ -19,7 +19,7 @@ export default class ArcherAX53Router extends AbstractRouter {
         try {
             mac = mac.replaceAll(":", "-");
             const page = await this.#openAccessControl();
-            await delay(4800);
+            await delay(5000);
             const buttons = await page.$$('div[role="button"]');
             for (const button of buttons) {
                 const text = await page.evaluate((el) => el.textContent, button);
