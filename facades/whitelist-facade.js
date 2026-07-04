@@ -7,9 +7,9 @@ import ValidateUtils from "../utils/validate-utils.js";
  * @author HattoriHanzo-Ronin
  */
 export default class WhitelistFacade {
-    constructor({ whitelistService, devicesService, tx }) {
+    constructor({ whitelistService, devicesFacade, tx }) {
         this.whitelistService = whitelistService;
-        this.devicesService = devicesService;
+        this.devicesFacade = devicesFacade;
         this.tx = tx;
     }
 
@@ -18,22 +18,22 @@ export default class WhitelistFacade {
      *
      * @param {string} params.routerId Router identifier
      * @param {Object} params.allowedDevice Allowed device data
-     * @returns {Promise<{ id: string }>} Allowed device identifier
+     * @returns {Promise<{ id: string, mac: string }>} Allowed device identifier and connection MAC
      */
     async create({ routerId, allowedDevice }) {
+        const { id, name, mac } = await this.#resolveAllowedDevice(allowedDevice);
         const routerImpl = await this.#getRouterImpl(routerId);
-        const { id: allowedDeviceId } = allowedDevice;
         const key = await this.whitelistService.getKey({
             routerId,
             generateKey: (keys) => routerImpl.generateKey(keys)
         });
         return this.tx(async (clientTx) => {
-            const { allowed_device_id: id } = await this.whitelistService.create({
+            await this.whitelistService.create({
                 clientTx,
-                whitelist: { router_id: routerId, allowed_device_id: allowedDeviceId, key }
+                whitelist: { router_id: routerId, connection_mac: mac, key }
             });
-            await routerImpl.create({ key, ...allowedDevice });
-            return { id };
+            await routerImpl.create({ key, name, mac });
+            return { id, mac };
         });
     }
 
@@ -42,25 +42,25 @@ export default class WhitelistFacade {
      *
      * @param {string} params.routerId Router identifier
      * @param {Object} params.allowedDevice Allowed device data
-     * @returns {Promise<{ id: string }>} Deleted allowed device identifier
+     * @returns {Promise<{ id: string, mac: string }>} Deleted allowed device identifier and connection MAC
      */
     async delete({ routerId, allowedDevice }) {
+        const { id, mac } = await this.#resolveAllowedDevice(allowedDevice);
         const routerImpl = await this.#getRouterImpl(routerId);
-        const { id: allowedDeviceId } = allowedDevice;
         return this.tx(async (clientTx) => {
-            const { allowed_device_id: id, key } = await this.whitelistService.delete({
+            const { key } = await this.whitelistService.delete({
                 clientTx,
                 routerId,
-                allowedDeviceId
+                mac
             });
-            await routerImpl.delete({ key, ...allowedDevice });
-            return { id };
+            await routerImpl.delete({ key, mac });
+            return { id, mac };
         });
     }
 
     async #getRouterImpl(id) {
         try {
-            const router = await this.devicesService.getById({ id });
+            const router = await this.devicesFacade.getById({ id });
             return new RouterResolver(router);
         } catch (err) {
             handleApiErrors([
@@ -73,6 +73,19 @@ export default class WhitelistFacade {
             ]);
             throw err;
         }
+    }
+
+    async #resolveAllowedDevice({ id, mac }) {
+        const { name, connections } = await this.devicesFacade.getById({ id });
+        handleApiErrors([
+            {
+                condition: !connections.some(({ mac: connectionMac }) => connectionMac === mac),
+                message: "La mac no pertenece al dispositivo especificado",
+                status: 400,
+                code: "CONNECTION_MAC_MISMATCH"
+            }
+        ]);
+        return { id, name, mac };
     }
 }
 

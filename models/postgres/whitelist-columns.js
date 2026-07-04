@@ -1,7 +1,10 @@
 import DbUtils from "../../utils/db-utils.js";
 
 const whitelistColumns = {
-    insert: DbUtils.createColumnSet(["router_id", "allowed_device_id", "key"], { table: "whitelist" })
+    insert: DbUtils.createColumnSet(
+        [{ name: "router_id", cast: "uuid" }, { name: "connection_mac" }, { name: "key" }],
+        "whitelist"
+    )
 };
 
 export default whitelistColumns;
