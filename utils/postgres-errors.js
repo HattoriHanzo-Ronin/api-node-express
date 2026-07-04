@@ -7,12 +7,6 @@ export default class PostgresErrors {
     static whitelist(err) {
         handleApiErrors([
             {
-                condition: err.code === FOREIGN_KEY_VIOLATION,
-                message: "El dispositivo no existe",
-                status: 404,
-                code: "WHITELIST_DEVICE_NOT_FOUND"
-            },
-            {
                 condition: err.code === UNIQUE_VIOLATION,
                 execute: () => {
                     handleApiErrors([
@@ -37,9 +31,33 @@ export default class PostgresErrors {
         handleApiErrors([
             {
                 condition: err.code === UNIQUE_VIOLATION,
-                message: "Ya existe un dispositivo con esa MAC",
+                execute: () => {
+                    handleApiErrors([
+                        {
+                            condition: err.constraint === "devices_name_unique",
+                            message: "El nombre del dispositivo ya está en uso",
+                            status: 409,
+                            code: "DEVICE_NAME_ALREADY_EXISTS"
+                        },
+                        {
+                            condition: err.constraint === "devices_ip_unique",
+                            message: "La ip ya está en uso",
+                            status: 409,
+                            code: "DEVICE_IP_ALREADY_IN_USE"
+                        },
+                    ]);
+                }
+            }
+        ]);
+    }
+
+    static connections(err) {
+        handleApiErrors([
+            {
+                condition: err.code === UNIQUE_VIOLATION,
+                message: "La mac ya está en uso",
                 status: 409,
-                code: "DEVICE_MAC_ALREADY_EXISTS"
+                code: "CONNECTION_MAC_ALREADY_EXISTS"
             }
         ]);
     }
@@ -61,7 +79,7 @@ export default class PostgresErrors {
                 condition: err.code === FOREIGN_KEY_VIOLATION,
                 message: "El usuario no existe",
                 status: 404,
-                code: "REFRESH_TOKENS_USER_NOT_FOUND"
+                code: "REFRESH_TOKEN_USER_NOT_FOUND"
             }
         ]);
     }
