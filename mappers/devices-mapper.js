@@ -13,13 +13,17 @@ export default class DevicesMapper {
      * @returns {Object} Domain device
      */
     static deviceToDomain(source) {
-        const device = Object.fromEntries(Object.entries(source).filter(([, it]) => it !== null));
+        let { connections, ...device } = source;
+        connections = connections
+            .filter((connection) => connection.device_id === device.id)
+            .map(({ mac, ctype }) => ({ mac, ctype }));
+        device = Object.fromEntries(Object.entries(device).filter(([, it]) => it !== null));
         if (device.mac_filter) {
             const routerImpl = new RouterResolver(device);
-            return { ...device, capabilities: routerImpl.getCapabilities() };
+            device = { ...device, capabilities: routerImpl.getCapabilities() };
         }
 
-        return device;
+        return { ...device, connections };
     }
 
     /**
@@ -29,6 +33,7 @@ export default class DevicesMapper {
      * @returns {Object[]} Domain devices
      */
     static devicesToDomain(source) {
-        return source.map((it) => this.deviceToDomain(it));
+        const { devices, connections } = source;
+        return devices.map((device) => this.deviceToDomain({ ...device, connections }));
     }
 }
