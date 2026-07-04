@@ -22,10 +22,9 @@ export default class WhitelistModel {
      *
      * @param {import("pg-promise").ITask<any>} params.clientTx Database transaction
      * @param {Object} params.whitelist Whitelist entry
-     * @returns {Promise<{ allowed_device_id: string }>} Allowed device identifier
      */
     static async insert({ clientTx, whitelist }) {
-        return clientTx.one(helpers().insert(whitelist, insertColumns) + " returning allowed_device_id");
+        return clientTx.none(helpers().insert(whitelist, insertColumns));
     }
 
     /**
@@ -33,13 +32,13 @@ export default class WhitelistModel {
      *
      * @param {import("pg-promise").ITask<any>} params.clientTx Database transaction
      * @param {string} params.routerId Router identifier
-     * @param {string} params.allowedDeviceId Allowed device identifier
-     * @returns {Promise<{ allowed_device_id: string, key: string | null } | null>} Deleted whitelist entry
+     * @param {string} params.mac Connection MAC address
+     * @returns {Promise<{ key: string | null } | null>} Deleted whitelist entry
      */
-    static async delete({ clientTx, routerId, allowedDeviceId }) {
+    static async delete({ clientTx, routerId, mac }) {
         return clientTx.oneOrNone(
-            `delete from whitelist where router_id = $1 and allowed_device_id = $2 returning allowed_device_id, key`,
-            [routerId, allowedDeviceId]
+            `delete from whitelist where router_id = $1 and connection_mac = $2 returning key`,
+            [routerId, mac]
         );
     }
 }

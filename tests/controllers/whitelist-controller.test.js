@@ -1,73 +1,62 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import WhitelistController from "../../controllers/whitelist-controller.js";
 
-describe("WhitelistController validation", () => {
-    let whitelistService;
+const ROUTER_ID = "550e8400-e29b-41d4-a716-446655440000";
+const DEVICE_ID = "550e8400-e29b-41d4-a716-446655440001";
+
+describe("WhitelistController", () => {
+    let whitelistFacade;
     let controller;
     let req;
     let res;
-    let next;
 
     beforeEach(() => {
-        whitelistService = { create: vi.fn() };
-        controller = new WhitelistController({ whitelistService });
+        whitelistFacade = { create: vi.fn(), delete: vi.fn() };
+        controller = new WhitelistController({ whitelistFacade });
         req = {
-            body: {
-                router: {
-                    id: "550e8400-e29b-41d4-a716-446655440000",
-                    name: "Router Test",
-                    mac: "AA:BB:CC:DD:EE:FF",
-                    model: "Archer AX53",
-                    ip: "192.168.1.1",
-                    admin_pass: "Password123",
-                    mac_filter: true
-                },
-                allowDevice: {
-                    id: "550e8400-e29b-41d4-a716-446655440001",
-                    name: "Samsung A54",
-                    mac: "11:22:33:44:55:66"
-                }
-            }
+            params: { id: ROUTER_ID },
+            body: { id: DEVICE_ID, mac: "AA:BB:CC:DD:EE:01" }
         };
         res = { json: vi.fn() };
-        next = vi.fn();
     });
 
-    it("should create whitelist", async () => {
-        whitelistService.create.mockResolvedValue(true);
-        await controller.create(req, res, next);
-        expect(whitelistService.create).toHaveBeenCalled();
-        expect(res.json).toHaveBeenCalledWith(true);
-    });
-
-    it("should trim router values", async () => {
-        whitelistService.create.mockResolvedValue(true);
-        req.body.router.name = "   Router Test   ";
-        await controller.create(req, res, next);
-        expect(whitelistService.create).toHaveBeenCalledWith({
-            router: expect.objectContaining({ name: "Router Test" }),
-            allowDevice: expect.any(Object)
+    it("should create whitelist entry", async () => {
+        whitelistFacade.create.mockResolvedValue({ id: DEVICE_ID, mac: "AA:BB:CC:DD:EE:01" });
+        await controller.create(req, res);
+        expect(whitelistFacade.create).toHaveBeenCalledWith({
+            routerId: ROUTER_ID,
+            allowedDevice: { id: DEVICE_ID, mac: "AA:BB:CC:DD:EE:01" }
         });
+        expect(res.json).toHaveBeenCalledWith({ id: DEVICE_ID, mac: "AA:BB:CC:DD:EE:01" });
+    });
+
+    it("should delete whitelist entry", async () => {
+        whitelistFacade.delete.mockResolvedValue({ id: DEVICE_ID, mac: "AA:BB:CC:DD:EE:01" });
+        await controller.delete(req, res);
+        expect(whitelistFacade.delete).toHaveBeenCalledWith({
+            routerId: ROUTER_ID,
+            allowedDevice: { id: DEVICE_ID, mac: "AA:BB:CC:DD:EE:01" }
+        });
+        expect(res.json).toHaveBeenCalledWith({ id: DEVICE_ID, mac: "AA:BB:CC:DD:EE:01" });
     });
 
     it("should fail with invalid router id", async () => {
-        req.body.router.id = "invalid";
-        await expect(controller.create(req, res, next)).rejects.toThrow();
+        req.params.id = "BAD_ID";
+        await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
     });
 
-    it("should fail with invalid router ip", async () => {
-        req.body.router.ip = "invalid-ip";
-        await expect(controller.create(req, res, next)).rejects.toThrow();
+    it("should fail with invalid allowed device id", async () => {
+        req.body.id = "BAD_ID";
+        await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
     });
 
-    it("should fail when router does not support mac filtering", async () => {
-        req.body.router.mac_filter = false;
-        await expect(controller.create(req, res, next)).rejects.toThrow();
+    it("should fail with invalid allowed device mac", async () => {
+        req.body.mac = "BAD_MAC";
+        await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
     });
 
-    it("should fail with invalid allow device mac", async () => {
-        req.body.allowDevice.mac = "invalid";
-        await expect(controller.create(req, res, next)).rejects.toThrow();
+    it("should fail with missing allowed device mac", async () => {
+        delete req.body.mac;
+        await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
     });
 });
