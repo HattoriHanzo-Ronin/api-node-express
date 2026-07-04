@@ -20,10 +20,14 @@
 # -----
 # - The router must exist.
 # - The allowed device must exist.
+# - The allowed MAC must belong to the allowed device.
 # - The allowed device must not already be associated with the router.
 
 @baseUrl = http://localhost:59998/whitelist
 @token = PASTE_ACCESS_TOKEN
+@routerId = PASTE_ROUTER_ID
+@allowedDeviceId = PASTE_ALLOWED_DEVICE_ID
+@allowedMac = PASTE_MAC
 
 ############################################################
 # Create whitelist entry
@@ -33,18 +37,18 @@
 #
 # Response:
 # {
-#   "id": "..."
+#   "id": "...",
+#   "mac": "AA:BB:CC:DD:EE:10"
 # }
 ############################################################
 
-POST {{baseUrl}}/ROUTER_ID
+POST {{baseUrl}}/{{routerId}}
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "id": "ALLOWED_DEVICE_ID",
-    "name": "Desktop",
-    "mac": "AA:BB:CC:DD:EE:10"
+    "id": "{{allowedDeviceId}}",
+    "mac": "{{allowedMac}}"
 }
 
 ###
@@ -57,135 +61,18 @@ Content-Type: application/json
 #
 # Response:
 # {
-#   "id": "..."
+#   "id": "...",
+#   "mac": "AA:BB:CC:DD:EE:10"
 # }
 ############################################################
 
-DELETE {{baseUrl}}/ROUTER_ID
+DELETE {{baseUrl}}/{{routerId}}
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "id": "ALLOWED_DEVICE_ID",
-    "name": "Desktop",
-    "mac": "AA:BB:CC:DD:EE:10"
-}
-
-###
-
-############################################################
-# Validation Error - Missing allowed device id
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "id",
-#           "message": "Requerido"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}/ROUTER_ID
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-    "name": "Desktop",
-    "mac": "AA:BB:CC:DD:EE:10"
-}
-
-###
-
-############################################################
-# Validation Error - Missing device name
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "name",
-#           "message": "Requerido"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}/ROUTER_ID
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-    "id": "ALLOWED_DEVICE_ID",
-    "mac": "AA:BB:CC:DD:EE:10"
-}
-
-###
-
-############################################################
-# Validation Error - Missing MAC
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "mac",
-#           "message": "Requerido"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}/ROUTER_ID
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-    "id": "ALLOWED_DEVICE_ID",
-    "name": "Desktop"
-}
-
-###
-
-############################################################
-# Validation Error - Invalid device id
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "id",
-#           "message": "UUID no válido"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}/ROUTER_ID
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-    "id": "INVALID",
-    "name": "Desktop",
-    "mac": "AA:BB:CC:DD:EE:10"
+    "id": "{{allowedDeviceId}}",
+    "mac": "{{allowedMac}}"
 }
 
 ###
@@ -213,9 +100,37 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "id": "ALLOWED_DEVICE_ID",
-    "name": "Desktop",
-    "mac": "AA:BB:CC:DD:EE:10"
+    "id": "{{allowedDeviceId}}",
+    "mac": "{{allowedMac}}"
+}
+
+###
+
+############################################################
+# Validation Error - Invalid allowed device id
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "id",
+#           "message": "UUID no válido"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}/{{routerId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "id": "INVALID",
+    "mac": "{{allowedMac}}"
 }
 
 ###
@@ -238,14 +153,41 @@ Content-Type: application/json
 # }
 ############################################################
 
-POST {{baseUrl}}/ROUTER_ID
+POST {{baseUrl}}/{{routerId}}
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "id": "ALLOWED_DEVICE_ID",
-    "name": "Desktop",
+    "id": "{{allowedDeviceId}}",
     "mac": "INVALID"
+}
+
+###
+
+############################################################
+# Validation Error - Missing MAC
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "mac",
+#           "message": "Requerido"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}/{{routerId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "id": "{{allowedDeviceId}}"
 }
 
 ###
@@ -267,9 +209,8 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "id": "ALLOWED_DEVICE_ID",
-    "name": "Desktop",
-    "mac": "AA:BB:CC:DD:EE:10"
+    "id": "{{allowedDeviceId}}",
+    "mac": "{{allowedMac}}"
 }
 
 ###
@@ -286,13 +227,35 @@ Content-Type: application/json
 # }
 ############################################################
 
-POST {{baseUrl}}/ROUTER_ID
+POST {{baseUrl}}/{{routerId}}
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
     "id": "00000000-0000-0000-0000-000000000000",
-    "name": "Unknown",
+    "mac": "AA:BB:CC:DD:EE:99"
+}
+
+###
+
+############################################################
+# Business Error - MAC does not belong to device
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "La mac no pertenece al dispositivo especificado"
+# }
+############################################################
+
+POST {{baseUrl}}/{{routerId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "id": "{{allowedDeviceId}}",
     "mac": "AA:BB:CC:DD:EE:99"
 }
 
@@ -310,13 +273,12 @@ Content-Type: application/json
 # }
 ############################################################
 
-DELETE {{baseUrl}}/ROUTER_ID
+DELETE {{baseUrl}}/{{routerId}}
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "id": "00000000-0000-0000-0000-000000000000",
-    "name": "Unknown",
+    "id": "{{allowedDeviceId}}",
     "mac": "AA:BB:CC:DD:EE:99"
 }
 
@@ -324,9 +286,6 @@ Content-Type: application/json
 
 ############################################################
 # Business Error - Duplicate whitelist entry
-#
-# Prerequisites:
-# - The whitelist entry already exists.
 #
 # Expected:
 # Status: 400
@@ -337,12 +296,11 @@ Content-Type: application/json
 # }
 ############################################################
 
-POST {{baseUrl}}/ROUTER_ID
+POST {{baseUrl}}/{{routerId}}
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "id": "ALLOWED_DEVICE_ID",
-    "name": "Desktop",
-    "mac": "AA:BB:CC:DD:EE:10"
+    "id": "{{allowedDeviceId}}",
+    "mac": "{{allowedMac}}"
 }
