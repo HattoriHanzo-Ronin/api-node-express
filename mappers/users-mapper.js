@@ -12,7 +12,7 @@ export default class UsersMapper {
      */
     static userToDomain(source) {
         let { roles, ...user } = source;
-        roles = roles.filter((role) => role.user_id === user.id);
+        roles = roles.filter(({ user_id: userId }) => userId === user.id);
         return { ...user, ...mapRolesToDomain(roles) };
     }
 
@@ -29,7 +29,7 @@ export default class UsersMapper {
 }
 
 function mapRolesToDomain(roles) {
-    const adminRole = roles.find((it) => it.role === "ADMIN");
-    roles = roles.map((it) => it.role);
+    const adminRole = roles.find(({ role }) => role === "ADMIN");
+    roles = roles.map(({ role }) => role);
     return adminRole ? { roles, scope: adminRole.scope.split(",") } : { roles };
 }

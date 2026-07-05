@@ -55,7 +55,7 @@ describe("AuthFacade", () => {
         });
 
         it("should revoke invalid refresh tokens", async () => {
-            refreshTokensService.getByToken.mockRejectedValue(new Error("Token no válido"));
+            refreshTokensService.getByToken.mockRejectedValue({ message: "Token no válido", code: "INVALID_TOKEN" });
             await expect(authFacade.refresh({ refreshToken: "refresh-token" })).rejects.toThrow("Token no válido");
             expect(refreshTokensService.delete).toHaveBeenCalledWith({ token: "refresh-token" });
         });

@@ -70,7 +70,7 @@ describe("UsersService", () => {
         });
 
         it("should fail if username already exists", async () => {
-            usersModel.insert.mockRejectedValue({ constraint: "users_username_key" });
+            usersModel.insert.mockRejectedValue({ code: "23505" });
             await expect(usersService.create({ clientTx: {}, user: { username: "user" } })).rejects.toThrow(
                 "El nombre de usuario ya está en uso"
             );
@@ -86,7 +86,7 @@ describe("UsersService", () => {
         });
 
         it("should fail if username already exists", async () => {
-            usersModel.update.mockRejectedValue({ constraint: "users_username_key" });
+            usersModel.update.mockRejectedValue({ code: "23505" });
             await expect(usersService.update({ clientTx: {}, id: "1", data: { username: "updated" } })).rejects.toThrow(
                 "El nombre de usuario ya está en uso"
             );

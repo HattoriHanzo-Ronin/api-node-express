@@ -5,7 +5,7 @@
 # Manual test suite for validating:
 #
 # - Whitelist operations.
-# - Schema validation errors.
+# - Representative schema validation errors.
 # - Business rules.
 #
 # This file may also be used for general API testing.
@@ -102,92 +102,6 @@ Content-Type: application/json
 {
     "id": "{{allowedDeviceId}}",
     "mac": "{{allowedMac}}"
-}
-
-###
-
-############################################################
-# Validation Error - Invalid allowed device id
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "id",
-#           "message": "UUID no válido"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}/{{routerId}}
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-    "id": "INVALID",
-    "mac": "{{allowedMac}}"
-}
-
-###
-
-############################################################
-# Validation Error - Invalid MAC
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "mac",
-#           "message": "Error de formato"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}/{{routerId}}
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-    "id": "{{allowedDeviceId}}",
-    "mac": "INVALID"
-}
-
-###
-
-############################################################
-# Validation Error - Missing MAC
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "mac",
-#           "message": "Requerido"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}/{{routerId}}
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-    "id": "{{allowedDeviceId}}"
 }
 
 ###

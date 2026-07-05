@@ -21,7 +21,7 @@ export default class UsersFacade {
      */
     async getAll({ authUser }) {
         const result = await this.usersService.getAll();
-        const roles = await this.userRolesService.getByUsers({ usersId: result.map((it) => it.id) });
+        const roles = await this.userRolesService.getByUsers({ usersId: result.map(({ id }) => id) });
         const users = this.usersMapper.usersToDomain({ users: result, roles });
         return users.filter((it) => allowedManage(authUser, it.roles)).map((it) => filterAcl(authUser, it));
     }
@@ -168,7 +168,15 @@ export default class UsersFacade {
             }
 
             if (superAdmin) {
-                if (updatedUserRoles || updatedUserScope) {
+                const isUpdatedRoles =
+                    updatedUserRoles &&
+                    (updatedUserRoles.length !== userRoles.length ||
+                        !userRoles.every((it) => updatedUserRoles.includes(it)));
+                const isUpdatedScope =
+                    updatedUserScope &&
+                    (updatedUserScope.length !== userScope.length ||
+                        !userScope.every((it) => updatedUserScope.includes(it)));
+                if (isUpdatedRoles || isUpdatedScope) {
                     const roles = await this.userRolesService.replace({
                         clientTx,
                         userId: updatedUserId,

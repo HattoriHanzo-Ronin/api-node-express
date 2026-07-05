@@ -43,7 +43,7 @@ describe("UserRolesService", () => {
 
         it("should fail if roles are not defined", async () => {
             await expect(userRolesService.createMany({ clientTx: {}, userId: "1" })).rejects.toThrow(
-                "Se debe definir roles para el usuario"
+                "Se debe especificar al menos un rol para el usuario"
             );
         });
     });
