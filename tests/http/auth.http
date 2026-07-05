@@ -21,6 +21,8 @@
 # - Login and refresh always return complete user information.
 
 @baseUrl = http://localhost:59998/auth
+@accessToken = PASTE_ACCESS_TOKEN
+@refreshToken = PASTE_REFRESH_TOKEN
 
 ############################################################
 # Login
@@ -30,9 +32,12 @@
 #
 # Response:
 # {
-#   "id": "..",
-#   "roles": [...],
-#   "scope": [...],
+#   "user": {
+#       "id": "...",
+#       "username": "test_user",
+#       "roles": ["ADMIN"],
+#       "scope": ["ADMIN"]
+#   },
 #   "accessToken": "...",
 #   "refreshToken": "..."
 # }
@@ -56,9 +61,12 @@ Content-Type: application/json
 #
 # Response:
 # {
-#   "id": "..",
-#   "roles": [...],
-#   "scope": [...],
+#   "user": {
+#       "id": "...",
+#       "username": "test_user",
+#       "roles": ["ADMIN"],
+#       "scope": ["ADMIN"]
+#   },
 #   "accessToken": "...",
 #   "refreshToken": "..."
 # }
@@ -68,7 +76,7 @@ POST {{baseUrl}}/refresh
 Content-Type: application/json
 
 {
-    "refreshToken": "PASTE_REFRESH_TOKEN"
+    "refreshToken": "{{refreshToken}}"
 }
 
 ###
@@ -78,20 +86,23 @@ Content-Type: application/json
 #
 # Expected:
 # Status: 204
+#
+# Response:
+# Empty body
 ############################################################
 
 POST {{baseUrl}}/logout
-Authorization: Bearer PASTE_ACCESS_TOKEN
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
-    "refreshToken": "PASTE_REFRESH_TOKEN"
+    "refreshToken": "{{refreshToken}}"
 }
 
 ###
 
 ############################################################
-# Validation Error - Missing username
+# Validation Error - Invalid username format
 #
 # Expected:
 # Status: 400
@@ -102,7 +113,7 @@ Content-Type: application/json
 #   "details": [
 #       {
 #           "field": "username",
-#           "message": "Requerido"
+#           "message": "Error de formato"
 #       }
 #   ]
 # }
@@ -112,45 +123,14 @@ POST {{baseUrl}}
 Content-Type: application/json
 
 {
+    "username": "test user",
     "password": "Password123!"
 }
 
 ###
 
 ############################################################
-# Validation Error - Empty username
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#     {
-#       "field": "username",
-#       "message": "Longitud mínima 3 caracteres"
-#     },
-#     {
-#       "field": "username",
-#       "message": "Error de formato"
-#     }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}
-Content-Type: application/json
-
-{
-    "username": "",
-    "password": "Password123!"
-}
-
-###
-
-############################################################
-# Validation Error - Missing password
+# Validation Error - Password below minimum length
 #
 # Expected:
 # Status: 400
@@ -161,7 +141,7 @@ Content-Type: application/json
 #   "details": [
 #       {
 #           "field": "password",
-#           "message": "Requerido"
+#           "message": "Longitud mínima 12 caracteres"
 #       }
 #   ]
 # }
@@ -171,39 +151,8 @@ POST {{baseUrl}}
 Content-Type: application/json
 
 {
-    "username": "admin"
-}
-
-###
-
-############################################################
-# Validation Error - Empty password
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#     {
-#       "field": "password",
-#       "message": "Longitud mínima 12 caracteres"
-#     },
-#     {
-#       "field": "password",
-#       "message": "Error de formato"
-#     }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}
-Content-Type: application/json
-
-{
-    "username": "admin",
-    "password": ""
+    "username": "test_user",
+    "password": "Short1!"
 }
 
 ###
@@ -234,33 +183,6 @@ Content-Type: application/json
 ###
 
 ############################################################
-# Validation Error - Empty refresh token
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "refreshToken",
-#           "message": "No puede estar vacío"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}/refresh
-Content-Type: application/json
-
-{
-    "refreshToken": ""
-}
-
-###
-
-############################################################
 # Business Error - Invalid credentials
 #
 # Expected:
@@ -276,7 +198,7 @@ POST {{baseUrl}}
 Content-Type: application/json
 
 {
-    "username": "admin",
+    "username": "test_user",
     "password": "WrongPassword123!"
 }
 

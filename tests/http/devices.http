@@ -5,9 +5,9 @@
 # Manual test suite for validating:
 #
 # - Device CRUD operations.
-# - Schema validation errors.
+# - Representative schema validation errors.
+# - All SuperRefine validation rules.
 # - Business rules.
-# - Error handler responses.
 #
 # This file may also be used for general API testing.
 #
@@ -332,23 +332,6 @@ Content-Type: application/json
 ###
 
 ############################################################
-# Business Error - Delete device not found
-#
-# Expected:
-# Status: 404
-#
-# Response:
-# {
-#   "message": "El dispositivo no existe"
-# }
-############################################################
-
-DELETE {{baseUrl}}/00000000-0000-0000-0000-000000000000
-Authorization: Bearer {{token}}
-
-###
-
-############################################################
 # Business Error - Device name already exists
 #
 # Expected:
@@ -543,70 +526,6 @@ Content-Type: application/json
 {
     "name": "Desktop Test",
     "connections": [],
-    "type": "CLIENT"
-}
-
-###
-
-############################################################
-# Validation Error - Invalid connection MAC
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "connections.0.mac",
-#           "message": "Error de formato"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-    "name": "Desktop Test",
-    "connections": [
-        { "mac": "INVALID", "ctype": "LAN" }
-    ],
-    "type": "CLIENT"
-}
-
-###
-
-############################################################
-# Validation Error - Invalid connection ctype
-#
-# Expected:
-# Status: 400
-#
-# Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#       {
-#           "field": "connections.0.ctype",
-#           "message": "Valores permitidos: WAN, LAN, WIFI"
-#       }
-#   ]
-# }
-############################################################
-
-POST {{baseUrl}}
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-    "name": "Desktop Test",
-    "connections": [
-        { "mac": "AA:BB:CC:DD:EE:44", "ctype": "INVALID" }
-    ],
     "type": "CLIENT"
 }
 

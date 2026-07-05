@@ -24,7 +24,7 @@ export default class RefreshTokensService {
     /**
      * Creates a refresh token
      *
-     * @param {string} params.user_id User identifier
+     * @param {string} params.userId User identifier
      * @param {string} params.token Refresh token
      */
     async create({ userId, token }) {

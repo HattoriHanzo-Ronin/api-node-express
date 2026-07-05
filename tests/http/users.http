@@ -4,9 +4,11 @@
 # -------
 # Manual test suite for validating:
 #
-# - Schema validation errors.
-# - ACL restrictions.
 # - User management operations.
+# - Representative schema validation errors.
+# - SuperRefine validation rules.
+# - ACL restrictions.
+# - Business rules.
 #
 # This file may also be used for general API testing.
 #
@@ -25,6 +27,7 @@
 
 @baseUrl = http://localhost:59998/users
 @token = PASTE_ACCESS_TOKEN
+@userId = PASTE_USER_ID
 
 ############################################################
 # Get all users
@@ -81,7 +84,7 @@ Authorization: Bearer {{token}}
 # }
 ############################################################
 
-GET {{baseUrl}}/USER_ID
+GET {{baseUrl}}/{{userId}}
 Authorization: Bearer {{token}}
 
 ###
@@ -104,7 +107,7 @@ Authorization: Bearer {{token}}
 #   "id": "...",
 #   "username": "test_user",
 #   "active": true,
-#   "roles": [...]
+#   "roles": ["FTP"]
 # }
 ############################################################
 
@@ -115,7 +118,8 @@ Content-Type: application/json
 {
     "username": "test_user",
     "password": "Password123!",
-    "active": true
+    "active": true,
+    "roles": ["FTP"]
 }
 
 ###
@@ -163,7 +167,7 @@ Content-Type: application/json
 #   "username": "updated_username"
 # }
 #
-# ADMIN response:
+# ADMIN Response:
 # {
 #   "id": "...",
 #   "username": "updated_username",
@@ -185,7 +189,7 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "id": "USER_ID",
+    "id": "{{userId}}",
     "username": "updated_username"
 }
 
@@ -202,7 +206,7 @@ Content-Type: application/json
 #   "username": "test_user"
 # }
 #
-# ADMIN response:
+# ADMIN Response:
 # {
 #   "id": "...",
 #   "username": "test_user",
@@ -224,7 +228,7 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "id": "USER_ID",
+    "id": "{{userId}}",
     "password": "NewPassword123!"
 }
 
@@ -252,7 +256,7 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "id": "USER_ID",
+    "id": "{{userId}}",
     "roles": ["FTP"]
 }
 
@@ -281,7 +285,7 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "id": "USER_ID",
+    "id": "{{userId}}",
     "roles": ["ADMIN"],
     "scope": ["FTP"]
 }
@@ -318,7 +322,7 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "id": "USER_ID",
+    "id": "{{userId}}",
     "active": false
 }
 
@@ -338,13 +342,13 @@ Content-Type: application/json
 # }
 ############################################################
 
-DELETE {{baseUrl}}/USER_ID
+DELETE {{baseUrl}}/{{userId}}
 Authorization: Bearer {{token}}
 
 ###
 
 ############################################################
-# Validation Error - Invalid username
+# Validation Error - Invalid username format
 #
 # Expected:
 # Status: 400
@@ -355,7 +359,7 @@ Authorization: Bearer {{token}}
 #   "details": [
 #       {
 #           "field": "username",
-#           "message": "Longitud mínima 3 caracteres"
+#           "message": "Error de formato"
 #       }
 #   ]
 # }
@@ -366,9 +370,10 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "username": "ab",
+    "username": "test user",
     "password": "Password123!",
-    "active": true
+    "active": true,
+    "roles": ["FTP"]
 }
 
 ###
@@ -405,7 +410,7 @@ Content-Type: application/json
 ###
 
 ############################################################
-# Validation Error - Scope without ADMIN role
+# SuperRefine - Scope without ADMIN role
 #
 # Expected:
 # Status: 400
@@ -437,7 +442,7 @@ Content-Type: application/json
 ###
 
 ############################################################
-# Validation Error - ADMIN without scope
+# SuperRefine - ADMIN without scope
 #
 # Expected:
 # Status: 400
@@ -515,5 +520,6 @@ Content-Type: application/json
 {
     "username": "existing_user",
     "password": "Password123!",
-    "active": true
+    "active": true,
+    "roles": ["FTP"]
 }

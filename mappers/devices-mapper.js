@@ -15,7 +15,7 @@ export default class DevicesMapper {
     static deviceToDomain(source) {
         let { connections, ...device } = source;
         connections = connections
-            .filter((connection) => connection.device_id === device.id)
+            .filter(({ device_id: deviceId }) => deviceId === device.id)
             .map(({ mac, ctype }) => ({ mac, ctype }));
         device = Object.fromEntries(Object.entries(device).filter(([, it]) => it !== null));
         if (device.mac_filter) {

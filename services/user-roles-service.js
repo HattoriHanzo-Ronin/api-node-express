@@ -46,8 +46,13 @@ export default class UserRolesService {
             return await this.userRolesModel.insertMany({ clientTx, userRoles });
         } catch (err) {
             handleApiErrors([
-                { condition: true, message: "Error al crear los roles del usuario", code: "ACL_ROLE_CREATE_FAILED" }
+                {
+                    condition: err.code !== "ACL_ROLE_REQUIRED",
+                    message: "Error al crear los roles del usuario",
+                    code: "ACL_ROLE_CREATE_FAILED"
+                }
             ]);
+            throw err;
         }
     }
 
@@ -67,11 +72,12 @@ export default class UserRolesService {
         } catch (err) {
             handleApiErrors([
                 {
-                    condition: true,
+                    condition: err.code !== "ACL_ROLE_REQUIRED",
                     message: "Error al actualizar los roles del usuario",
                     code: "ACL_ROLE_UPDATE_FAILED"
                 }
             ]);
+            throw err;
         }
     }
 }
