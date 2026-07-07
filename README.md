@@ -1,128 +1,201 @@
 # ApiNodeExpress
 
-ApiNodeExpress is a REST API designed for home network device management and network automation.
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D24.x-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+![Express](https://img.shields.io/badge/Express-5-black?logo=express)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%2B-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+![Vitest](https://img.shields.io/badge/Vitest-Tested-6E9F18?logo=vitest)
+[![pnpm](https://img.shields.io/badge/pnpm-11.x-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-The project allows storing and managing devices connected to a local network, including custom device names, MAC addresses, and synchronization with supported network repeaters. It also includes FTP-related functionality and is currently being refactored towards a cleaner and more maintainable backend architecture.
+> **A portfolio-grade REST API inspired by Spring architecture, built to manage home network resources through clean, maintainable software engineering principles.**
+
+```mermaid
+flowchart LR
+    Android["Android Explorer"]
+    Portfolio["Portfolio"]
+    API["ApiNodeExpress"]
+    DB[(PostgreSQL)]
+    SFTP[(SFTP)]
+    Routers["Compatible Routers"]
+
+    Android --> API
+    Portfolio --> API
+    API --> DB
+    API --> SFTP
+    API --> Routers
+```
+
+ApiNodeExpress is the backend foundation of a growing ecosystem designed around real-world network management rather than a simple CRUD application.
+
+
+## Why this project?
+
+ApiNodeExpress was created to solve real-world home lab problems while serving as a long-term portfolio project.
+
+Its goal is to provide a maintainable backend capable of managing authentication, network resources, router automation and remote file access through a clean, layered architecture.
 
 ---
 
 ## Features
 
-- Device registration and management
-- MAC address synchronization
-- Repeater integration support
-- FTP service integration
-- Dockerized deployment
-- Environment-based configuration
-- RESTful API architecture
+| Area | Description |
+|------|-------------|
+| Authentication | JWT authentication with refresh token rotation |
+| Authorization | Role + Scope ACL |
+| Users | Delegated user administration |
+| Devices | Multiple connections per device |
+| Router Sync | MAC whitelist synchronization |
+| Storage | User-specific SFTP operations |
+| Validation | Centralized Zod schemas |
+| Error Handling | Unified ApiError pipeline |
+| Testing | Vitest + executable HTTP documentation |
 
----
+## Why Spring-inspired?
 
-## Tech Stack
+The project borrows Spring concepts such as layered responsibilities, explicit separation of concerns and use-case orchestration while remaining lightweight and idiomatic to Node.js.
 
-- Node.js
-- Express.js
-- Docker
-- Docker Compose
-- JavaScript
+## Architecture
 
----
+```mermaid
+flowchart TD
 
-## Current Refactor Focus
+Route[Route]
+Controller[Controller]
+Facade[Facade]
+Service[Service]
+Mapper[Mapper]
+Model[Model]
+DB[(PostgreSQL)]
 
-The project is currently focused on improving backend architecture and maintainability by:
-
-- Moving business logic into dedicated service layers
-- Improving code organization and separation of concerns
-- Centralizing error handling
-- Improving environment configuration management
-- Preparing JWT-based authentication
-- Cleaning and documenting the codebase
-- Preparing the repository for public release
-
----
-
-## Project Structure
-
-```bash
-src/
-├── controllers/
-├── services/
-├── routes/
-├── middleware/
-├── models/
-├── utils/
-└── config/
+Route --> Controller
+Controller --> Facade
+Facade --> Service
+Service --> Mapper
+Mapper --> Model
+Model --> DB
 ```
 
----
+> Each layer owns a single responsibility, making business rules easy to locate, test and evolve.
 
-## Environment Variables
+| Layer | Responsibility |
+|---|---|
+| Controller | HTTP input/output |
+| Facade | Use-case orchestration, ACL and transactions |
+| Service | Business rules |
+| Mapper | Domain transformation |
+| Model | SQL and persistence |
 
-Create a `.env` file using `.env.example` as reference.
+## Getting Started
+Follow these steps to run the project locally
 
-Example:
+**Requirements**
 
-```env
-PORT=3000
-JWT_SECRET=your_secret_key
+- Node.js 24.x
+- PostgreSQL 16+
+- pnpm
 
-FTP_HOST=localhost
-FTP_USER=user
-FTP_PASSWORD=password
-```
-
----
-
-## Local Development
-
-Install dependencies:
+### Installation
 
 ```bash
 pnpm install
 ```
 
-Run development server:
+### Configuration
+
+Copy `.env.example` to `.env` and configure the required secrets.
+
+### Running
 
 ```bash
 pnpm run postgres
 ```
 
----
-
-## Docker Setup
-
-Start containers:
+### Testing
 
 ```bash
-docker compose up --build
+pnpm test
 ```
 
-Stop containers:
+Manual API documentation is available under `tests/http`.
 
-```bash
-docker-compose down
+## Core Modules
+
+- **Auth** — JWT authentication and refresh tokens.
+- **Users** — User administration and Role + Scope ACL.
+- **Devices** — Network inventory and connection management.
+- **Whitelist** — Router synchronization.
+- **FTP/SFTP** — Remote file management.
+
+## API Usage
+
+The .http files act as executable documentation and manual integration tests:
+
+```text
+tests/http/
 ```
 
----
+These files serve as:
 
-## Planned Improvements
+- Documentation
+- Manual integration tests
+- Usage examples
 
-- JWT authentication
-- Centralized validation system
-- API documentation
-- Automated testing
-- Production-ready Docker configuration
-- Additional network automation features
+## Key Architectural Decisions
 
----
+- Split `Connection` from `Device` to support multiple interfaces.
+- Introduced a dedicated `Facade` layer for use-case orchestration.
+- Migrated from FTP to SFTP.
+- Implemented a Role + Scope ACL model.
+- Centralized validation and error handling.
+
+## Project Structure
+
+```text
+config/
+controllers/
+devices-routers/
+facades/
+mappers/
+middlewares/
+models/
+routes/
+schemas/
+services/
+tests/
+utils/
+```
+
+## Design Principles
+
+- Single Responsibility.
+- Readability.
+- Maintainability.
+- Centralized validation.
+- Explicit business rules.
+- Simplicity over premature optimization.
 
 ## Status
 
-Project currently under active refactor and architecture cleanup.
+🚧 **Actively developed**
+
+This project is actively used as the backend foundation for future applications and portfolio projects.
+
+## Roadmap
+
+- [x] Authentication
+- [x] Role & Scope ACL
+- [x] Device Management
+- [x] Router Synchronization
+- [x] SFTP Integration
+- [ ] Android Explorer
+- [ ] Portfolio
+- [ ] TypeScript Migration
 
 ---
 
+*ApiNodeExpress is intended to remain a long-term project where new modules and consumers can be added without compromising the existing architecture.*
+
+
 ## License
 
-This project is intended for portfolio and educational purposes.
+This project is licensed under the MIT License. See the `LICENSE` file for details.
