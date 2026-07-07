@@ -1,26 +1,26 @@
-import ftp from "basic-ftp";
+import SftpClient from "ssh2-sftp-client";
+import { SECRETS } from "./constants.js";
 
 /**
- * Handles FTP client connections
+ * Handles SFTP client connections through the FTP service contract
  *
  * @author HattoriHanzo-Ronin
  */
 export default class FtpConnection {
-    static async getClient() {
-        const client = new ftp.Client();
-
-        await client.access({
+    static async getClient(username) {
+        const client = new SftpClient();
+        await client.connect({
             host: process.env.HOSTFTP,
-            user: process.env.USERFTP,
-            password: process.env.PASSFTP,
-            secure: false
+            port: Number(process.env.PORTFTP),
+            username,
+            privateKey: SECRETS.sftpKey
         });
         return client;
     }
 
-    static closeClient(client) {
+    static async closeClient(client) {
         if (client) {
-            client.close();
+            await client.end();
         }
     }
 }

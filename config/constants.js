@@ -3,7 +3,8 @@ import fs from "fs";
 export const SECRETS = {
     passDb: readSecret(process.env.PASSDB_FILE),
     jwtSecret: readSecret(process.env.JWT_SECRET_FILE),
-    refreshJwtSecret: readSecret(process.env.REFRESH_JWT_SECRET_FILE)
+    refreshJwtSecret: readSecret(process.env.REFRESH_JWT_SECRET_FILE),
+    sftpKey: readSecret(process.env.SFTP_KEY_FILE)
 }
 
 function readSecret(path) {
