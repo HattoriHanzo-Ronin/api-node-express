@@ -1,111 +1,177 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import FtpController from "../../controllers/ftp-controller.js";
 
-describe("FtpController validation", () => {
+describe("FtpController", () => {
     let ftpService;
     let controller;
     let req;
     let res;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        ftpService = { dir: vi.fn(), makeDir: vi.fn(), download: vi.fn(), delete: vi.fn() };
+        ftpService = {
+            dir: vi.fn(),
+            makeDir: vi.fn(),
+            move: vi.fn(),
+            rename: vi.fn(),
+            upload: vi.fn(),
+            download: vi.fn(),
+            delete: vi.fn()
+        };
         controller = new FtpController({ ftpService });
-        req = { params: {}, query: {}, body: {}, file: {} };
+        req = { params: {}, query: {}, body: {}, file: undefined, user: { username: "ronin" } };
         res = { status: vi.fn().mockReturnThis(), json: vi.fn(), download: vi.fn() };
     });
 
-    it("should normalize file type", async () => {
-        ftpService.download.mockResolvedValue("/tmp/file.txt");
-        req.body.paths = [{ name: "file.txt", type: "file" }];
-        await controller.download(req, res);
-        expect(ftpService.download).toHaveBeenCalledWith({ dir: null, paths: [{ name: "file.txt", type: "FILE" }] });
-    });
+    describe("dir", () => {
+        it("should list ftp resources", async () => {
+            ftpService.dir.mockResolvedValue([{ name: "docs", type: "DIR" }]);
+            req.query.dir = "   /files   ";
+            await controller.dir(req, res);
+            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "/files", authUser: req.user });
+            expect(res.json).toHaveBeenCalledWith([{ name: "docs", type: "DIR" }]);
+        });
 
-    it("should fail with invalid file type", async () => {
-        req.body.paths = [{ name: "file.txt", type: "PATATA" }];
-        await expect(controller.download(req, res)).rejects.toThrow();
-    });
+        it("should use default dir when missing", async () => {
+            ftpService.dir.mockResolvedValue([]);
+            await controller.dir(req, res);
+            expect(ftpService.dir).toHaveBeenCalledWith({ dir: ".", authUser: req.user });
+        });
 
-    it("should fail with empty paths", async () => {
-        req.body.paths = [];
-        await expect(controller.download(req, res)).rejects.toThrow();
-    });
-
-    it("should fail with invalid dir traversal", async () => {
-        req.query.dir = "../secret";
-        req.body.paths = [{ name: "file.txt", type: "FILE" }];
-        await expect(controller.download(req, res)).rejects.toThrow();
-    });
-
-    it("should trim dir value", async () => {
-        ftpService.download.mockResolvedValue("/tmp/file.txt");
-        req.query.dir = "   /images   ";
-        req.body.paths = [{ name: "file.txt", type: "FILE" }];
-        await controller.download(req, res);
-        expect(ftpService.download).toHaveBeenCalledWith({
-            dir: "/images",
-            paths: [{ name: "file.txt", type: "FILE" }]
+        it("should fail when dir contains traversal", async () => {
+            req.query.dir = "../secret";
+            await expect(controller.dir(req, res)).rejects.toThrow("Error al validar los datos");
         });
     });
 
-    it("should fail when path name is empty", async () => {
-        req.body.paths = [{ name: "", type: "FILE" }];
-        await expect(controller.download(req, res)).rejects.toThrow();
+    describe("makeDir", () => {
+        it("should create a directory", async () => {
+            ftpService.makeDir.mockResolvedValue({ name: "Nueva Carpeta", type: "DIR" });
+            req.body = { dir: "/files", name: "   Nueva Carpeta   " };
+            await controller.makeDir(req, res);
+            expect(ftpService.makeDir).toHaveBeenCalledWith({
+                dir: "/files",
+                name: "Nueva Carpeta",
+                authUser: req.user
+            });
+            expect(res.status).toHaveBeenCalledWith(201);
+            expect(res.json).toHaveBeenCalledWith({ name: "Nueva Carpeta", type: "DIR" });
+        });
+
+        it("should fail when name is missing", async () => {
+            await expect(controller.makeDir(req, res)).rejects.toThrow("Error al validar los datos");
+        });
+
+        it("should fail when name is empty", async () => {
+            req.body.name = "";
+            await expect(controller.makeDir(req, res)).rejects.toThrow("Error al validar los datos");
+        });
+
+        it("should fail when name contains invalid characters", async () => {
+            req.body.name = "carpeta<>";
+            await expect(controller.makeDir(req, res)).rejects.toThrow("Error al validar los datos");
+        });
     });
 
-    it("should fail when path name only contains spaces", async () => {
-        req.body.paths = [{ name: "     ", type: "FILE" }];
-        await expect(controller.download(req, res)).rejects.toThrow();
+    describe("move", () => {
+        it("should move ftp entries", async () => {
+            const entries = [{ name: "file.txt", type: "file" }];
+            ftpService.move.mockResolvedValue({
+                lastContent: ["file.txt"],
+                movedContent: [{ name: "file.txt", type: "FILE" }]
+            });
+            req.body = { dir: "/files", destination: "/backup", entries };
+            await controller.move(req, res);
+            expect(ftpService.move).toHaveBeenCalledWith({
+                dir: "/files",
+                destination: "/backup",
+                entries: [{ name: "file.txt", type: "FILE" }],
+                authUser: req.user
+            });
+            expect(res.json).toHaveBeenCalledWith({
+                lastContent: ["file.txt"],
+                movedContent: [{ name: "file.txt", type: "FILE" }]
+            });
+        });
+
+        it("should fail when destination contains traversal", async () => {
+            req.body = { dir: "/files", destination: "../backup", entries: [{ name: "file.txt", type: "FILE" }] };
+            await expect(controller.move(req, res)).rejects.toThrow("Error al validar los datos");
+        });
     });
 
-    it("should fail when path contains traversal", async () => {
-        req.body.paths = [{ name: "../file.txt", type: "FILE" }];
-        await expect(controller.download(req, res)).rejects.toThrow();
+    describe("rename", () => {
+        it("should rename a ftp entry", async () => {
+            ftpService.rename.mockResolvedValue({ name: "renamed.txt", type: "FILE" });
+            req.body = { dir: "/files", entry: { name: "file.txt", type: "file" }, newName: "renamed.txt" };
+            await controller.rename(req, res);
+            expect(ftpService.rename).toHaveBeenCalledWith({
+                dir: "/files",
+                entry: { name: "file.txt", type: "FILE" },
+                newName: "renamed.txt",
+                authUser: req.user
+            });
+            expect(res.json).toHaveBeenCalledWith({ name: "renamed.txt", type: "FILE" });
+        });
+
+        it("should fail when new name is equal to current name", async () => {
+            req.body = { entry: { name: "file.txt", type: "FILE" }, newName: "file.txt" };
+            await expect(controller.rename(req, res)).rejects.toThrow("Error al validar los datos");
+        });
     });
 
-    it("should normalize delete type", async () => {
-        ftpService.delete.mockResolvedValue();
-        req.query.path = "file.txt";
-        req.params.type = "file";
-        await controller.delete(req, res);
-        expect(ftpService.delete).toHaveBeenCalledWith({ path: "file.txt", type: "FILE" });
+    describe("upload", () => {
+        it("should upload a file", async () => {
+            const file = { originalname: "file.txt", buffer: Buffer.from("hello") };
+            ftpService.upload.mockResolvedValue([{ name: "file.txt", type: "FILE" }]);
+            req.body.dir = "/upload";
+            req.file = file;
+            await controller.upload(req, res);
+            expect(ftpService.upload).toHaveBeenCalledWith({ dir: "/upload", file, authUser: req.user });
+            expect(res.status).toHaveBeenCalledWith(201);
+            expect(res.json).toHaveBeenCalledWith([{ name: "file.txt", type: "FILE" }]);
+        });
     });
 
-    it("should fail delete when path contains traversal", async () => {
-        req.query.path = "../secret.txt";
-        req.query.type = "FILE";
-        await expect(controller.delete(req, res)).rejects.toThrow();
+    describe("download", () => {
+        it("should download ftp entries", async () => {
+            ftpService.download.mockResolvedValue("/tmp/file.txt");
+            req.body = { dir: "/files", entries: [{ name: "file.txt", type: "file" }] };
+            await controller.download(req, res);
+            expect(ftpService.download).toHaveBeenCalledWith({
+                dir: "/files",
+                entries: [{ name: "file.txt", type: "FILE" }],
+                authUser: req.user
+            });
+            expect(res.download).toHaveBeenCalledWith("/tmp/file.txt");
+        });
+
+        it("should fail with empty entries", async () => {
+            req.body.entries = [];
+            await expect(controller.download(req, res)).rejects.toThrow("Error al validar los datos");
+        });
+
+        it("should fail when entry contains traversal", async () => {
+            req.body.entries = [{ name: "../file.txt", type: "FILE" }];
+            await expect(controller.download(req, res)).rejects.toThrow("Error al validar los datos");
+        });
     });
 
-    it("should fail delete when path is missing", async () => {
-        req.query.type = "FILE";
-        await expect(controller.delete(req, res)).rejects.toThrow();
-    });
+    describe("delete", () => {
+        it("should delete ftp entries", async () => {
+            const entries = [{ name: "file.txt", type: "file" }];
+            ftpService.delete.mockResolvedValue(["file.txt"]);
+            req.body = { dir: "/files", entries };
+            await controller.delete(req, res);
+            expect(ftpService.delete).toHaveBeenCalledWith({
+                dir: "/files",
+                entries: [{ name: "file.txt", type: "FILE" }],
+                authUser: req.user
+            });
+            expect(res.json).toHaveBeenCalledWith(["file.txt"]);
+        });
 
-    it("should fail makeDir when name is missing", async () => {
-        await expect(controller.makeDir(req, res)).rejects.toThrow();
-    });
-
-    it("should trim directory name", async () => {
-        ftpService.makeDir.mockResolvedValue();
-        req.body.name = "   Nueva Carpeta   ";
-        await controller.makeDir(req, res);
-        expect(ftpService.makeDir).toHaveBeenCalledWith({ dir: null, name: "Nueva Carpeta" });
-    });
-
-    it("should fail makeDir when name is empty", async () => {
-        req.body.name = "";
-        await expect(controller.makeDir(req, res)).rejects.toThrow();
-    });
-
-    it("should fail makeDir when name only contains spaces", async () => {
-        req.body.name = "      ";
-        await expect(controller.makeDir(req, res)).rejects.toThrow();
-    });
-
-    it("should fail makeDir when name contains invalid characters", async () => {
-        req.body.name = "carpeta<>";
-        await expect(controller.makeDir(req, res)).rejects.toThrow();
+        it("should fail when entries are missing", async () => {
+            await expect(controller.delete(req, res)).rejects.toThrow("Error al validar los datos");
+        });
     });
 });

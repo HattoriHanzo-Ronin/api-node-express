@@ -7,10 +7,12 @@ export default function createFtpRouter({ ftpController }) {
     router.get("/", asyncHandler(ftpController.dir));
 
     router.post("/mkdir", asyncHandler(ftpController.makeDir));
+    router.post("/move", asyncHandler(ftpController.move));
+    router.post("/rename", asyncHandler(ftpController.rename));
     router.post("/upload", mult().single("file"), asyncHandler(ftpController.upload));
     router.post("/download", asyncHandler(ftpController.download));
 
-    router.delete("/:type", asyncHandler(ftpController.delete));
+    router.delete("/", asyncHandler(ftpController.delete));
 
     return router;
 }

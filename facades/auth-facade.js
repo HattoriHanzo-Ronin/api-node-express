@@ -60,7 +60,7 @@ export default class AuthFacade {
         await this.refreshTokensService.create({ userId: id, token: refreshToken });
         return {
             user: { id, username, roles, scope },
-            accessToken: generateAccessToken({ id, roles, scope }, "30min"),
+            accessToken: generateAccessToken({ id, username, roles, scope }, "30min"),
             refreshToken
         };
     }
