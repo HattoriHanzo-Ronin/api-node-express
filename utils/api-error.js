@@ -53,6 +53,8 @@ export default class ApiError extends Error {
         FTP_DOWNLOAD_FAILED: { code: "FTP_DOWNLOAD_FAILED" },
         FTP_DIR_FAILED: { code: "FTP_DIR_FAILED" },
         FTP_MKDIR_FAILED: { code: "FTP_MKDIR_FAILED" },
+        FTP_MOVE_FAILED: { code: "FTP_MOVE_FAILED" },
+        FTP_RENAME_FAILED: { code: "FTP_RENAME_FAILED" },
         FTP_DELETE_FAILED: { code: "FTP_DELETE_FAILED" },
         FTP_FILE_REQUIRED: { code: "FTP_FILE_REQUIRED" }
     });
