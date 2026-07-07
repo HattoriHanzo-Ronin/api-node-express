@@ -1,113 +1,171 @@
 import fs from "fs/promises";
 import AdmZip from "adm-zip";
 import path from "path";
-import { Readable } from "stream";
 import ValidateUtils from "../utils/validate-utils.js";
 import FtpConnection from "../config/ftp-connection.js";
 
 /**
- *  FTP service
+ * @typedef {{ name: string, type: "FILE" | "DIR" }} FtpEntry
+ * @typedef {{ lastContent: string[], movedContent: FtpEntry[] }} FtpMoveResult
+ */
+
+/**
+ * FTP service
  *
  * @author HattoriHanzo-Ronin
  */
 export default class FtpService {
     /**
-     * Lists the content of a remote FTP directory
+     * Returns FTP directory content
      *
      * @param {string | null} params.dir FTP directory path
-     * @returns {Promise<Array<{ name: string, type: "FILE" | "DIR" }>>} List of directory resources
+     * @param {{ username: string }} params.authUser Authenticated user
+     * @returns {Promise<FtpEntry[]>} Directory resources
      */
-    static async dir({ dir }) {
+    static async dir({ dir, authUser }) {
         let client;
         try {
-            client = await getClient();
-            if (dir) {
-                await client.cd(dir);
-            }
-
-            const list = await client.list();
-            return list.map((it) => ({ name: it.name, type: it.isDirectory ? "DIR" : "FILE" }));
+            client = await getClient(authUser.username);
+            const list = await client.list(dir ?? ".");
+            return list.map(({ name, type }) => ({ name, type: type === "d" ? "DIR" : "FILE" }));
         } catch (err) {
             ftpError("Error al listar la carpeta", "FTP_DIR_FAILED");
         } finally {
-            closeClient(client);
+            await closeClient(client);
         }
     }
 
     /**
-     * Creates a directory in the current FTP location
+     * Creates a FTP directory
      *
      * @param {string | null} params.dir FTP directory path
      * @param {string} params.name Directory name
+     * @param {{ username: string }} params.authUser Authenticated user
+     * @returns {Promise<FtpEntry>} Created directory
      */
-    static async makeDir({ dir, name }) {
+    static async makeDir({ dir, name, authUser }) {
         let client;
         try {
-            client = await getClient();
-            if (dir) {
-                await client.cd(dir);
-            }
-
-            const list = await client.list();
-            await client.ensureDir(await getFileName(name, list));
+            client = await getClient(authUser.username);
+            const list = await client.list(dir);
+            const newName = getFileName(name, list);
+            await client.mkdir(`${dir}/${newName}`);
+            return { name: newName, type: "DIR" };
         } catch (err) {
             ftpError("Error al crear la carpeta", "FTP_MKDIR_FAILED");
         } finally {
-            closeClient(client);
+            await closeClient(client);
         }
     }
 
     /**
-     * Uploads a file or ZIP archive to the FTP server
+     * Moves FTP resources
+     *
+     * @param {string} params.dir Source FTP directory path
+     * @param {FtpEntry[]} params.entries Resources to move
+     * @param {string} params.destination Destination FTP directory path
+     * @param {{ username: string }} params.authUser Authenticated user
+     * @returns {Promise<FtpMoveResult>} Moved resources
+     */
+    static async move({ dir, entries, destination, authUser }) {
+        let client;
+        try {
+            client = await getClient(authUser.username);
+            const list = await client.list(destination);
+            const movedContent = [];
+            for (const item of entries) {
+                const newName = getFileName(item.name, list);
+                await client.rename(`${dir}/${item.name}`, `${destination}/${newName}`);
+                list.push({ name: newName });
+                movedContent.push({ ...item, name: newName });
+            }
+            return { lastContent: entries.map(({ name }) => name), movedContent };
+        } catch (err) {
+            ftpError("Error al mover los archivos", "FTP_MOVE_FAILED");
+        } finally {
+            await closeClient(client);
+        }
+    }
+
+    /**
+     * Renames a FTP resource
+     *
+     * @param {string} params.dir FTP directory path
+     * @param {FtpEntry} params.entry Resource to rename
+     * @param {string} params.newName New resource name
+     * @param {{ username: string }} params.authUser Authenticated user
+     * @returns {Promise<FtpEntry>} Renamed resource
+     */
+    static async rename({ dir, entry, newName, authUser }) {
+        let client;
+        try {
+            client = await getClient(authUser.username);
+            const list = await client.list(dir);
+            newName = getFileName(newName, list);
+            await client.rename(`${dir}/${entry.name}`, `${dir}/${newName}`);
+            return { ...entry, name: newName };
+        } catch (err) {
+            ftpError("Error al renombrar", "FTP_RENAME_FAILED");
+        } finally {
+            await closeClient(client);
+        }
+    }
+
+    /**
+     * Creates FTP resources from an uploaded file
      *
      * @param {string | null} params.dir FTP directory path
      * @param {{ originalname: string, mimetype: string, buffer: Buffer }} params.file Uploaded file
+     * @param {{ username: string }} params.authUser Authenticated user
+     * @returns {Promise<FtpEntry[]>} Uploaded resources
      */
-    static async upload({ dir, file }) {
+    static async upload({ dir, file, authUser }) {
         handleApiErrors([
             { condition: !file, message: "Debe proporcionar un archivo", status: 400, code: "FTP_FILE_REQUIRED" }
         ]);
         const { originalname, mimetype, buffer } = file;
         let client;
-        let newName;
         let tempDir;
         try {
-            client = await getClient();
-            if (dir) {
-                await client.cd(dir);
-            }
-
+            client = await getClient(authUser.username);
             const isZip = mimetype === "application/zip" || originalname.toLowerCase().endsWith(".zip");
-            const list = await client.list();
             if (!isZip) {
-                newName = await getFileName(originalname, list);
-                await client.uploadFrom(Readable.from(buffer), newName);
-                return;
+                const fileName = `${getFileName(originalname, await client.list(dir))}`;
+                await client.put(buffer, `${dir}/${fileName}`);
+                return [{ name: fileName, type: "FILE" }];
             }
 
             tempDir = `${process.cwd()}/temp${Date.now()}`;
             const zip = new AdmZip(buffer);
             zip.extractAllTo(tempDir, true);
-            for (const item of await fs.readdir(tempDir, { withFileTypes: true })) {
-                const { name, isDirectory } = item;
-                newName = await getFileName(name, list);
-                list.push({ name: newName });
-                if (isDirectory()) {
-                    const pathDir = path.join(tempDir, name);
-                    await client.ensureDir(newName);
-                    if ((await fs.readdir(pathDir)).length > 0) {
-                        await client.uploadFromDir(pathDir);
-                        await client.cd("..");
+            const addedContent = [];
+            const uploadTempDir = async ({ remoteDir, localDir }) => {
+                const list = await client.list(remoteDir);
+                for (const { name, isDirectory } of await fs.readdir(localDir, { withFileTypes: true })) {
+                    const newName = getFileName(name, list);
+                    const remotePath = `${remoteDir}/${newName}`;
+                    const localPath = path.join(localDir, name);
+                    if (isDirectory()) {
+                        await client.mkdir(remotePath);
+                        if ((await fs.readdir(localPath)).length > 0) {
+                            await uploadTempDir({ remoteDir: remotePath, localDir: localPath });
+                        }
+                    } else {
+                        await client.fastPut(localPath, remotePath);
                     }
-                } else {
-                    const pathFile = path.join(tempDir, name);
-                    await client.uploadFrom(pathFile, newName);
+
+                    list.push({ name: newName });
+                    if (localDir === tempDir) {
+                        addedContent.push({ name: newName, type: isDirectory() ? "DIR" : "FILE" });
+                    }
                 }
-            }
+            };
+            await uploadTempDir({ remoteDir: dir, localDir: tempDir });
+            return addedContent;
         } catch (err) {
             ftpError("Error al subir los datos", "FTP_UPLOAD_FAILED");
         } finally {
-            closeClient(client);
+            await closeClient(client);
             if (tempDir) {
                 await fs.rm(tempDir, { recursive: true, force: true });
             }
@@ -118,49 +176,52 @@ export default class FtpService {
      * Downloads FTP resources
      *
      * @param {string | null} params.dir FTP directory path
-     * @param {{ name: string, type: "FILE" | "DIR" }[]} params.paths Resources to download
+     * @param {FtpEntry[]} params.entries Resources to download
+     * @param {{ username: string }} params.authUser Authenticated user
      * @returns {Promise<string>} the generated local file path
      */
-    static async download({ dir, paths }) {
-        const isSingleFile = paths.length === 1 && paths[0].type === "FILE";
+    static async download({ dir, entries, authUser }) {
+        const isSingleFile = entries.length === 1 && entries[0].type === "FILE";
         const tempDir = `${process.cwd()}/temp${Date.now()}`;
         let client;
-        let name;
         try {
-            client = await getClient();
+            client = await getClient(authUser.username);
             await fs.mkdir(tempDir);
-            if (dir) {
-                await client.cd(dir);
-            }
-
             if (isSingleFile) {
-                name = paths[0].name;
+                const { name } = entries[0];
                 const newFile = `${tempDir}/${name}`;
-                await client.downloadTo(newFile, name);
+                await client.fastGet(`${dir}/${name}`, newFile);
                 return newFile;
             }
 
-            const zip = new AdmZip();
             const tempToZip = `${tempDir}/toZip`;
             const zipFile = `${tempDir}/${Date.now()}.zip`;
-            await fs.mkdir(tempToZip, { recursive: true });
-            for (const it of paths) {
-                let name = it.name;
-                if (it.type === "DIR") {
-                    const newDir = `${tempToZip}/${name}`;
-                    await fs.mkdir(newDir);
-                    await client.downloadToDir(newDir, name);
-                } else {
-                    await client.downloadTo(`${tempToZip}/${name}`, name);
+            await fs.mkdir(tempToZip);
+            const downloadRemoteDir = async ({ remoteDir, remoteList, localDir }) => {
+                for (const { name, type } of remoteList) {
+                    const localPath = path.join(localDir, name);
+                    const remotePath = `${remoteDir}/${name}`;
+                    if (["d", "DIR"].includes(type)) {
+                        await fs.mkdir(localPath);
+                        await downloadRemoteDir({
+                            remoteDir: remotePath,
+                            remoteList: await client.list(remotePath),
+                            localDir: localPath
+                        });
+                    } else {
+                        await client.fastGet(remotePath, localPath);
+                    }
                 }
-            }
+            };
+            await downloadRemoteDir({ remoteDir: dir, remoteList: entries, localDir: tempToZip });
+            const zip = new AdmZip();
             zip.addLocalFolder(tempToZip);
             await zip.writeZipPromise(zipFile);
             return zipFile;
         } catch (err) {
             ftpError("Error al descargar", "FTP_DOWNLOAD_FAILED");
         } finally {
-            closeClient(client);
+            await closeClient(client);
             setTimeout(async () => {
                 await fs.rm(tempDir, { recursive: true, force: true });
             }, 60000);
@@ -168,24 +229,30 @@ export default class FtpService {
     }
 
     /**
-     * Deletes a file or directory from the FTP server
+     * Deletes FTP resources
      *
-     * @param {string} params.path Resource path
-     * @param {"FILE" | "DIR"} params.type Resource type
+     * @param {string} params.dir FTP directory path
+     * @param {FtpEntry[]} params.entries Resources to delete
+     * @param {{ username: string }} params.authUser Authenticated user
+     * @returns {Promise<string[]>} Deleted resource names
      */
-    static async delete({ path, type }) {
+    static async delete({ dir, entries, authUser }) {
         let client;
         try {
-            client = await getClient();
-            if (type === "DIR") {
-                await client.removeDir(path);
-            } else {
-                await client.remove(path);
+            client = await getClient(authUser.username);
+            for (const { name, type } of entries) {
+                const remotePath = `${dir}/${name}`;
+                if (type === "DIR") {
+                    await client.rmdir(remotePath, true);
+                } else {
+                    await client.delete(remotePath);
+                }
             }
+            return entries.map(({ name }) => name);
         } catch (err) {
             ftpError("Error al borrar", "FTP_DELETE_FAILED");
         } finally {
-            closeClient(client);
+            await closeClient(client);
         }
     }
 }
@@ -197,19 +264,19 @@ const { handleApiErrors } = ValidateUtils;
  * Generates an available resource name
  *
  * @param {string} name Resource name
- * @param {import("basic-ftp").FileInfo[]} list Existing FTP resources
- * @returns {Promise<string>} the generated unique resource name
+ * @param {{ name: string }[]} list Existing FTP resources
+ * @returns {string} the generated unique resource name
  */
-async function getFileName(name, list) {
+function getFileName(name, list) {
     const exist = list.some((it) => it.name === name);
     if (exist && !name.split(`_`).shift()?.includes("copia")) {
-        return await getFileName(`copia_${name}`, list);
+        return getFileName(`copia_${name}`, list);
     }
 
     if (exist) {
         const newName = name.slice(name.indexOf("_") + 1, name.length);
         const lastCopy = name.split("_").shift()?.replace("copia", "");
-        return await getFileName(`copia${Number(lastCopy) + 1 || "1"}_${newName}`, list);
+        return getFileName(`copia${Number(lastCopy) + 1 || "1"}_${newName}`, list);
     }
 
     return name;

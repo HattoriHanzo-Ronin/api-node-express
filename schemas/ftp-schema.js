@@ -15,16 +15,24 @@ export default class FtpSchema {
         return z.object({ dir, name });
     }
 
+    static getMoveSchema() {
+        return z.object({ dir, entries, destination: dir });
+    }
+
+    static getRenameSchema() {
+        return withSuperRefine(z.object({ dir, entry, newName: name }), renameCases);
+    }
+
     static getUploadSchema() {
         return z.object({ dir });
     }
 
     static getDownloadSchema() {
-        return z.object({ dir, paths });
+        return z.object({ dir, entries });
     }
 
     static getDeleteSchema() {
-        return z.object({ path, type });
+        return z.object({ dir, entries });
     }
 }
 
@@ -34,26 +42,27 @@ const { typeRequired, typeNotRequired, format, emptyArray, emptyString, invalidE
 const { fileType } = ALLOW_ENUMS;
 const { pathRegex } = REGEX;
 const dir = withSuperRefine(
-    z.string(typeNotRequired).trim().min(1, emptyString).regex(pathRegex, format).nullable().default(null),
-    cases
+    z.string(typeNotRequired).trim().min(1, emptyString).regex(pathRegex, format).default("."),
+    pathCases
 );
 const name = z
     .string(typeRequired)
     .trim()
     .min(1, emptyString)
     .regex(/^[\p{L}\p{N} ._-]+$/u, format);
-const path = withSuperRefine(z.string(typeRequired).trim().min(1, emptyString).regex(pathRegex, format), cases);
-const type = zodEnumIgnoreCase(z, z.enum(fileType, invalidEnum(fileType)), typeRequired);
-const paths = z.array(z.object({ type, name }), typeRequired).min(1, emptyArray);
+const entry = z.object({ type: zodEnumIgnoreCase(z, z.enum(fileType, invalidEnum(fileType)), typeRequired), name });
+const entries = z.array(entry, typeRequired).min(1, emptyArray);
 
-function cases({ path }, ctx) {
+function pathCases(path, ctx) {
     return handleValidationIssues(
-        [
-            {
-                condition: path && path.split("/").some((it) => it.trim() === ".."),
-                message: "Ruta no válida"
-            }
-        ],
+        [{ condition: path && path.split("/").some((it) => it.trim() === ".."), message: "Ruta no válida" }],
+        ctx
+    );
+}
+
+function renameCases({ entry, newName }, ctx) {
+    return handleValidationIssues(
+        [{ condition: entry.name === newName, path: ["newName"], message: "El nuevo nombre debe ser diferente" }],
         ctx
     );
 }

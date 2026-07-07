@@ -4,73 +4,156 @@
 # -------
 # Manual test suite for validating:
 #
-# - Schema validation errors.
-# - ApiError responses.
+# - FTP directory operations.
+# - Upload and download operations.
+# - Representative schema validation errors.
 # - Controlled service errors.
-# - Unexpected application errors.
-# - Error response format consistency.
 #
-# This file may also be used for general API testing by adding
-# custom requests to verify normal FTP operations.
+# This file may also be used for general API testing.
 #
 # Prerequisites
 # -------------
+# - Execute auth.http first.
+# - Valid access token.
 # - API running on localhost:59998
 # - FTP server configured and accessible
 #
-# Base URL:
-# http://localhost:59998/ftp
+# Notes
+# -----
+# - dir defaults to "." when it is not provided.
+# - Resource entries must include name and type.
+# - Allowed entry types are DIR and FILE.
 
 @baseUrl = http://localhost:59998/ftp
+@token = PASTE_ACCESS_TOKEN
+@folderName = Test Folder
+@fileName = test.txt
 
 ############################################################
-# Validation: Invalid directory path format
+# List directory
 #
 # Expected:
-# Status: 400
+# Status: 200
 #
 # Response:
-# {
-#   "message": "Error al validar los datos",
-#   "details": [
-#     {
-#       "field": "dir",
-#       "message": "Error de formato"
-#     }
-#   ]
-# }
-
+# [
+#   {
+#       "name": "Test Folder",
+#       "type": "DIR"
+#   },
+#   {
+#       "name": "test.txt",
+#       "type": "FILE"
+#   }
+# ]
 ############################################################
 
-GET {{baseUrl}}?dir=****
+GET {{baseUrl}}
+Authorization: Bearer {{token}}
 
 ###
 
 ############################################################
-# Validation: Path traversal attempt
+# Create directory
 #
 # Expected:
-# Status: 400
+# Status: 201
 #
 # Response:
 # {
-#   "message": "Error al validar los datos",
-#   "details": [
-#     {
-#       "field": "path",
-#       "message": "Ruta no válida"
-#     }
-#   ]
+#   "name": "Test Folder",
+#   "type": "DIR"
 # }
-
 ############################################################
 
-DELETE {{baseUrl}}/FILE?path=../secret
+POST {{baseUrl}}/mkdir
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "{{folderName}}"
+}
 
 ###
 
 ############################################################
-# Validation: Missing folder name
+# Upload file
+#
+# Expected:
+# Status: 201
+#
+# Response:
+# [
+#   {
+#       "name": "test.txt",
+#       "type": "FILE"
+#   }
+# ]
+############################################################
+
+POST {{baseUrl}}/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=Boundary
+
+Content-Disposition: form-data; name="file"; filename="test.txt"
+Content-Type: text/plain
+
+Hello FTP
+--Boundary--
+
+###
+
+############################################################
+# Download file
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# File download
+############################################################
+
+POST {{baseUrl}}/download
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "entries": [
+        { "name": "{{fileName}}", "type": "FILE" }
+    ]
+}
+
+###
+
+############################################################
+# Delete entries
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# [
+#   {
+#       "name": "test.txt",
+#       "type": "FILE"
+#   }
+# ]
+############################################################
+
+DELETE {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "entries": [
+        { "name": "{{fileName}}", "type": "FILE" }
+    ]
+}
+
+###
+
+############################################################
+# Validation Error - Invalid directory path format
 #
 # Expected:
 # Status: 400
@@ -79,16 +162,39 @@ DELETE {{baseUrl}}/FILE?path=../secret
 # {
 #   "message": "Error al validar los datos",
 #   "details": [
-#     {
-#       "field": "name",
-#       "message": "Requerido"
-#     }
+#       {
+#           "field": "dir",
+#           "message": "Error de formato"
+#       }
 #   ]
 # }
-
 ############################################################
 
-POST {{baseUrl}}/mkdir?dir=/test
+GET {{baseUrl}}?dir=../secret
+Authorization: Bearer {{token}}
+
+###
+
+############################################################
+# Validation Error - Missing folder name
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "name",
+#           "message": "Requerido"
+#       }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}/mkdir
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {}
@@ -96,7 +202,7 @@ Content-Type: application/json
 ###
 
 ############################################################
-# Validation: Invalid folder name format
+# Validation Error - Invalid folder name format
 #
 # Expected:
 # Status: 400
@@ -105,16 +211,16 @@ Content-Type: application/json
 # {
 #   "message": "Error al validar los datos",
 #   "details": [
-#     {
-#       "field": "name",
-#       "message": "Error de formato"
-#     }
+#       {
+#           "field": "name",
+#           "message": "Error de formato"
+#       }
 #   ]
 # }
-
 ############################################################
 
-POST {{baseUrl}}/mkdir?dir=/test
+POST {{baseUrl}}/mkdir
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -124,7 +230,7 @@ Content-Type: application/json
 ###
 
 ############################################################
-# Validation: Missing download paths
+# Validation Error - Missing download entries
 #
 # Expected:
 # Status: 400
@@ -133,48 +239,52 @@ Content-Type: application/json
 # {
 #   "message": "Error al validar los datos",
 #   "details": [
-#     {
-#       "field": "paths",
-#       "message": "Requerido"
-#     }
+#       {
+#           "field": "entries",
+#           "message": "Requerido"
+#       }
 #   ]
 # }
 ############################################################
 
-POST {{baseUrl}}/download?dir=/test
+POST {{baseUrl}}/download
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{}
 
 ###
 
 ############################################################
-# Validation: Empty download paths
+# Validation Error - Empty download entries
 #
 # Expected:
 # Status: 400
 #
 # Response:
-#{
-#  "message": "Error al validar los datos",
-#  "details": [
-#    {
-#      "field": "paths",
-#      "message": "Debe contener al menos un elemento"
-#    }
-#  ]
-#}
-
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "entries",
+#           "message": "Debe contener al menos un elemento"
+#       }
+#   ]
+# }
 ############################################################
 
-POST {{baseUrl}}/download?dir=/test
+POST {{baseUrl}}/download
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "paths": []
+    "entries": []
 }
 
 ###
 
 ############################################################
-# Validation: Missing file type
+# Validation Error - Missing entry type
 #
 # Expected:
 # Status: 400
@@ -183,30 +293,28 @@ Content-Type: application/json
 # {
 #   "message": "Error al validar los datos",
 #   "details": [
-#     {
-#       "field": "paths.0.type",
-#       "message": "Requerido"
-#     }
+#       {
+#           "field": "entries.0.type",
+#           "message": "Requerido"
+#       }
 #   ]
 # }
-
 ############################################################
 
-POST {{baseUrl}}/download?dir=/test
+POST {{baseUrl}}/download
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "paths": [
-        {
-            "name": "test.txt"
-        }
+    "entries": [
+        { "name": "{{fileName}}" }
     ]
 }
 
 ###
 
 ############################################################
-# Validation: Invalid file type enum
+# Validation Error - Invalid entry type
 #
 # Expected:
 # Status: 400
@@ -215,30 +323,58 @@ Content-Type: application/json
 # {
 #   "message": "Error al validar los datos",
 #   "details": [
-#     {
-#       "field": "paths.0.type",
-#       "message": "Valor inválido para tipo de archivo. Valores permitidos: DIR, FILE"
-#     }
+#       {
+#           "field": "entries.0.type",
+#           "message": "Valores permitidos: DIR, FILE"
+#       }
 #   ]
 # }
 ############################################################
 
-POST {{baseUrl}}/download?dir=/test
+POST {{baseUrl}}/download
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "paths": [
-        {
-            "name": "test.txt",
-            "type": "INVALID"
-        }
+    "entries": [
+        { "name": "{{fileName}}", "type": "INVALID" }
     ]
 }
 
 ###
 
 ############################################################
-# ApiError: Upload without file
+# Validation Error - Entry path traversal
+#
+# Expected:
+# Status: 400
+#
+# Response:
+# {
+#   "message": "Error al validar los datos",
+#   "details": [
+#       {
+#           "field": "name",
+#           "message": "Error de formato"
+#       }
+#   ]
+# }
+############################################################
+
+DELETE {{baseUrl}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "entries": [
+        { "name": "../secret.txt", "type": "FILE" }
+    ]
+}
+
+###
+
+############################################################
+# ApiError - Upload without file
 #
 # Expected:
 # Status: 400
@@ -247,10 +383,13 @@ Content-Type: application/json
 # {
 #   "message": "Debe proporcionar un archivo"
 # }
-
 ############################################################
 
-POST {{baseUrl}}/upload?dir=/test
+POST {{baseUrl}}/upload
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{}
 
 ###
 
@@ -258,9 +397,9 @@ POST {{baseUrl}}/upload?dir=/test
 # Controlled service error
 #
 # How to reproduce:
-# - Stop FTP server
-# - Use invalid FTP credentials
-# - Use invalid FTP host
+# - Stop FTP server.
+# - Use invalid FTP credentials.
+# - Use invalid FTP host.
 #
 # Expected:
 # Status: 500
@@ -269,38 +408,9 @@ POST {{baseUrl}}/upload?dir=/test
 # {
 #   "message": "Error al listar la carpeta"
 # }
-# -------
-#
-# Verifies:
-# ApiError generated by the service layer is returned
-# through the global error handler.
-
 ############################################################
 
 GET {{baseUrl}}
-
-###
-
-############################################################
-# Unexpected application error
-#
-# How to reproduce:
-#
-# Temporarily add:
-#
-# const { test } = null;
-#
-# inside controller
-#
-# Expected:
-# Status: 500
-#
-# Response:
-# {
-#   "message": "Error inesperado"
-# }
-############################################################
-
-GET {{baseUrl}}
+Authorization: Bearer {{token}}
 
 ###
