@@ -1,6 +1,6 @@
 import ValidateUtils from "../utils/validate-utils.js";
 import DevicesSchema from "../schemas/devices-schema.js";
-import idSchema from "../schemas/id-schema.js";
+import idSchema from "../schemas/common/id-schema.js";
 
 /**
  * Devices controller
@@ -13,8 +13,7 @@ export default class DevicesController {
     }
 
     getAll = async (req, res) => {
-        const result = await this.devicesFacade.getAll();
-        res.json(result);
+        res.json(await this.devicesFacade.getAll());
     };
 
     getById = async (req, res) => {

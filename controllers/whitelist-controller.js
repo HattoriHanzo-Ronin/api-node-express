@@ -1,4 +1,4 @@
-import idSchema from "../schemas/id-schema.js";
+import idSchema from "../schemas/common/id-schema.js";
 import allowedDeviceSchema from "../schemas/whitelist-schema.js";
 import ValidateUtils from "../utils/validate-utils.js";
 
@@ -14,14 +14,12 @@ export default class WhitelistController {
 
     create = async (req, res) => {
         const whitelist = validateRequest(req);
-        const result = await this.whitelistFacade.create(whitelist);
-        res.json(result);
+        res.json(await this.whitelistFacade.create(whitelist));
     };
 
     delete = async (req, res) => {
         const whitelist = validateRequest(req);
-        const result = await this.whitelistFacade.delete(whitelist);
-        res.json(result);
+        res.json(await this.whitelistFacade.delete(whitelist));
     };
 }
 

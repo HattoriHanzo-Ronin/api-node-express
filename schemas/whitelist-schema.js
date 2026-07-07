@@ -1,6 +1,6 @@
 import z from "zod";
-import idSchema from "./id-schema.js";
-import macSchema from "./mac-schema.js";
+import idSchema from "./common/id-schema.js";
+import macSchema from "./common/mac-schema.js";
 
 const allowedDeviceSchema = z.object({ ...idSchema.shape, mac: macSchema.shape.mac });
 

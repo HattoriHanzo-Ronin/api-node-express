@@ -1,6 +1,6 @@
 import ValidateUtils from "../utils/validate-utils.js";
 import UsersSchema from "../schemas/users-schema.js";
-import idSchema from "../schemas/id-schema.js";
+import idSchema from "../schemas/common/id-schema.js";
 
 /**
  * Controller for Users

@@ -1,7 +1,7 @@
 import z from "zod";
 import ValidateUtils from "../utils/validate-utils.js";
-import idSchema from "./id-schema.js";
-import macSchema from "./mac-schema.js";
+import idSchema from "./common/id-schema.js";
+import macSchema from "./common/mac-schema.js";
 
 /**
  * Devices validation schemas
