@@ -1,5 +1,5 @@
 import z from "zod";
-import ValidateUtils from "../utils/validate-utils.js";
+import ValidateUtils from "../../utils/validate-utils.js";
 
 const { ERROR_MESSAGES } = ValidateUtils;
 const { invalidId, emptyString } = ERROR_MESSAGES;
