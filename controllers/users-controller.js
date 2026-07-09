@@ -18,7 +18,7 @@ export default class UsersController {
 
     getById = async (req, res) => {
         const { params, user: authUser } = req;
-        const id = validateData(params, idSchema);
+        const { id } = validateData(params, idSchema);
         res.json(await this.usersFacade.getById({ authUser, id }));
     };
 
@@ -34,7 +34,7 @@ export default class UsersController {
 
     delete = async (req, res) => {
         const { params, user: authUser } = req;
-        const id = validateData(params, idSchema);
+        const { id } = validateData(params, idSchema);
         res.json(await this.usersFacade.delete({ authUser, id }));
     };
 }
