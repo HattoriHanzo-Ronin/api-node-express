@@ -2,8 +2,15 @@ import ValidateUtils from "./validate-utils.js";
 
 /**
  * Centralizes the translation of PostgreSQL errors into application errors
+ *
+ * @author HattoriHanzo-Ronin
  */
 export default class PostgresErrors {
+    /**
+     * Translates whitelist PostgreSQL errors
+     *
+     * @param {Object} err PostgreSQL error
+     */
     static whitelist(err) {
         handleApiErrors([
             {
@@ -27,6 +34,11 @@ export default class PostgresErrors {
         ]);
     }
 
+    /**
+     * Translates device PostgreSQL errors
+     *
+     * @param {Object} err PostgreSQL error
+     */
     static devices(err) {
         handleApiErrors([
             {
@@ -44,13 +56,18 @@ export default class PostgresErrors {
                             message: "La ip ya está en uso",
                             status: 409,
                             code: "DEVICE_IP_ALREADY_IN_USE"
-                        },
+                        }
                     ]);
                 }
             }
         ]);
     }
 
+    /**
+     * Translates connection PostgreSQL errors
+     *
+     * @param {Object} err PostgreSQL error
+     */
     static connections(err) {
         handleApiErrors([
             {
@@ -62,6 +79,11 @@ export default class PostgresErrors {
         ]);
     }
 
+    /**
+     * Translates user PostgreSQL errors
+     *
+     * @param {Object} err PostgreSQL error
+     */
     static users(err) {
         handleApiErrors([
             {
@@ -73,6 +95,11 @@ export default class PostgresErrors {
         ]);
     }
 
+    /**
+     * Translates refresh token PostgreSQL errors
+     *
+     * @param {Object} err PostgreSQL error
+     */
     static refreshTokens(err) {
         handleApiErrors([
             {

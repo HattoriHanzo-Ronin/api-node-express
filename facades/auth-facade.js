@@ -54,6 +54,12 @@ export default class AuthFacade {
         return this.refreshTokensService.delete({ token: refreshToken });
     }
 
+    /**
+     * Creates an authentication payload for a user
+     *
+     * @param {Object} user User data
+     * @returns {Promise<object>} Authentication payload
+     */
     async #createPayload(user) {
         const { id, username, roles, scope } = user;
         const refreshToken = generateRefreshToken({ id }, "60d");

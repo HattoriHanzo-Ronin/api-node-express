@@ -58,10 +58,20 @@ export default class AbstractRouter {
         throw new Error("Not implemented");
     }
 
+    /**
+     * Returns the router base URL
+     *
+     * @returns {string} Router base URL
+     */
     getUrl() {
         return `http://${this.router.ip}`;
     }
 
+    /**
+     * Returns an Axios client with cookie support
+     *
+     * @returns {import("axios").AxiosInstance} Axios client
+     */
     getAxiosClient() {
         const jar = new CookieJar();
         return wrapper(
@@ -72,6 +82,11 @@ export default class AbstractRouter {
         );
     }
 
+    /**
+     * Opens a Puppeteer browser
+     *
+     * @returns {Promise<import("puppeteer").Browser>} Puppeteer browser
+     */
     async getPuppeteerBrowser() {
         return await puppeteer.launch({
             executablePath: process.env.CHROME_PATH,
@@ -80,6 +95,11 @@ export default class AbstractRouter {
         });
     }
 
+    /**
+     * Closes a Puppeteer browser
+     *
+     * @param {import("puppeteer").Browser | undefined} browser Puppeteer browser
+     */
     async closePuppeteerBrowser(browser) {
         if (browser) {
             await browser.close();

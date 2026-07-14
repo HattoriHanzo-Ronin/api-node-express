@@ -7,6 +7,12 @@ import { SECRETS } from "./constants.js";
  * @author HattoriHanzo-Ronin
  */
 export default class FtpConnection {
+    /**
+     * Returns a connected SFTP client
+     *
+     * @param {string} username FTP username
+     * @returns {Promise<SftpClient>} Connected SFTP client
+     */
     static async getClient(username) {
         const client = new SftpClient();
         await client.connect({
@@ -18,6 +24,11 @@ export default class FtpConnection {
         return client;
     }
 
+    /**
+     * Closes an SFTP client
+     *
+     * @param {SftpClient | undefined} client SFTP client
+     */
     static async closeClient(client) {
         if (client) {
             await client.end();
