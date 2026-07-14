@@ -91,6 +91,14 @@ describe("UsersService", () => {
                 "El nombre de usuario ya está en uso"
             );
         });
+
+        it("should fail when update data is empty", async () => {
+            await expect(usersService.update({ clientTx: {}, id: "1", data: {} })).rejects.toMatchObject({
+                code: "USER_EMPTY_UPDATE",
+                status: 400
+            });
+            expect(usersModel.update).not.toHaveBeenCalled();
+        });
     });
 
     describe("delete", () => {

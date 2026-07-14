@@ -135,9 +135,17 @@ describe("DevicesService", () => {
             error.code = "23505";
             error.constraint = "devices_ip_unique";
             devicesModel.update.mockRejectedValue(error);
+            await expect(
+                devicesService.update({ clientTx: {}, id: "device-1", data: { ip: "192.168.1.10" } })
+            ).rejects.toMatchObject({ code: "DEVICE_IP_ALREADY_IN_USE" });
+        });
+
+        it("should fail when update data is empty", async () => {
             await expect(devicesService.update({ clientTx: {}, id: "device-1", data: {} })).rejects.toMatchObject({
-                code: "DEVICE_IP_ALREADY_IN_USE"
+                code: "DEVICE_EMPTY_UPDATE",
+                status: 400
             });
+            expect(devicesModel.update).not.toHaveBeenCalled();
         });
     });
 

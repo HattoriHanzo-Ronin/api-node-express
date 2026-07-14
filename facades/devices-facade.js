@@ -85,11 +85,15 @@ export default class DevicesFacade {
     async update({ data }) {
         const { id, connections, ...newData } = data;
         const { name: newDataName } = newData;
-        let { name: oldDeviceName, connections: oldConnections } = await this.getById({ id });
+        let { connections: oldConnections, ...oldDevice } = await this.getById({ id });
+        const { name: oldDeviceName } = oldDevice;
         const isNameUpdated = newDataName && newDataName !== oldDeviceName;
         const result = await this.tx(async (clientTx) => {
             let device;
-            const result = await this.devicesService.update({ clientTx, id, data: newData });
+            const onlyUpdateConnections = Object.values(newData).every((it) => it === null) && connections;
+            const result = onlyUpdateConnections
+                ? oldDevice
+                : await this.devicesService.update({ clientTx, id, data: newData });
             const updateRouterWhitelist = async (connections) => {
                 const callback = async ({ key, addDevice, delDevice, routerImpl }) => {
                     await routerImpl.delete({ key, ...delDevice });

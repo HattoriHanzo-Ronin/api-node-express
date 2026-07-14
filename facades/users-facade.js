@@ -105,15 +105,15 @@ export default class UsersFacade {
     async update({ authUser, data }) {
         let userRoles;
         let userScope;
-        const { id: updatedUserId, ...newData } = data;
+        const { id: updatedUserId, roles: updatedUserRoles, scope: updatedUserScope, ...newData } = data;
         const { id: authUserId, roles: authUserRoles, scope: authUserScope } = authUser;
-        const { roles: updatedUserRoles, scope: updatedUserScope, active } = newData;
+        const { active } = newData;
         const isAdmin = authUserRoles.includes("ADMIN");
         const superAdmin = authUserScope?.includes("ADMIN");
         const isSelf = authUserId === updatedUserId;
-        const cannotDeactivate = active != null;
+        const updatesActive = active != null;
+        const user = await this.usersService.getById({ id: updatedUserId });
         if (isAdmin) {
-            const user = await this.usersService.getById({ id: updatedUserId });
             const roles = await this.userRolesService.getByUsers({ usersId: [updatedUserId] });
             const { roles: tempRoles, scope: tempScope } = this.usersMapper.userToDomain({ ...user, roles });
             userRoles = tempRoles;
@@ -124,13 +124,13 @@ export default class UsersFacade {
             {
                 condition: !isAdmin,
                 execute: () => {
-                    forbiddendError(updatedUserRoles || updatedUserScope || cannotDeactivate || !isSelf);
+                    forbiddendError(updatedUserRoles || updatedUserScope || updatesActive || !isSelf);
                 }
             },
             {
                 condition: isAdmin,
                 execute: () => {
-                    forbiddendError(isSelf && cannotDeactivate);
+                    forbiddendError(isSelf && updatesActive);
                     handleApiErrors([
                         {
                             condition: !superAdmin,
@@ -161,7 +161,10 @@ export default class UsersFacade {
             }
         ]);
         return this.tx(async (clientTx) => {
-            const result = await this.usersService.update({ clientTx, id: updatedUserId, data: newData });
+            const onlyUpdateAcl = Object.keys(newData).length === 0 && superAdmin;
+            const result = onlyUpdateAcl
+                ? user
+                : await this.usersService.update({ clientTx, id: updatedUserId, data: newData });
             if (!isAdmin) {
                 const { username } = result;
                 return { username };
