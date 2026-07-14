@@ -10,6 +10,12 @@ import JWTUtils from "../utils/jwt-utils.js";
  * @author HattoriHanzo-Ronin
  */
 export default class Middlewares {
+    /**
+     * Creates CORS middleware
+     *
+     * @param {string[] | undefined} acceptOrigins Accepted origins
+     * @returns {import("express").RequestHandler} Express middleware
+     */
     static cors(acceptOrigins) {
         return cors({
             origin: (origin, callback) => {
@@ -22,10 +28,20 @@ export default class Middlewares {
         });
     }
 
+    /**
+     * Creates JSON body parser middleware
+     *
+     * @returns {import("express").RequestHandler} Express middleware
+     */
     static json() {
         return express.json();
     }
 
+    /**
+     * Creates multipart form-data middleware
+     *
+     * @returns {import("multer").Multer} Multer middleware factory
+     */
     static mult() {
         return multer({ storage: multer.memoryStorage() });
     }
@@ -40,6 +56,14 @@ export default class Middlewares {
         return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
     }
 
+    /**
+     * Handles application errors
+     *
+     * @param {Error} err Application error
+     * @param {import("express").Request} req Express request
+     * @param {import("express").Response} res Express response
+     * @param {import("express").NextFunction} next Express next function
+     */
     static errorHandler(err, req, res, next) {
         const status = err.status || 500;
         const message = err instanceof ApiError ? err.message : "Error inesperado";
@@ -51,6 +75,13 @@ export default class Middlewares {
         res.status(status).json(result);
     }
 
+    /**
+     * Requires a valid bearer access token
+     *
+     * @param {import("express").Request} req Express request
+     * @param {import("express").Response} res Express response
+     * @param {import("express").NextFunction} next Express next function
+     */
     static requireAuth(req, res, next) {
         try {
             const { authorization } = req.headers;

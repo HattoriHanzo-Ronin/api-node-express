@@ -49,7 +49,7 @@ export default class TLWDR5620GigabitEditionRouter extends AbstractRouter {
     /**
      * Executes a router operation request
      *
-     * @param {Object} params.data Router request payload
+     * @param {Object} data Router request payload
      * @returns {Promise<boolean>} Returns true when the operation succeeds, otherwise false
      */
     async #postOnRouter(data) {

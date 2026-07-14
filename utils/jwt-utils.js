@@ -11,8 +11,8 @@ export default class JWTUtils {
     /**
      * Generates an access token containing user identity and roles
      *
-     * @param {Object} params.payload JWT payload
-     * @param {string | number} params.expiresIn Token expiration time
+     * @param {Object} payload JWT payload
+     * @param {string | number} expiresIn Token expiration time
      * @returns {string} JWT token
      */
     static generateAccessToken(payload, expiresIn) {
@@ -22,8 +22,8 @@ export default class JWTUtils {
     /**
      * Generates a refresh token associated with a user session
      *
-     * @param {Object} params.payload JWT payload
-     * @param {string | number} params.expiresIn Token expiration time
+     * @param {Object} payload JWT payload
+     * @param {string | number} expiresIn Token expiration time
      * @returns {string} JWT refresh token
      */
     static generateRefreshToken(payload, expiresIn) {
@@ -33,7 +33,7 @@ export default class JWTUtils {
     /**
      * Verifies and decodes an access token
      *
-     * @param {string} params.token JWT access token
+     * @param {string} token JWT access token
      * @returns {import("jsonwebtoken").JwtPayload} Decoded token payload
      */
     static verifyAccessToken(token) {
@@ -43,7 +43,7 @@ export default class JWTUtils {
     /**
      * Verifies and decodes a refresh token
      *
-     * @param {string} params.token JWT refresh token
+     * @param {string} token JWT refresh token
      * @returns {import("jsonwebtoken").JwtPayload} Decoded token payload
      */
     static verifyRefreshToken(token) {
