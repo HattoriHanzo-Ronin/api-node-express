@@ -105,6 +105,7 @@ export default class DevicesService {
      */
     async update({ clientTx, id, data }) {
         try {
+            validateNotEmptyObject(data, "DEVICE_EMPTY_UPDATE");
             const result = await this.devicesModel.update({ clientTx, id, data });
             return validateData(result, DevicesSchema.getDeviceSchema());
         } catch (err) {
@@ -124,7 +125,7 @@ export default class DevicesService {
     }
 }
 
-const { handleApiErrors, validateData } = ValidateUtils;
+const { handleApiErrors, validateNotEmptyObject, validateData } = ValidateUtils;
 const { devices: postgresError } = PostgresErrors;
 
 function createDevicesSource(result) {

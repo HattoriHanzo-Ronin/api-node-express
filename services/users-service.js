@@ -79,6 +79,7 @@ export default class UsersService {
      */
     async update({ clientTx, id, data }) {
         try {
+            validateNotEmptyObject(data, "USER_EMPTY_UPDATE");
             return await this.usersModel.update({ clientTx, id, data });
         } catch (err) {
             postgresError(err);
@@ -97,5 +98,5 @@ export default class UsersService {
     }
 }
 
-const { handleApiErrors } = ValidateUtils;
+const { handleApiErrors, validateNotEmptyObject } = ValidateUtils;
 const { users: postgresError } = PostgresErrors;

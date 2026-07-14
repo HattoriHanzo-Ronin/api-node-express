@@ -97,6 +97,22 @@ export default class ValidateUtils {
     }
 
     /**
+     * Validates that an object contains at least one property
+     *
+     * @param {Object} data Object to validate
+     * @param {string} code Error code
+     */
+    static validateNotEmptyObject(data, code) {
+        if (Object.keys(data).length === 0) {
+            throw new ApiError({
+                message: "No hay campos para actualizar",
+                status: 400,
+                code
+            });
+        }
+    }
+
+    /**
      * Evaluates a list of conditional actions and throws an ApiError when required
      *
      * @param {Object[]} errors Error conditions to evaluate
