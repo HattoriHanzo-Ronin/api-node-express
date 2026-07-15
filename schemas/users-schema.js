@@ -1,4 +1,5 @@
 import z from "zod";
+import { USER_ROLE, VALIDATION } from "../config/constants.js";
 import ValidateUtils from "../utils/validate-utils.js";
 import idSchema from "./common/id-schema.js";
 
@@ -23,17 +24,16 @@ export default class UsersSchema {
 }
 
 const {
-    ERROR_MESSAGES,
-    REGEX,
-    ALLOW_ENUMS,
     zodEnumIgnoreCase,
     useRequiredProperties,
     withSuperRefine,
     handleValidationIssues
 } = ValidateUtils;
-const { typeRequired, format, emptyArray, length, invalidEnum } = ERROR_MESSAGES;
-const { passwordRegex } = REGEX;
-const { userRoles } = ALLOW_ENUMS;
+const { errorMessages, regex, allowEnums } = VALIDATION;
+const { typeRequired, format, emptyArray, length, invalidEnum } = errorMessages;
+const { passwordRegex } = regex;
+const { userRoles } = allowEnums;
+const { admin } = USER_ROLE;
 const rolesArraySchema = z
     .array(zodEnumIgnoreCase(z, z.enum(userRoles, invalidEnum(userRoles)), typeRequired), typeRequired)
     .min(1, emptyArray)
@@ -65,12 +65,12 @@ function cases({ roles, scope }, ctx) {
                     handleValidationIssues(
                         [
                             {
-                                condition: !roles.includes("ADMIN") && scope !== undefined,
+                                condition: !roles.includes(admin) && scope !== undefined,
                                 path: ["scope"],
                                 message: "No se puede definir scope para un usuario que no sea administrador"
                             },
                             {
-                                condition: roles.includes("ADMIN") && scope === undefined,
+                                condition: roles.includes(admin) && scope === undefined,
                                 path: ["scope"],
                                 message: "Se debe definir scope para un usuario administrador"
                             }

@@ -1,4 +1,7 @@
 import ValidateUtils from "../utils/validate-utils.js";
+import { USER_ROLE } from "../config/constants.js";
+
+const { admin } = USER_ROLE;
 
 /**
  * Users facade
@@ -76,7 +79,7 @@ export default class UsersFacade {
     async create({ authUser, user }) {
         let { roles: userRoles, scope: userScope, ...newUser } = user;
         const { scope: authScope } = authUser;
-        const superAdmin = authScope.includes("ADMIN");
+        const superAdmin = authScope.includes(admin);
         if (!superAdmin) {
             forbiddendError(userRoles || userScope);
             userRoles = authScope;
@@ -108,8 +111,8 @@ export default class UsersFacade {
         const { id: updatedUserId, roles: updatedUserRoles, scope: updatedUserScope, ...newData } = data;
         const { id: authUserId, roles: authUserRoles, scope: authUserScope } = authUser;
         const { active } = newData;
-        const isAdmin = authUserRoles.includes("ADMIN");
-        const superAdmin = authUserScope?.includes("ADMIN");
+        const isAdmin = authUserRoles.includes(admin);
+        const superAdmin = authUserScope?.includes(admin);
         const isSelf = authUserId === updatedUserId;
         const updatesActive = active != null;
         const user = await this.usersService.getById({ id: updatedUserId });
@@ -145,14 +148,14 @@ export default class UsersFacade {
                             execute: () => {
                                 const wouldLoseAdminScope =
                                     userScope &&
-                                    userScope.includes("ADMIN") &&
+                                    userScope.includes(admin) &&
                                     updatedUserScope &&
-                                    !updatedUserScope.includes("ADMIN");
+                                    !updatedUserScope.includes(admin);
                                 const wouldLoseAdminRole =
                                     isSelf &&
-                                    userRoles.includes("ADMIN") &&
+                                    userRoles.includes(admin) &&
                                     updatedUserRoles &&
-                                    !updatedUserRoles.includes("ADMIN");
+                                    !updatedUserRoles.includes(admin);
                                 forbiddendError(wouldLoseAdminScope || wouldLoseAdminRole);
                             }
                         }
@@ -212,7 +215,7 @@ export default class UsersFacade {
 const { handleApiErrors } = ValidateUtils;
 
 function allowedManage({ scope }, userRoles) {
-    return scope.includes("ADMIN") || userRoles.every((it) => scope.includes(it));
+    return scope.includes(admin) || userRoles.every((it) => scope.includes(it));
 }
 
 /**
@@ -224,7 +227,7 @@ function allowedManage({ scope }, userRoles) {
  */
 function filterAcl(authUser, source) {
     const { roles, scope, ...result } = source;
-    const canSeeAcl = !authUser || authUser.scope?.includes("ADMIN");
+    const canSeeAcl = !authUser || authUser.scope?.includes(admin);
     return canSeeAcl ? source : result;
 }
 

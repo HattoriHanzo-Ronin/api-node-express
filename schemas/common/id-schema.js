@@ -1,8 +1,8 @@
 import z from "zod";
-import ValidateUtils from "../../utils/validate-utils.js";
+import { VALIDATION } from "../../config/constants.js";
 
-const { ERROR_MESSAGES } = ValidateUtils;
-const { invalidId, emptyString } = ERROR_MESSAGES;
+const { errorMessages } = VALIDATION;
+const { invalidId, emptyString } = errorMessages;
 
 const idSchema = z.object({
     id: z

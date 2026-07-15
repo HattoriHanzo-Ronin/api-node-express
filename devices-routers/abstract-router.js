@@ -2,6 +2,7 @@ import { wrapper } from "axios-cookiejar-support";
 import { CookieJar } from "tough-cookie";
 import axios from "axios";
 import puppeteer from "puppeteer-core";
+import { ENV } from "../config/constants.js";
 
 /**
  * Base router implementation
@@ -89,7 +90,7 @@ export default class AbstractRouter {
      */
     async getPuppeteerBrowser() {
         return await puppeteer.launch({
-            executablePath: process.env.CHROME_PATH,
+            executablePath: ENV.chromePath,
             headless: "new",
             args: ["--no-sandbox", "--disable-setuid-sandbox"]
         });

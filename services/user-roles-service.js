@@ -1,4 +1,5 @@
 import ValidateUtils from "../utils/validate-utils.js";
+import { USER_ROLE } from "../config/constants.js";
 
 /**
  * User roles service
@@ -41,7 +42,7 @@ export default class UserRolesService {
             const userRoles = roles.map((it) => ({
                 user_id: userId,
                 role: it,
-                scope: it === "ADMIN" ? scope.join(",") : null
+                scope: it === USER_ROLE.admin ? scope.join(",") : null
             }));
             return await this.userRolesModel.insertMany({ clientTx, userRoles });
         } catch (err) {

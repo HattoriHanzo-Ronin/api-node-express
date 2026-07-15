@@ -16,7 +16,7 @@ export default class JWTUtils {
      * @returns {string} JWT token
      */
     static generateAccessToken(payload, expiresIn) {
-        return jwt.sign(payload, jwtSecret, { expiresIn });
+        return jwt.sign(payload, SECRETS.jwtSecret, { expiresIn });
     }
 
     /**
@@ -27,7 +27,7 @@ export default class JWTUtils {
      * @returns {string} JWT refresh token
      */
     static generateRefreshToken(payload, expiresIn) {
-        return jwt.sign(payload, refreshJwtSecret, { expiresIn });
+        return jwt.sign(payload, SECRETS.refreshJwtSecret, { expiresIn });
     }
 
     /**
@@ -37,7 +37,7 @@ export default class JWTUtils {
      * @returns {import("jsonwebtoken").JwtPayload} Decoded token payload
      */
     static verifyAccessToken(token) {
-        return verifyToken(token, jwtSecret);
+        return verifyToken(token, SECRETS.jwtSecret);
     }
 
     /**
@@ -47,11 +47,9 @@ export default class JWTUtils {
      * @returns {import("jsonwebtoken").JwtPayload} Decoded token payload
      */
     static verifyRefreshToken(token) {
-        return verifyToken(token, refreshJwtSecret);
+        return verifyToken(token, SECRETS.refreshJwtSecret);
     }
 }
-
-const { jwtSecret, refreshJwtSecret } = SECRETS;
 
 function verifyToken(token, secret) {
     try {
