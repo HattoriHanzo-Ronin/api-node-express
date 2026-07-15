@@ -1,8 +1,8 @@
 import z from "zod";
-import ValidateUtils from "../../utils/validate-utils.js";
+import { VALIDATION } from "../../config/constants.js";
 
-const { REGEX, ERROR_MESSAGES } = ValidateUtils;
-const { typeRequired, format } = ERROR_MESSAGES;
-const macSchema = z.object({ mac: z.string(typeRequired).trim().regex(REGEX.macRegex, format) });
+const { regex, errorMessages } = VALIDATION;
+const { typeRequired, format } = errorMessages;
+const macSchema = z.object({ mac: z.string(typeRequired).trim().regex(regex.macRegex, format) });
 
 export default macSchema;

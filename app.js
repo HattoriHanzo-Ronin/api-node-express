@@ -7,11 +7,13 @@ import createDevicesRouter from "./routes/devices-router.js";
 import createUsersRouter from "./routes/users-router.js";
 import createAuthRouter from "./routes/auth-router.js";
 import ApiError from "./utils/api-error.js";
+import { ENV, USER_ROLE } from "./config/constants.js";
+
+const { ftp, net } = USER_ROLE;
 
 export function createApp({ ftpController, whitelistController, devicesController, usersController, authController }) {
     const app = express();
     const { cors, json, errorHandler, requireAuth, authorizedRoles } = Middlewares;
-    const PORT = process.env.PORT;
 
     app.disable("x-powered-by");
 
@@ -21,9 +23,9 @@ export function createApp({ ftpController, whitelistController, devicesControlle
 
     app.use(requireAuth);
 
-    app.use("/ftp", authorizedRoles(["FTP"]), createFtpRouter({ ftpController }));
-    app.use("/whitelist", authorizedRoles(["NET"]), createWhitelistRouter({ whitelistController }));
-    app.use("/devices", authorizedRoles(["NET"]), createDevicesRouter({ devicesController }));
+    app.use("/ftp", authorizedRoles([ftp]), createFtpRouter({ ftpController }));
+    app.use("/whitelist", authorizedRoles([net]), createWhitelistRouter({ whitelistController }));
+    app.use("/devices", authorizedRoles([net]), createDevicesRouter({ devicesController }));
     app.use("/users", createUsersRouter({ usersController }));
 
     app.use((req, res, next) => {
@@ -31,5 +33,5 @@ export function createApp({ ftpController, whitelistController, devicesControlle
     });
     app.use(errorHandler);
 
-    app.listen(PORT);
+    app.listen(ENV.port);
 }

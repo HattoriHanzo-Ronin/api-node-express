@@ -1,3 +1,4 @@
+import { POSTGRES_ERROR } from "../config/constants.js";
 import ValidateUtils from "./validate-utils.js";
 
 /**
@@ -14,7 +15,7 @@ export default class PostgresErrors {
     static whitelist(err) {
         handleApiErrors([
             {
-                condition: err.code === UNIQUE_VIOLATION,
+                condition: err.code === uniqueViolation,
                 execute: () => {
                     handleApiErrors([
                         {
@@ -42,7 +43,7 @@ export default class PostgresErrors {
     static devices(err) {
         handleApiErrors([
             {
-                condition: err.code === UNIQUE_VIOLATION,
+                condition: err.code === uniqueViolation,
                 execute: () => {
                     handleApiErrors([
                         {
@@ -71,7 +72,7 @@ export default class PostgresErrors {
     static connections(err) {
         handleApiErrors([
             {
-                condition: err.code === UNIQUE_VIOLATION,
+                condition: err.code === uniqueViolation,
                 message: "La mac ya está en uso",
                 status: 409,
                 code: "CONNECTION_MAC_ALREADY_EXISTS"
@@ -87,7 +88,7 @@ export default class PostgresErrors {
     static users(err) {
         handleApiErrors([
             {
-                condition: err.code === UNIQUE_VIOLATION,
+                condition: err.code === uniqueViolation,
                 message: "El nombre de usuario ya está en uso",
                 status: 409,
                 code: "USER_USERNAME_ALREADY_EXISTS"
@@ -103,7 +104,7 @@ export default class PostgresErrors {
     static refreshTokens(err) {
         handleApiErrors([
             {
-                condition: err.code === FOREIGN_KEY_VIOLATION,
+                condition: err.code === foreignKeyViolation,
                 message: "El usuario no existe",
                 status: 404,
                 code: "REFRESH_TOKEN_USER_NOT_FOUND"
@@ -112,6 +113,5 @@ export default class PostgresErrors {
     }
 }
 
-const UNIQUE_VIOLATION = "23505";
-const FOREIGN_KEY_VIOLATION = "23503";
+const { uniqueViolation, foreignKeyViolation } = POSTGRES_ERROR;
 const { handleApiErrors } = ValidateUtils;

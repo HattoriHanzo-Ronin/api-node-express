@@ -6,34 +6,6 @@ import ApiError from "./api-error.js";
  * @author HattoriHanzo-Ronin
  */
 export default class ValidateUtils {
-    static ALLOW_ENUMS = Object.freeze({
-        fileType: Object.freeze(["DIR", "FILE"]),
-        connectionsCtype: Object.freeze(["WAN", "LAN", "WIFI"]),
-        devicesType: Object.freeze(["CLIENT", "ROUTER", "SERVER"]),
-        userRoles: Object.freeze(["ADMIN", "FTP", "NET"])
-    });
-
-    static ERROR_MESSAGES = Object.freeze({
-        typeRequired: { error: (issue) => (issue.input === undefined ? "Requerido" : "Tipo no válido") },
-        typeNotRequired: { error: "Tipo no válido" },
-        format: "Error de formato",
-        length: (num, mode) => {
-            return `Longitud ${mode === "min" ? "mínima" : "máxima"} ${num} ${num > 1 ? "caracteres" : "caracter"}`;
-        },
-        invalidEnum: (values) => ({ error: `Valores permitidos: ${values.join(", ")}` }),
-        invalidId: "UUID no válido",
-        emptyArray: "Debe contener al menos un elemento",
-        emptyString: "No puede estar vacío"
-    });
-
-    static REGEX = Object.freeze({
-        passwordRegex: /^[A-Za-z0-9!@#$%^&*()_\-+=\[{\]};:'",<.>/?\\|`~]+$/,
-        macRegex: /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/,
-        ipRegex: /^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/,
-        safeTextRegex: /^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 -]+$/,
-        pathRegex: /^[\p{L}\p{N} ./_-]+$/u
-    });
-
     /**
      * Creates a case-insensitive enum schema
      *

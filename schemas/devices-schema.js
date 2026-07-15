@@ -1,4 +1,5 @@
 import z from "zod";
+import { DEVICE_TYPE, VALIDATION } from "../config/constants.js";
 import ValidateUtils from "../utils/validate-utils.js";
 import idSchema from "./common/id-schema.js";
 import macSchema from "./common/mac-schema.js";
@@ -24,17 +25,16 @@ export default class DevicesSchema {
 }
 
 const {
-    ERROR_MESSAGES,
-    REGEX,
-    ALLOW_ENUMS,
     handleValidationIssues,
     zodEnumIgnoreCase,
     useRequiredProperties,
     withSuperRefine
 } = ValidateUtils;
-const { typeRequired, typeNotRequired, format, emptyArray, length, invalidEnum } = ERROR_MESSAGES;
-const { passwordRegex, ipRegex, safeTextRegex } = REGEX;
-const { connectionsCtype, devicesType } = ALLOW_ENUMS;
+const { errorMessages, regex, allowEnums } = VALIDATION;
+const { typeRequired, typeNotRequired, format, emptyArray, length, invalidEnum } = errorMessages;
+const { passwordRegex, ipRegex, safeTextRegex } = regex;
+const { connectionsCtype, devicesType } = allowEnums;
+const { router, server } = DEVICE_TYPE;
 const devicesSchema = z.object({
     name: z
         .string(typeRequired)
@@ -81,7 +81,7 @@ const devicesSchema = z.object({
 });
 
 function cases({ type, mac_filter, admin_pass, ip, wifi_pass, model, connections }, ctx) {
-    const isRouter = type === "ROUTER";
+    const isRouter = type === router;
     handleValidationIssues(
         [
             {
@@ -140,7 +140,7 @@ function cases({ type, mac_filter, admin_pass, ip, wifi_pass, model, connections
                 }
             },
             {
-                condition: type === "SERVER" && ip === null,
+                condition: type === server && ip === null,
                 path: ["ip"],
                 message: "Debe especificar ip del servidor"
             },

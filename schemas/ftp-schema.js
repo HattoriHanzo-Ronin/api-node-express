@@ -1,4 +1,5 @@
 import z from "zod";
+import { VALIDATION } from "../config/constants.js";
 import ValidateUtils from "../utils/validate-utils.js";
 
 /**
@@ -36,11 +37,11 @@ export default class FtpSchema {
     }
 }
 
-const { ALLOW_ENUMS, ERROR_MESSAGES, REGEX, handleValidationIssues, zodEnumIgnoreCase, withSuperRefine } =
-    ValidateUtils;
-const { typeRequired, typeNotRequired, format, emptyArray, emptyString, invalidEnum } = ERROR_MESSAGES;
-const { fileType } = ALLOW_ENUMS;
-const { pathRegex } = REGEX;
+const { handleValidationIssues, zodEnumIgnoreCase, withSuperRefine } = ValidateUtils;
+const { allowEnums, errorMessages, regex } = VALIDATION;
+const { typeRequired, typeNotRequired, format, emptyArray, emptyString, invalidEnum } = errorMessages;
+const { fileType } = allowEnums;
+const { pathRegex } = regex;
 const dir = withSuperRefine(
     z.string(typeNotRequired).trim().min(1, emptyString).regex(pathRegex, format).default("."),
     pathCases

@@ -1,3 +1,5 @@
+import { USER_ROLE } from "../config/constants.js";
+
 /**
  * Maps user data between persistence and domain representations
  *
@@ -29,7 +31,7 @@ export default class UsersMapper {
 }
 
 function mapRolesToDomain(roles) {
-    const adminRole = roles.find(({ role }) => role === "ADMIN");
+    const adminRole = roles.find(({ role }) => role === USER_ROLE.admin);
     roles = roles.map(({ role }) => role);
     return adminRole ? { roles, scope: adminRole.scope.split(",") } : { roles };
 }

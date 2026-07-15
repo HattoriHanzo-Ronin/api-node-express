@@ -1,5 +1,5 @@
 import pgPromise from "pg-promise";
-import { SECRETS } from "../constants.js";
+import { ENV, SECRETS } from "../constants.js";
 
 /**
  * PostgreSQL client utilities
@@ -36,10 +36,11 @@ export default class PostgresClient {
     }
 }
 const pgp = pgPromise();
+const { dbHost, dbPort, dbUser, dbName } = ENV;
 const client = pgp({
-    host: process.env.HOSTDB,
-    port: process.env.PORTDB,
-    user: process.env.USERDB,
+    host: dbHost,
+    port: dbPort,
+    user: dbUser,
     password: SECRETS.passDb,
-    database: process.env.DB
+    database: dbName
 });

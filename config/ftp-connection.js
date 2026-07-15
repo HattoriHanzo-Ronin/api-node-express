@@ -1,5 +1,7 @@
 import SftpClient from "ssh2-sftp-client";
-import { SECRETS } from "./constants.js";
+import { ENV, SECRETS } from "./constants.js";
+
+const { ftpHost, ftpPort } = ENV;
 
 /**
  * Handles SFTP client connections through the FTP service contract
@@ -16,8 +18,8 @@ export default class FtpConnection {
     static async getClient(username) {
         const client = new SftpClient();
         await client.connect({
-            host: process.env.HOSTFTP,
-            port: Number(process.env.PORTFTP),
+            host: ftpHost,
+            port: ftpPort,
             username,
             privateKey: SECRETS.sftpKey
         });

@@ -1,3 +1,4 @@
+import { JWT } from "../config/constants.js";
 import JWTUtils from "../utils/jwt-utils.js";
 
 /**
@@ -62,14 +63,15 @@ export default class AuthFacade {
      */
     async #createPayload(user) {
         const { id, username, roles, scope } = user;
-        const refreshToken = generateRefreshToken({ id }, "60d");
+        const refreshToken = generateRefreshToken({ id }, refreshTokenExpiresIn);
         await this.refreshTokensService.create({ userId: id, token: refreshToken });
         return {
             user: { id, username, roles, scope },
-            accessToken: generateAccessToken({ id, username, roles, scope }, "30min"),
+            accessToken: generateAccessToken({ id, username, roles, scope }, accessTokenExpiresIn),
             refreshToken
         };
     }
 }
 
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = JWTUtils;
+const { accessTokenExpiresIn, refreshTokenExpiresIn } = JWT;

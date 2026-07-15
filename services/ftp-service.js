@@ -3,6 +3,9 @@ import AdmZip from "adm-zip";
 import path from "path";
 import ValidateUtils from "../utils/validate-utils.js";
 import FtpConnection from "../config/ftp-connection.js";
+import { FILE_TYPE } from "../config/constants.js";
+
+const { dir: dirType, file: fileType } = FILE_TYPE;
 
 /**
  * @typedef {{ name: string, type: "FILE" | "DIR" }} FtpEntry
@@ -27,7 +30,7 @@ export default class FtpService {
         try {
             client = await getClient(authUser.username);
             const list = await client.list(dir ?? ".");
-            return list.map(({ name, type }) => ({ name, type: type === "d" ? "DIR" : "FILE" }));
+            return list.map(({ name, type }) => ({ name, type: type === "d" ? dirType : fileType }));
         } catch (err) {
             ftpError("Error al listar la carpeta", "FTP_DIR_FAILED");
         } finally {
@@ -50,7 +53,7 @@ export default class FtpService {
             const list = await client.list(dir);
             const newName = getFileName(name, list);
             await client.mkdir(`${dir}/${newName}`);
-            return { name: newName, type: "DIR" };
+            return { name: newName, type: dirType };
         } catch (err) {
             ftpError("Error al crear la carpeta", "FTP_MKDIR_FAILED");
         } finally {
@@ -132,7 +135,7 @@ export default class FtpService {
             if (!isZip) {
                 const fileName = `${getFileName(originalname, await client.list(dir))}`;
                 await client.put(buffer, `${dir}/${fileName}`);
-                return [{ name: fileName, type: "FILE" }];
+                return [{ name: fileName, type: fileType }];
             }
 
             tempDir = `${process.cwd()}/temp${Date.now()}`;
@@ -156,7 +159,7 @@ export default class FtpService {
 
                     list.push({ name: newName });
                     if (localDir === tempDir) {
-                        addedContent.push({ name: newName, type: isDirectory() ? "DIR" : "FILE" });
+                        addedContent.push({ name: newName, type: isDirectory() ? dirType : fileType });
                     }
                 }
             };
@@ -181,7 +184,7 @@ export default class FtpService {
      * @returns {Promise<string>} the generated local file path
      */
     static async download({ dir, entries, authUser }) {
-        const isSingleFile = entries.length === 1 && entries[0].type === "FILE";
+        const isSingleFile = entries.length === 1 && entries[0].type === fileType;
         const tempDir = `${process.cwd()}/temp${Date.now()}`;
         let client;
         try {
@@ -201,7 +204,7 @@ export default class FtpService {
                 for (const { name, type } of remoteList) {
                     const localPath = path.join(localDir, name);
                     const remotePath = `${remoteDir}/${name}`;
-                    if (["d", "DIR"].includes(type)) {
+                    if (["d", dirType].includes(type)) {
                         await fs.mkdir(localPath);
                         await downloadRemoteDir({
                             remoteDir: remotePath,
@@ -242,7 +245,7 @@ export default class FtpService {
             client = await getClient(authUser.username);
             for (const { name, type } of entries) {
                 const remotePath = `${dir}/${name}`;
-                if (type === "DIR") {
+                if (type === dirType) {
                     await client.rmdir(remotePath, true);
                 } else {
                     await client.delete(remotePath);
