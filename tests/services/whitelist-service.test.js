@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import WhitelistService from "../../services/whitelist-service.js";
+import WhitelistService from "../../src/services/whitelist-service.js";
 
 describe("WhitelistService", () => {
     let whitelistModel;

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import UsersFacade from "../../facades/users-facade.js";
+import UsersFacade from "../../src/facades/users-facade.js";
 
 describe("UsersFacade", () => {
     let usersService;

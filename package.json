@@ -2,11 +2,11 @@
     "name": "apinodeexpress",
     "version": "1.0",
     "description": "",
-    "main": "index.js",
+    "main": "src/server-postgres.js",
     "scripts": {
         "test": "vitest",
-        "postgres": "node server-postgres.js",
-        "wPostgres": "node --watch server-postgres.js",
+        "postgres": "node src/server-postgres.js",
+        "wPostgres": "node --watch src/server-postgres.js",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix"
     },

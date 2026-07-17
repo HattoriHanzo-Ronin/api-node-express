@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import DevicesService from "../../services/devices-service.js";
+import DevicesService from "../../src/services/devices-service.js";
 
 describe("DevicesService", () => {
     let devicesModel;

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import RefreshTokensService from "../../services/refresh-tokens-service.js";
+import RefreshTokensService from "../../src/services/refresh-tokens-service.js";
 
 describe("RefreshTokensService", () => {
     let refreshTokensModel;

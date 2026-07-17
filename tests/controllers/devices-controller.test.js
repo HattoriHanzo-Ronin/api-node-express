@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import DevicesController from "../../controllers/devices-controller.js";
+import DevicesController from "../../src/controllers/devices-controller.js";
 
 const UUID = "550e8400-e29b-41d4-a716-446655440000";
 

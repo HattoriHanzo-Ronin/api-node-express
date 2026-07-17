@@ -151,18 +151,22 @@ These files serve as:
 ## Project Structure
 
 ```text
-config/
-controllers/
-devices-routers/
-facades/
-mappers/
-middlewares/
-models/
-routes/
-schemas/
-services/
+src/
+    config/
+    controllers/
+    devices-routers/
+    facades/
+    mappers/
+    middlewares/
+    models/
+    routes/
+    schemas/
+    services/
+    utils/
+    app.js
+    server-postgres.js
 tests/
-utils/
+docs/
 ```
 
 ## Design Principles

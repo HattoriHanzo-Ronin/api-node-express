@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import RouterResolver from "../../devices-routers/router-resolver.js";
-import DevicesFacade from "../../facades/devices-facade.js";
+import RouterResolver from "../../src/devices-routers/router-resolver.js";
+import DevicesFacade from "../../src/facades/devices-facade.js";
 
 const routerResolverMock = vi.hoisted(() => ({
     impl: { delete: vi.fn(), create: vi.fn() },
     resolver: vi.fn()
 }));
 
-vi.mock("../../devices-routers/router-resolver.js", () => ({
+vi.mock("../../src/devices-routers/router-resolver.js", () => ({
     default: routerResolverMock.resolver
 }));
 
