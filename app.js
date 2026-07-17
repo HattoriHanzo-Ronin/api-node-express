@@ -7,7 +7,7 @@ import createDevicesRouter from "./routes/devices-router.js";
 import createUsersRouter from "./routes/users-router.js";
 import createAuthRouter from "./routes/auth-router.js";
 import ApiError from "./utils/api-error.js";
-import { ENV, USER_ROLE } from "./config/constants.js";
+import { API_ERROR, ENV, USER_ROLE } from "./config/constants.js";
 
 const { ftp, net } = USER_ROLE;
 
@@ -29,7 +29,7 @@ export function createApp({ ftpController, whitelistController, devicesControlle
     app.use("/users", createUsersRouter({ usersController }));
 
     app.use((req, res, next) => {
-        next(new ApiError({ message: "Page not found", status: 404, code: "ROUTE_NOT_FOUND" }));
+        next(new ApiError({ message: "Page not found", status: 404, apiError: API_ERROR.routeNotFound }));
     });
     app.use(errorHandler);
 

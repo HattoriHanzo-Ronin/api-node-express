@@ -1,4 +1,5 @@
 import ApiError from "./api-error.js";
+import { API_ERROR } from "../config/constants.js";
 
 /**
  * Validation utilities
@@ -61,7 +62,7 @@ export default class ValidateUtils {
                 message: "Error al validar los datos",
                 status: 400,
                 details,
-                code: "VALIDATION_FAILED"
+                apiError: API_ERROR.validationFailed
             });
         }
 
@@ -72,14 +73,14 @@ export default class ValidateUtils {
      * Validates that an object contains at least one property
      *
      * @param {Object} data Object to validate
-     * @param {string} code Error code
+     * @param {{ code: string }} apiError API error
      */
-    static validateNotEmptyObject(data, code) {
+    static validateNotEmptyObject(data, apiError) {
         if (Object.keys(data).length === 0) {
             throw new ApiError({
                 message: "No hay campos para actualizar",
                 status: 400,
-                code
+                apiError
             });
         }
     }
@@ -92,18 +93,18 @@ export default class ValidateUtils {
      * @param {Function} [errors[].execute] Action executed when the condition matches
      * @param {string} [errors[].message] Error message
      * @param {number} [errors[].status] HTTP status code
-     * @param {string} [errors[].code] Application error code
+     * @param {{ code: string }} [errors[].apiError] API error
      */
     static handleApiErrors(errors) {
         for (const error of errors) {
-            const { condition, execute, message, status, code } = error;
+            const { condition, execute, message, status, apiError } = error;
             if (condition) {
                 if (execute) {
                     execute();
                 }
 
                 if (message) {
-                    throw new ApiError({ message, status, code });
+                    throw new ApiError({ message, status, apiError });
                 }
             }
         }

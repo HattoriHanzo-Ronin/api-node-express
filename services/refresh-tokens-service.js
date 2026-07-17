@@ -1,5 +1,6 @@
 import PostgresErrors from "../utils/postgres-errors.js";
 import ValidateUtils from "../utils/validate-utils.js";
+import { API_ERROR } from "../config/constants.js";
 
 /**
  * Refresh service
@@ -18,7 +19,9 @@ export default class RefreshTokensService {
      */
     async getByToken({ token }) {
         const result = await this.refreshTokensModel.getByToken({ token });
-        handleApiErrors([{ condition: !result, message: "Token no válido", status: 401, code: "INVALID_TOKEN" }]);
+        handleApiErrors([
+            { condition: !result, message: "Token no válido", status: 401, apiError: API_ERROR.invalidToken }
+        ]);
     }
 
     /**

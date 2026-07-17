@@ -1,5 +1,6 @@
 import RouterResolver from "../devices-routers/router-resolver.js";
 import ValidateUtils from "../utils/validate-utils.js";
+import { API_ERROR } from "../config/constants.js";
 
 /**
  * Whitelist facade
@@ -65,10 +66,10 @@ export default class WhitelistFacade {
         } catch (err) {
             handleApiErrors([
                 {
-                    condition: err.code === "DEVICE_NOT_FOUND",
+                    condition: err.code === deviceNotFound.code,
                     message: "El router no existe",
                     status: 404,
-                    code: "WHITELIST_ROUTER_NOT_FOUND"
+                    apiError: whitelistRouterNotFound
                 }
             ]);
             throw err;
@@ -82,7 +83,7 @@ export default class WhitelistFacade {
                 condition: !connections.some(({ mac: connectionMac }) => connectionMac === mac),
                 message: "La mac no pertenece al dispositivo especificado",
                 status: 400,
-                code: "CONNECTION_MAC_MISMATCH"
+                apiError: connectionMacMismatch
             }
         ]);
         return { id, name, mac };
@@ -90,3 +91,4 @@ export default class WhitelistFacade {
 }
 
 const { handleApiErrors } = ValidateUtils;
+const { deviceNotFound, whitelistRouterNotFound, connectionMacMismatch } = API_ERROR;
