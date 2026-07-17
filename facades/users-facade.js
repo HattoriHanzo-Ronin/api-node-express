@@ -1,7 +1,8 @@
 import ValidateUtils from "../utils/validate-utils.js";
-import { USER_ROLE } from "../config/constants.js";
+import { API_ERROR, USER_ROLE } from "../config/constants.js";
 
 const { admin } = USER_ROLE;
+const { userNotFound, aclPermissionDenied } = API_ERROR;
 
 /**
  * Users facade
@@ -47,7 +48,7 @@ export default class UsersFacade {
                 condition: authUser && !allowedManage(authUser, user.roles),
                 message: "El usuario no existe",
                 status: 404,
-                code: "USER_NOT_FOUND"
+                apiError: userNotFound
             }
         ]);
         return filterAcl(authUser, user);
@@ -233,6 +234,6 @@ function filterAcl(authUser, source) {
 
 function forbiddendError(condition) {
     handleApiErrors([
-        { condition, message: "No tiene permisos para realizar esa acción", status: 403, code: "ACL_PERMISSION_DENIED" }
+        { condition, message: "No tiene permisos para realizar esa acción", status: 403, apiError: aclPermissionDenied }
     ]);
 }

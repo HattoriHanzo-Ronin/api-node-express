@@ -1,4 +1,4 @@
-import { POSTGRES_ERROR } from "../config/constants.js";
+import { API_ERROR, POSTGRES_ERROR } from "../config/constants.js";
 import ValidateUtils from "./validate-utils.js";
 
 /**
@@ -22,12 +22,12 @@ export default class PostgresErrors {
                             condition: err.constraint === "whitelist_pk",
                             message: "El dispositivo ya se encuentra autorizado",
                             status: 400,
-                            code: "WHITELIST_ALREADY_ALLOWED"
+                            apiError: whitelistAlreadyAllowed
                         },
                         {
                             condition: err.constraint === "whitelist_router_id_key_unique",
                             message: "Error al generar la clave de autorización",
-                            code: "WHITELIST_KEY_GENERATION_FAILED"
+                            apiError: whitelistKeyGenerationFailed
                         }
                     ]);
                 }
@@ -50,13 +50,13 @@ export default class PostgresErrors {
                             condition: err.constraint === "devices_name_unique",
                             message: "El nombre del dispositivo ya está en uso",
                             status: 409,
-                            code: "DEVICE_NAME_ALREADY_EXISTS"
+                            apiError: deviceNameAlreadyExists
                         },
                         {
                             condition: err.constraint === "devices_ip_unique",
                             message: "La ip ya está en uso",
                             status: 409,
-                            code: "DEVICE_IP_ALREADY_IN_USE"
+                            apiError: deviceIpAlreadyInUse
                         }
                     ]);
                 }
@@ -75,7 +75,7 @@ export default class PostgresErrors {
                 condition: err.code === uniqueViolation,
                 message: "La mac ya está en uso",
                 status: 409,
-                code: "CONNECTION_MAC_ALREADY_EXISTS"
+                apiError: connectionMacAlreadyExists
             }
         ]);
     }
@@ -91,7 +91,7 @@ export default class PostgresErrors {
                 condition: err.code === uniqueViolation,
                 message: "El nombre de usuario ya está en uso",
                 status: 409,
-                code: "USER_USERNAME_ALREADY_EXISTS"
+                apiError: userUsernameAlreadyExists
             }
         ]);
     }
@@ -107,11 +107,20 @@ export default class PostgresErrors {
                 condition: err.code === foreignKeyViolation,
                 message: "El usuario no existe",
                 status: 404,
-                code: "REFRESH_TOKEN_USER_NOT_FOUND"
+                apiError: refreshTokenUserNotFound
             }
         ]);
     }
 }
 
 const { uniqueViolation, foreignKeyViolation } = POSTGRES_ERROR;
+const {
+    whitelistAlreadyAllowed,
+    whitelistKeyGenerationFailed,
+    deviceNameAlreadyExists,
+    deviceIpAlreadyInUse,
+    connectionMacAlreadyExists,
+    userUsernameAlreadyExists,
+    refreshTokenUserNotFound
+} = API_ERROR;
 const { handleApiErrors } = ValidateUtils;

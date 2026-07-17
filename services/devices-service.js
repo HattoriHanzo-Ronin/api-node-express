@@ -1,6 +1,7 @@
 import DevicesSchema from "../schemas/devices-schema.js";
 import PostgresErrors from "../utils/postgres-errors.js";
 import ValidateUtils from "../utils/validate-utils.js";
+import { API_ERROR } from "../config/constants.js";
 
 /**
  * Devices service
@@ -30,7 +31,7 @@ export default class DevicesService {
     async getById({ id }) {
         const result = await this.devicesModel.getById({ id });
         handleApiErrors([
-            { condition: !result, message: "El dispositivo no existe", status: 404, code: "DEVICE_NOT_FOUND" }
+            { condition: !result, message: "El dispositivo no existe", status: 404, apiError: deviceNotFound }
         ]);
         return result;
     }
@@ -105,7 +106,7 @@ export default class DevicesService {
      */
     async update({ clientTx, id, data }) {
         try {
-            validateNotEmptyObject(data, "DEVICE_EMPTY_UPDATE");
+            validateNotEmptyObject(data, deviceEmptyUpdate);
             const result = await this.devicesModel.update({ clientTx, id, data });
             return validateData(result, DevicesSchema.getDeviceSchema());
         } catch (err) {
@@ -126,6 +127,7 @@ export default class DevicesService {
 }
 
 const { handleApiErrors, validateNotEmptyObject, validateData } = ValidateUtils;
+const { deviceNotFound, deviceEmptyUpdate } = API_ERROR;
 const { devices: postgresError } = PostgresErrors;
 
 function createDevicesSource(result) {

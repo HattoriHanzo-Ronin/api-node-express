@@ -1,5 +1,6 @@
 import PostgresErrors from "../utils/postgres-errors.js";
 import ValidateUtils from "../utils/validate-utils.js";
+import { API_ERROR } from "../config/constants.js";
 
 /**
  * Connections service
@@ -35,7 +36,7 @@ export default class ConnectionsService {
                 {
                     condition: !connections,
                     message: "Se debe especificar al menos una conexión para el dispositivo",
-                    code: "CONNECTION_REQUIRED"
+                    apiError: connectionRequired
                 }
             ]);
             connections = connections.map((it) => ({ device_id: deviceId, ...it }));
@@ -44,9 +45,9 @@ export default class ConnectionsService {
             postgresError(err);
             handleApiErrors([
                 {
-                    condition: err.code !== "CONNECTION_REQUIRED",
+                    condition: err.code !== connectionRequired.code,
                     message: "Error al crear las conexiones del dispositivo",
-                    code: "CONNECTION_CREATE_FAILED"
+                    apiError: connectionCreateFailed
                 }
             ]);
             throw err;
@@ -112,7 +113,7 @@ export default class ConnectionsService {
                 {
                     condition: true,
                     message: "Error al actualizar las conexiones del dispositivo",
-                    code: "CONNECTION_UPDATE_FAILED"
+                    apiError: connectionUpdateFailed
                 }
             ]);
         }
@@ -120,4 +121,5 @@ export default class ConnectionsService {
 }
 
 const { handleApiErrors } = ValidateUtils;
+const { connectionRequired, connectionCreateFailed, connectionUpdateFailed } = API_ERROR;
 const { connections: postgresError } = PostgresErrors;

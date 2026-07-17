@@ -1,5 +1,6 @@
 import PostgresErrors from "../utils/postgres-errors.js";
 import ValidateUtils from "../utils/validate-utils.js";
+import { API_ERROR } from "../config/constants.js";
 
 /**
  * Whitelist service
@@ -52,7 +53,7 @@ export default class WhitelistService {
                 condition: !result,
                 message: "El dispositivo no se encuentra autorizado",
                 status: 404,
-                code: "WHITELIST_NOT_ALLOWED"
+                apiError: API_ERROR.whitelistNotAllowed
             }
         ]);
         return result;

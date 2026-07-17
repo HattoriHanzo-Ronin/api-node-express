@@ -3,7 +3,7 @@ import AdmZip from "adm-zip";
 import path from "path";
 import ValidateUtils from "../utils/validate-utils.js";
 import FtpConnection from "../config/ftp-connection.js";
-import { FILE_TYPE } from "../config/constants.js";
+import { API_ERROR, FILE_TYPE } from "../config/constants.js";
 
 const { dir: dirType, file: fileType } = FILE_TYPE;
 
@@ -32,7 +32,7 @@ export default class FtpService {
             const list = await client.list(dir ?? ".");
             return list.map(({ name, type }) => ({ name, type: type === "d" ? dirType : fileType }));
         } catch (err) {
-            ftpError("Error al listar la carpeta", "FTP_DIR_FAILED");
+            ftpError("Error al listar la carpeta", ftpDirFailed);
         } finally {
             await closeClient(client);
         }
@@ -55,7 +55,7 @@ export default class FtpService {
             await client.mkdir(`${dir}/${newName}`);
             return { name: newName, type: dirType };
         } catch (err) {
-            ftpError("Error al crear la carpeta", "FTP_MKDIR_FAILED");
+            ftpError("Error al crear la carpeta", ftpMkdirFailed);
         } finally {
             await closeClient(client);
         }
@@ -84,7 +84,7 @@ export default class FtpService {
             }
             return { lastContent: entries.map(({ name }) => name), movedContent };
         } catch (err) {
-            ftpError("Error al mover los archivos", "FTP_MOVE_FAILED");
+            ftpError("Error al mover los archivos", ftpMoveFailed);
         } finally {
             await closeClient(client);
         }
@@ -108,7 +108,7 @@ export default class FtpService {
             await client.rename(`${dir}/${entry.name}`, `${dir}/${newName}`);
             return { ...entry, name: newName };
         } catch (err) {
-            ftpError("Error al renombrar", "FTP_RENAME_FAILED");
+            ftpError("Error al renombrar", ftpRenameFailed);
         } finally {
             await closeClient(client);
         }
@@ -124,7 +124,7 @@ export default class FtpService {
      */
     static async upload({ dir, file, authUser }) {
         handleApiErrors([
-            { condition: !file, message: "Debe proporcionar un archivo", status: 400, code: "FTP_FILE_REQUIRED" }
+            { condition: !file, message: "Debe proporcionar un archivo", status: 400, apiError: ftpFileRequired }
         ]);
         const { originalname, mimetype, buffer } = file;
         let client;
@@ -166,7 +166,7 @@ export default class FtpService {
             await uploadTempDir({ remoteDir: dir, localDir: tempDir });
             return addedContent;
         } catch (err) {
-            ftpError("Error al subir los datos", "FTP_UPLOAD_FAILED");
+            ftpError("Error al subir los datos", ftpUploadFailed);
         } finally {
             await closeClient(client);
             if (tempDir) {
@@ -222,7 +222,7 @@ export default class FtpService {
             await zip.writeZipPromise(zipFile);
             return zipFile;
         } catch (err) {
-            ftpError("Error al descargar", "FTP_DOWNLOAD_FAILED");
+            ftpError("Error al descargar", ftpDownloadFailed);
         } finally {
             await closeClient(client);
             setTimeout(async () => {
@@ -253,7 +253,7 @@ export default class FtpService {
             }
             return entries.map(({ name }) => name);
         } catch (err) {
-            ftpError("Error al borrar", "FTP_DELETE_FAILED");
+            ftpError("Error al borrar", ftpDeleteFailed);
         } finally {
             await closeClient(client);
         }
@@ -262,6 +262,16 @@ export default class FtpService {
 
 const { getClient, closeClient } = FtpConnection;
 const { handleApiErrors } = ValidateUtils;
+const {
+    ftpUploadFailed,
+    ftpDownloadFailed,
+    ftpDirFailed,
+    ftpMkdirFailed,
+    ftpMoveFailed,
+    ftpRenameFailed,
+    ftpDeleteFailed,
+    ftpFileRequired
+} = API_ERROR;
 
 /**
  * Generates an available resource name
@@ -285,6 +295,6 @@ function getFileName(name, list) {
     return name;
 }
 
-function ftpError(message, code) {
-    handleApiErrors([{ condition: true, message, code }]);
+function ftpError(message, apiError) {
+    handleApiErrors([{ condition: true, message, apiError }]);
 }

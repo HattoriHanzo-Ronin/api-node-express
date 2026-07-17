@@ -1,5 +1,5 @@
 import ValidateUtils from "../utils/validate-utils.js";
-import { USER_ROLE } from "../config/constants.js";
+import { API_ERROR, USER_ROLE } from "../config/constants.js";
 
 /**
  * User roles service
@@ -36,7 +36,7 @@ export default class UserRolesService {
                 {
                     condition: !roles,
                     message: "Se debe especificar al menos un rol para el usuario",
-                    code: "ACL_ROLE_REQUIRED"
+                    apiError: aclRoleRequired
                 }
             ]);
             const userRoles = roles.map((it) => ({
@@ -48,9 +48,9 @@ export default class UserRolesService {
         } catch (err) {
             handleApiErrors([
                 {
-                    condition: err.code !== "ACL_ROLE_REQUIRED",
+                    condition: err.code !== aclRoleRequired.code,
                     message: "Error al crear los roles del usuario",
-                    code: "ACL_ROLE_CREATE_FAILED"
+                    apiError: aclRoleCreateFailed
                 }
             ]);
             throw err;
@@ -73,9 +73,9 @@ export default class UserRolesService {
         } catch (err) {
             handleApiErrors([
                 {
-                    condition: err.code !== "ACL_ROLE_REQUIRED",
+                    condition: err.code !== aclRoleRequired.code,
                     message: "Error al actualizar los roles del usuario",
-                    code: "ACL_ROLE_UPDATE_FAILED"
+                    apiError: aclRoleUpdateFailed
                 }
             ]);
             throw err;
@@ -84,3 +84,4 @@ export default class UserRolesService {
 }
 
 const { handleApiErrors } = ValidateUtils;
+const { aclRoleRequired, aclRoleCreateFailed, aclRoleUpdateFailed } = API_ERROR;

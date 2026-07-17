@@ -1,5 +1,6 @@
 import PostgresErrors from "../utils/postgres-errors.js";
 import ValidateUtils from "../utils/validate-utils.js";
+import { API_ERROR } from "../config/constants.js";
 
 /**
  * Users service
@@ -28,7 +29,7 @@ export default class UsersService {
      */
     async getById({ id }) {
         const result = await this.usersModel.getById({ id });
-        handleApiErrors([{ condition: !result, message: "El usuario no existe", status: 404, code: "USER_NOT_FOUND" }]);
+        handleApiErrors([{ condition: !result, message: "El usuario no existe", status: 404, apiError: userNotFound }]);
         return result;
     }
 
@@ -47,7 +48,7 @@ export default class UsersService {
                 condition: invalidUser,
                 message: "Usuario o contraseña incorrectos",
                 status: 401,
-                code: "USER_INVALID_CREDENTIALS"
+                apiError: userInvalidCredentials
             }
         ]);
         return result;
@@ -79,7 +80,7 @@ export default class UsersService {
      */
     async update({ clientTx, id, data }) {
         try {
-            validateNotEmptyObject(data, "USER_EMPTY_UPDATE");
+            validateNotEmptyObject(data, userEmptyUpdate);
             return await this.usersModel.update({ clientTx, id, data });
         } catch (err) {
             postgresError(err);
@@ -99,4 +100,5 @@ export default class UsersService {
 }
 
 const { handleApiErrors, validateNotEmptyObject } = ValidateUtils;
+const { userNotFound, userInvalidCredentials, userEmptyUpdate } = API_ERROR;
 const { users: postgresError } = PostgresErrors;

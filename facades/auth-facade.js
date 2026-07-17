@@ -1,4 +1,4 @@
-import { JWT } from "../config/constants.js";
+import { API_ERROR, JWT } from "../config/constants.js";
 import JWTUtils from "../utils/jwt-utils.js";
 
 /**
@@ -37,7 +37,7 @@ export default class AuthFacade {
             await this.refreshTokensService.delete({ token: refreshToken });
             return this.#createPayload(user);
         } catch (err) {
-            if (err.code === "INVALID_TOKEN") {
+            if (err.code === API_ERROR.invalidToken.code) {
                 await this.refreshTokensService.delete({ token: refreshToken });
             }
 

@@ -1,5 +1,6 @@
 import ValidateUtils from "../utils/validate-utils.js";
 import RouterResolver from "../devices-routers/router-resolver.js";
+import { API_ERROR } from "../config/constants.js";
 
 /**
  * Devices facade
@@ -183,8 +184,8 @@ export default class DevicesFacade {
                 }
             } catch (err) {
                 const restoredRouters = [];
-                const { code: errorCode } = err;
-                const addFailed = errorCode === "ROUTER_ADD_FAILED";
+                const { code: errorCode, apiError } = err;
+                const addFailed = errorCode === routerAddFailed.code;
                 const affectedRouters = addFailed ? [routerName] : [];
                 let message;
                 for (const updatedRouterName of updatedRouters.keys()) {
@@ -207,9 +208,9 @@ export default class DevicesFacade {
                             `Routers afectados: ${affectedRouters.join(", ")}`;
                         handleApiErrors([
                             {
-                                condition: ["ROUTER_ADD_FAILED", "ROUTER_DELETE_FAILED"].includes(err.code),
+                                condition: [routerAddFailed.code, routerDeleteFailed.code].includes(err.code),
                                 message,
-                                code: "ROUTER_ROLLBACK_FAILED"
+                                apiError: routerRollbackFailed
                             }
                         ]);
                         throw err;
@@ -218,7 +219,7 @@ export default class DevicesFacade {
                 message =
                     `Error al actualizar la mac ${currentMac}, ha quedado eliminada de la lista en el router ${routerName}` +
                     ` debe restaurarla de forma manual`;
-                handleApiErrors([{ condition: addFailed, message, code: errorCode }]);
+                handleApiErrors([{ condition: addFailed, message, apiError }]);
                 throw err;
             }
         }
@@ -249,3 +250,4 @@ export default class DevicesFacade {
 }
 
 const { handleApiErrors } = ValidateUtils;
+const { routerAddFailed, routerDeleteFailed, routerRollbackFailed } = API_ERROR;

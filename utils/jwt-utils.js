@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import ValidateUtils from "./validate-utils.js";
-import { SECRETS } from "../config/constants.js";
+import { API_ERROR, SECRETS } from "../config/constants.js";
 
 /**
  * Centralizes JWT operations used by the authentication system
@@ -60,7 +60,7 @@ function verifyToken(token, secret) {
                 condition: err instanceof jwt.JsonWebTokenError,
                 message: "Token no válido",
                 status: 401,
-                code: "INVALID_TOKEN"
+                apiError: API_ERROR.invalidToken
             }
         ]);
 

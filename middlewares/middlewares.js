@@ -3,6 +3,7 @@ import cors from "cors";
 import multer from "multer";
 import ApiError from "../utils/api-error.js";
 import JWTUtils from "../utils/jwt-utils.js";
+import { API_ERROR } from "../config/constants.js";
 
 /**
  * Application middleware factory
@@ -86,7 +87,7 @@ export default class Middlewares {
         try {
             const { authorization } = req.headers;
             if (!authorization?.startsWith("Bearer ")) {
-                throw new ApiError({ message: "No hay sesión", status: 401, code: "AUTHENTICATION_REQUIRED" });
+                throw new ApiError({ message: "No hay sesión", status: 401, apiError: API_ERROR.authenticationRequired });
             }
 
             const token = authorization.split(" ")[1];
@@ -111,7 +112,7 @@ export default class Middlewares {
                     throw new ApiError({
                         message: "No tiene permisos para realizar esa acción",
                         status: 403,
-                        code: "ACL_PERMISSION_DENIED"
+                        apiError: API_ERROR.aclPermissionDenied
                     });
                 }
 

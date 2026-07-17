@@ -1,4 +1,5 @@
 import ValidateUtils from "../utils/validate-utils.js";
+import { API_ERROR } from "../config/constants.js";
 import ArcherAX53Router from "./tp-link/archer-ax53.js";
 import TLWDR5620GigabitEditionRouter from "./tp-link/tl-wdr5620-gigabit-edition.js";
 
@@ -25,7 +26,7 @@ export default class RouterResolver {
                     {
                         condition: true,
                         message: `${router.name} no tiene implementación disponible`,
-                        code: "ROUTER_IMPLEMENTATION_NOT_FOUND",
+                        apiError: routerImplementationNotFound,
                         status: 400
                     }
                 ]);
@@ -67,7 +68,7 @@ export default class RouterResolver {
                     condition: !added,
                     message: "Error al insertar el dispositivo en el router",
                     status: 400,
-                    code: "ROUTER_ADD_FAILED"
+                    apiError: routerAddFailed
                 }
             ]);
         }
@@ -88,7 +89,7 @@ export default class RouterResolver {
                     condition: !deleted,
                     message: "Error al eliminar el dispositivo del router",
                     status: 400,
-                    code: "ROUTER_DELETE_FAILED"
+                    apiError: routerDeleteFailed
                 }
             ]);
         }
@@ -96,3 +97,4 @@ export default class RouterResolver {
 }
 
 const { handleApiErrors } = ValidateUtils;
+const { routerImplementationNotFound, routerAddFailed, routerDeleteFailed } = API_ERROR;
