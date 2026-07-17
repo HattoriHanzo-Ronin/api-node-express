@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import FtpController from "../../controllers/ftp-controller.js";
+import FtpController from "../../src/controllers/ftp-controller.js";
 
 describe("FtpController", () => {
     let ftpService;

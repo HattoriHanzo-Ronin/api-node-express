@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import UsersController from "../../controllers/users-controller.js";
+import UsersController from "../../src/controllers/users-controller.js";
 
 describe("UsersController validation", () => {
     let usersFacade;

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import ConnectionsService from "../../services/connections-service.js";
+import ConnectionsService from "../../src/services/connections-service.js";
 
 describe("ConnectionsService getByDevices", () => {
     it("should return device connections", async () => {

@@ -21,7 +21,7 @@ const mockZip = {
     extractAllTo: vi.fn()
 };
 
-vi.mock("../../config/ftp-connection.js", () => ({
+vi.mock("../../src/config/ftp-connection.js", () => ({
     default: { getClient: vi.fn(async () => mockClient), closeClient: mockCloseClient }
 }));
 
@@ -38,8 +38,8 @@ vi.mock("fs/promises", () => ({
 }));
 
 import fs from "fs/promises";
-import FtpConnection from "../../config/ftp-connection.js";
-import FtpService from "../../services/ftp-service.js";
+import FtpConnection from "../../src/config/ftp-connection.js";
+import FtpService from "../../src/services/ftp-service.js";
 
 describe("FtpService", () => {
     beforeEach(() => {

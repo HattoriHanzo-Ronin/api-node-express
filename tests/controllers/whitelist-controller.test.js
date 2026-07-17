@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import WhitelistController from "../../controllers/whitelist-controller.js";
+import WhitelistController from "../../src/controllers/whitelist-controller.js";
 
 const ROUTER_ID = "550e8400-e29b-41d4-a716-446655440000";
 const DEVICE_ID = "550e8400-e29b-41d4-a716-446655440001";

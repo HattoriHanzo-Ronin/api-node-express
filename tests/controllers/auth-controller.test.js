@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import AuthController from "../../controllers/auth-controller.js";
+import AuthController from "../../src/controllers/auth-controller.js";
 
 describe("AuthController", () => {
     let authFacade;

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import AuthFacade from "../../facades/auth-facade.js";
-import JWTUtils from "../../utils/jwt-utils.js";
+import AuthFacade from "../../src/facades/auth-facade.js";
+import JWTUtils from "../../src/utils/jwt-utils.js";
 
-vi.mock("../../utils/jwt-utils.js", () => ({
+vi.mock("../../src/utils/jwt-utils.js", () => ({
     default: { generateAccessToken: vi.fn(), generateRefreshToken: vi.fn(), verifyRefreshToken: vi.fn() }
 }));
 

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import UsersService from "../../services/users-service.js";
+import UsersService from "../../src/services/users-service.js";
 
 describe("UsersService", () => {
     let usersModel;
