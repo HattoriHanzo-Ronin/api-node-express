@@ -316,6 +316,7 @@ Authorization: Bearer {{token}}
 #
 # Response:
 # {
+#   "code": "DEVICE_NOT_FOUND",
 #   "message": "El dispositivo no existe"
 # }
 ############################################################
@@ -339,6 +340,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "DEVICE_NAME_ALREADY_EXISTS",
 #   "message": "El nombre del dispositivo ya está en uso"
 # }
 ############################################################
@@ -365,6 +367,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "CONNECTION_MAC_ALREADY_EXISTS",
 #   "message": "La mac ya está en uso"
 # }
 ############################################################
@@ -391,6 +394,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -413,6 +417,7 @@ Authorization: Bearer {{token}}
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -445,6 +450,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -477,6 +483,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -509,6 +516,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -539,6 +547,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -574,6 +583,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -609,6 +619,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -644,6 +655,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -679,6 +691,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -712,6 +725,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -745,6 +759,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -778,6 +793,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -810,6 +826,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {

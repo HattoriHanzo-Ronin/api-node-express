@@ -160,6 +160,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -183,6 +184,7 @@ Authorization: Bearer {{token}}
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -209,6 +211,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -237,6 +240,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -263,6 +267,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -291,6 +296,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -321,6 +327,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -351,6 +358,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -381,6 +389,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "FTP_FILE_REQUIRED",
 #   "message": "Debe proporcionar un archivo"
 # }
 ############################################################
@@ -406,6 +415,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "FTP_DIR_FAILED",
 #   "message": "Error al listar la carpeta"
 # }
 ############################################################
