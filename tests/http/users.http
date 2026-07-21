@@ -355,6 +355,7 @@ Authorization: Bearer {{token}}
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -386,6 +387,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -417,6 +419,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -449,6 +452,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -483,6 +487,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "ACL_PERMISSION_DENIED",
 #   "message": "No tiene permisos para realizar esa acción"
 # }
 ############################################################
@@ -509,6 +514,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "USER_USERNAME_ALREADY_EXISTS",
 #   "message": "El nombre de usuario ya está en uso"
 # }
 ############################################################

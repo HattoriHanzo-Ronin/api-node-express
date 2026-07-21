@@ -67,8 +67,10 @@ export default class Middlewares {
      */
     static errorHandler(err, req, res, next) {
         const status = err.status || 500;
-        const message = err instanceof ApiError ? err.message : "Error inesperado";
-        let result = { message };
+        const isApiError = err instanceof ApiError;
+        const message = isApiError ? err.message : "Error inesperado";
+        const code = isApiError ? err.code : API_ERROR.internalError.code;
+        let result = { code, message };
         if (err.details) {
             result = { ...result, details: err.details };
         }

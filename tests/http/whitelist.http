@@ -85,6 +85,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -114,6 +115,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "WHITELIST_ROUTER_NOT_FOUND",
 #   "message": "El router no existe"
 # }
 ############################################################
@@ -137,6 +139,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "DEVICE_NOT_FOUND",
 #   "message": "El dispositivo no existe"
 # }
 ############################################################
@@ -160,6 +163,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "CONNECTION_MAC_MISMATCH",
 #   "message": "La mac no pertenece al dispositivo especificado"
 # }
 ############################################################
@@ -183,6 +187,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "WHITELIST_NOT_ALLOWED",
 #   "message": "El dispositivo no se encuentra autorizado"
 # }
 ############################################################
@@ -206,6 +211,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "WHITELIST_ALREADY_ALLOWED",
 #   "message": "El dispositivo ya se encuentra autorizado"
 # }
 ############################################################

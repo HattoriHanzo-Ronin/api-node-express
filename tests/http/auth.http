@@ -109,6 +109,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -137,6 +138,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -165,6 +167,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "VALIDATION_FAILED",
 #   "message": "Error al validar los datos",
 #   "details": [
 #       {
@@ -190,6 +193,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "USER_INVALID_CREDENTIALS",
 #   "message": "Usuario o contraseña incorrectos"
 # }
 ############################################################
@@ -212,6 +216,7 @@ Content-Type: application/json
 #
 # Response:
 # {
+#   "code": "INVALID_TOKEN",
 #   "message": "Token no válido"
 # }
 ############################################################
