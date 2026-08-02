@@ -13,14 +13,14 @@
 #
 # Prerequisites
 # -------------
-# - API running on localhost:59998
+# - API running on localhost:60004
 # - Existing user in database
 #
 # Notes
 # -----
 # - Login and refresh always return complete user information.
 
-@baseUrl = http://localhost:59998/auth
+@baseUrl = http://localhost:60004/auth
 @accessToken = PASTE_ACCESS_TOKEN
 @refreshToken = PASTE_REFRESH_TOKEN
 
