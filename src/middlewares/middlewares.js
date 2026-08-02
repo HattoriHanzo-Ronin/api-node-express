@@ -21,7 +21,10 @@ export default class Middlewares {
         return cors({
             origin: (origin, callback) => {
                 if (acceptOrigins) {
-                    if (acceptOrigins.includes(origin)) return callback(null, true);
+                    if (acceptOrigins.includes(origin)) {
+                        return callback(null, true);
+                    }
+
                     return callback(new Error("No permitido"));
                 }
                 return callback(null, true);
@@ -58,6 +61,17 @@ export default class Middlewares {
     }
 
     /**
+     * Handles requests that do not match an application route
+     *
+     * @param {import("express").Request} req Express request
+     * @param {import("express").Response} res Express response
+     * @param {import("express").NextFunction} next Express next function
+     */
+    static routeNotFound(req, res, next) {
+        next(new ApiError({ message: "Page not found", status: 404, apiError: API_ERROR.routeNotFound }));
+    }
+
+    /**
      * Handles application errors
      *
      * @param {Error} err Application error
@@ -89,7 +103,11 @@ export default class Middlewares {
         try {
             const { authorization } = req.headers;
             if (!authorization?.startsWith("Bearer ")) {
-                throw new ApiError({ message: "No hay sesión", status: 401, apiError: API_ERROR.authenticationRequired });
+                throw new ApiError({
+                    message: "No hay sesión",
+                    status: 401,
+                    apiError: API_ERROR.authenticationRequired
+                });
             }
 
             const token = authorization.split(" ")[1];

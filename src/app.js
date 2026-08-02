@@ -6,14 +6,13 @@ import createWhitelistRouter from "./routes/whitelist-router.js";
 import createDevicesRouter from "./routes/devices-router.js";
 import createUsersRouter from "./routes/users-router.js";
 import createAuthRouter from "./routes/auth-router.js";
-import ApiError from "./utils/api-error.js";
-import { API_ERROR, ENV, USER_ROLE } from "./config/constants.js";
+import { ENV, USER_ROLE } from "./config/constants.js";
 
 const { ftp, net } = USER_ROLE;
 
 export function createApp({ ftpController, whitelistController, devicesController, usersController, authController }) {
     const app = express();
-    const { cors, json, errorHandler, requireAuth, authorizedRoles } = Middlewares;
+    const { cors, json, errorHandler, requireAuth, authorizedRoles, routeNotFound } = Middlewares;
 
     app.disable("x-powered-by");
 
@@ -28,10 +27,7 @@ export function createApp({ ftpController, whitelistController, devicesControlle
     app.use("/devices", authorizedRoles([net]), createDevicesRouter({ devicesController }));
     app.use("/users", createUsersRouter({ usersController }));
 
-    app.use((req, res, next) => {
-        next(new ApiError({ message: "Page not found", status: 404, apiError: API_ERROR.routeNotFound }));
-    });
-    app.use(errorHandler);
+    app.use(routeNotFound, errorHandler);
 
     app.listen(ENV.port);
 }
