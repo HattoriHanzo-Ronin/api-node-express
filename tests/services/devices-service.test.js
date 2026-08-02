@@ -43,27 +43,20 @@ describe("DevicesService", () => {
     });
 
     describe("getAllowedDevices", () => {
-        it("should return allowed devices source grouped into devices and connections", async () => {
-            devicesModel.getAllowedDevices.mockResolvedValue([
-                { id: "device-1", name: "Desktop", type: "CLIENT", ctype: "LAN", mac: "AA:BB:CC:DD:EE:01" }
-            ]);
-            await expect(devicesService.getAllowedDevices({ routerId: "router-1" })).resolves.toEqual({
-                devices: [{ id: "device-1", name: "Desktop", type: "CLIENT" }],
-                connections: [{ device_id: "device-1", ctype: "LAN", mac: "AA:BB:CC:DD:EE:01" }]
-            });
+        it("should return allowed device rows", async () => {
+            const rows = [{ id: "device-1", name: "Desktop", type: "CLIENT", ctype: "LAN", mac: "AA:BB:CC:DD:EE:01" }];
+            devicesModel.getAllowedDevices.mockResolvedValue(rows);
+            await expect(devicesService.getAllowedDevices({ routerId: "router-1" })).resolves.toEqual(rows);
             expect(devicesModel.getAllowedDevices).toHaveBeenCalledWith({ routerId: "router-1" });
         });
     });
 
     describe("getNotAllowedDevices", () => {
-        it("should return not allowed devices source grouped into devices and connections", async () => {
-            devicesModel.getNotAllowedDevices.mockResolvedValue([
-                { id: "device-1", name: "Desktop", type: "CLIENT", ctype: "WIFI", mac: "AA:BB:CC:DD:EE:02" }
-            ]);
-            await expect(devicesService.getNotAllowedDevices({ routerId: "router-1" })).resolves.toEqual({
-                devices: [{ id: "device-1", name: "Desktop", type: "CLIENT" }],
-                connections: [{ device_id: "device-1", ctype: "WIFI", mac: "AA:BB:CC:DD:EE:02" }]
-            });
+        it("should return not allowed device rows", async () => {
+            const rows = [{ id: "device-1", name: "Desktop", type: "CLIENT", ctype: "WIFI", mac: "AA:BB:CC:DD:EE:02" }];
+            devicesModel.getNotAllowedDevices.mockResolvedValue(rows);
+            await expect(devicesService.getNotAllowedDevices({ routerId: "router-1" })).resolves.toEqual(rows);
+            expect(devicesModel.getNotAllowedDevices).toHaveBeenCalledWith({ routerId: "router-1" });
         });
     });
 

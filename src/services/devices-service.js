@@ -31,7 +31,12 @@ export default class DevicesService {
     async getById({ id }) {
         const result = await this.devicesModel.getById({ id });
         handleApiErrors([
-            { condition: !result, message: "El dispositivo no existe", status: 404, apiError: deviceNotFound }
+            {
+                condition: !result,
+                message: "El dispositivo no existe",
+                status: 404,
+                apiError: deviceNotFound
+            }
         ]);
         return result;
     }
@@ -40,22 +45,20 @@ export default class DevicesService {
      * Returns the devices allowed on a router
      *
      * @param {string} params.routerId Router identifier
-     * @returns {Promise<{ devices: Object[], connections: Object[] }>} Devices and connections
+     * @returns {Promise<Object[]>} Device rows
      */
     async getAllowedDevices({ routerId }) {
-        const result = await this.devicesModel.getAllowedDevices({ routerId });
-        return createDevicesSource(result);
+        return this.devicesModel.getAllowedDevices({ routerId });
     }
 
     /**
      * Returns the devices not allowed on a router
      *
      * @param {string} params.routerId Router identifier
-     * @returns {Promise<{ devices: Object[], connections: Object[] }>} Devices and connections
+     * @returns {Promise<Object[]>} Device rows
      */
     async getNotAllowedDevices({ routerId }) {
-        const result = await this.devicesModel.getNotAllowedDevices({ routerId });
-        return createDevicesSource(result);
+        return this.devicesModel.getNotAllowedDevices({ routerId });
     }
 
     /**
@@ -65,17 +68,19 @@ export default class DevicesService {
      * @returns {Promise<Object[]>} Associated routers
      */
     async getRoutersByAllowedDevice({ allowedDeviceId }) {
-        const result = await this.devicesModel.getRoutersByAllowedDevice({ allowedDeviceId });
+        const result = await this.devicesModel.getRoutersByAllowedDevice({
+            allowedDeviceId
+        });
         const routers = new Map();
         for (const row of result) {
             const { ctype, mac, key, ...router } = row;
-            let routerEntrie = routers.get(router.id);
-            if (!routerEntrie) {
-                routerEntrie = { ...router, connections: [] };
-                routers.set(router.id, routerEntrie);
+            let routerEntry = routers.get(router.id);
+            if (!routerEntry) {
+                routerEntry = { ...router, connections: [] };
+                routers.set(router.id, routerEntry);
             }
 
-            routerEntrie.connections.push({ ctype, mac, key });
+            routerEntry.connections.push({ ctype, mac, key });
         }
         return [...routers.values()];
     }
@@ -129,12 +134,3 @@ export default class DevicesService {
 const { handleApiErrors, validateNotEmptyObject, validateData } = ValidateUtils;
 const { deviceNotFound, deviceEmptyUpdate } = API_ERROR;
 const { devices: postgresError } = PostgresErrors;
-
-function createDevicesSource(result) {
-    const connections = [];
-    const devices = result.map(({ ctype, mac, ...device }) => {
-        connections.push({ device_id: device.id, ctype, mac });
-        return device;
-    });
-    return { devices, connections };
-}

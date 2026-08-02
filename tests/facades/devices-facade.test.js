@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import RouterResolver from "../../src/devices-routers/router-resolver.js";
 import DevicesFacade from "../../src/facades/devices-facade.js";
+import DevicesMapper from "../../src/mappers/devices-mapper.js";
 
 const routerResolverMock = vi.hoisted(() => ({
     impl: { delete: vi.fn(), create: vi.fn() },
@@ -31,6 +32,7 @@ describe("DevicesFacade", () => {
             delete: vi.fn()
         };
         devicesMapper = {
+            createDeviceSource: vi.fn((source) => source),
             deviceToDomain: vi.fn((source) => source),
             devicesToDomain: vi.fn((source) => source.devices)
         };
@@ -39,7 +41,13 @@ describe("DevicesFacade", () => {
             createMany: vi.fn(),
             update: vi.fn()
         };
-        routerResolverMock.resolver.mockImplementation(class { constructor() { return routerResolverMock.impl; } });
+        routerResolverMock.resolver.mockImplementation(
+            class {
+                constructor() {
+                    return routerResolverMock.impl;
+                }
+            }
+        );
         devicesFacade = new DevicesFacade({ devicesService, devicesMapper, connectionsService, tx });
     });
 
@@ -54,6 +62,25 @@ describe("DevicesFacade", () => {
             devices: [{ id: "device-1", name: "Desktop" }],
             connections: [connection]
         });
+    });
+
+    it.each([
+        ["allowed", "getAllowedDevices"],
+        ["not allowed", "getNotAllowedDevices"]
+    ])("should return %s devices mapped with their connections", async (_, method) => {
+        const rows = [{ id: "device-1", name: "Desktop", type: "CLIENT", ctype: "LAN", mac: "AA:BB:CC:DD:EE:01" }];
+        devicesService[method].mockResolvedValue(rows);
+        devicesFacade = new DevicesFacade({ devicesService, devicesMapper: DevicesMapper, connectionsService, tx });
+
+        await expect(devicesFacade[method]({ routerId: "router-1" })).resolves.toEqual([
+            {
+                id: "device-1",
+                name: "Desktop",
+                type: "CLIENT",
+                connections: [{ ctype: "LAN", mac: "AA:BB:CC:DD:EE:01" }]
+            }
+        ]);
+        expect(devicesService[method]).toHaveBeenCalledWith({ routerId: "router-1" });
     });
 
     it("should create a device with its connections in a transaction", async () => {
