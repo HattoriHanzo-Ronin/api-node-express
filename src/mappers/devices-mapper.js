@@ -7,6 +7,31 @@ import RouterResolver from "../devices-routers/router-resolver.js";
  */
 export default class DevicesMapper {
     /**
+     * Creates a device source from persistence source
+     *
+     * @param {Object[]} source Persistence source
+     * @returns {{ devices: Object[], connections: Object[] }} Devices source
+     */
+    static createDeviceSource(source) {
+        const connections = [];
+        const deviceIds = new Set();
+        const devices = source
+            .map(({ ctype, mac, ...device }) => {
+                connections.push({ device_id: device.id, ctype, mac });
+                return device;
+            })
+            .filter(({ id }) => {
+                if (deviceIds.has(id)) {
+                    return false;
+                }
+
+                deviceIds.add(id);
+                return true;
+            });
+        return { devices, connections };
+    }
+
+    /**
      * Maps a persistence device to the domain model
      *
      * @param {Object} source Persistence device
@@ -29,7 +54,7 @@ export default class DevicesMapper {
     /**
      * Maps persistence devices to the domain model
      *
-     * @param {Object[]} source Persistence devices
+     * @param {{ devices: Object[], connections: Object[] }} source Persistence devices and connections
      * @returns {Object[]} Domain devices
      */
     static devicesToDomain(source) {
