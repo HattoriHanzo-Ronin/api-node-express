@@ -147,10 +147,4 @@ dist
 #env file
 .env
 
-# Prettier local configuration
-.prettierrc
-
-# Eslint configuration
-eslint.config.js
-
 # End of https://www.toptal.com/developers/gitignore/api/node
