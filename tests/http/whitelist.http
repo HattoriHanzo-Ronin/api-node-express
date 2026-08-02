@@ -14,7 +14,7 @@
 # -------------
 # - Execute auth.http first.
 # - Valid access token.
-# - API running on localhost:59998
+# - API running on localhost:60004
 #
 # Notes
 # -----
@@ -23,7 +23,7 @@
 # - The allowed MAC must belong to the allowed device.
 # - The allowed device must not already be associated with the router.
 
-@baseUrl = http://localhost:59998/whitelist
+@baseUrl = http://localhost:60004/whitelist
 @token = PASTE_ACCESS_TOKEN
 @routerId = PASTE_ROUTER_ID
 @allowedDeviceId = PASTE_ALLOWED_DEVICE_ID

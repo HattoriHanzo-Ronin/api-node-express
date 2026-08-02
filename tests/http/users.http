@@ -16,7 +16,7 @@
 # -------------
 # - Execute auth.http first.
 # - Valid access token.
-# - API running on localhost:59998
+# - API running on localhost:60004
 #
 # Notes
 # -----
@@ -25,7 +25,7 @@
 # - ADMIN users cannot modify ACL information.
 # - Only SUPER ADMIN users can manage roles and scope.
 
-@baseUrl = http://localhost:59998/users
+@baseUrl = http://localhost:60004/users
 @token = PASTE_ACCESS_TOKEN
 @userId = PASTE_USER_ID
 
