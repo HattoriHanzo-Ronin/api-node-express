@@ -7,7 +7,8 @@ export default function createAuthRouter({ authController }) {
 
     router.post("/", asyncHandler(authController.login));
     router.post("/refresh", asyncHandler(authController.refresh));
-    router.post("/logout", requireAuth, asyncHandler(authController.logout));
+
+    router.delete("/", requireAuth, asyncHandler(authController.logout));
 
     router.use(routeNotFound);
 

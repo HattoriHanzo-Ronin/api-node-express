@@ -91,7 +91,7 @@ Content-Type: application/json
 # Empty body
 ############################################################
 
-POST {{baseUrl}}/logout
+DELETE {{baseUrl}}
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
