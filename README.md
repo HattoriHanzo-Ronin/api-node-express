@@ -46,6 +46,7 @@ Its goal is to provide a maintainable backend capable of managing authentication
 | Devices | Multiple connections per device |
 | Router Sync | MAC whitelist synchronization |
 | Storage | User-specific SFTP operations |
+| Resource Sync | Incremental versions exposed through HTTP headers |
 | Validation | Centralized Zod schemas |
 | Error Handling | Unified ApiError pipeline |
 | Testing | Vitest + executable HTTP documentation |
@@ -125,6 +126,7 @@ Manual API documentation is available under `tests/http`.
 - **Devices** — Network inventory and connection management.
 - **Whitelist** — Router synchronization.
 - **FTP/SFTP** — Remote file management.
+- **Data Versions** — Lightweight change detection for synchronized resources.
 
 ## API Usage
 
@@ -140,6 +142,13 @@ These files serve as:
 - Manual integration tests
 - Usage examples
 
+Collection endpoints keep their original response bodies and expose synchronization metadata through headers:
+
+- `Data-Version` for users, devices and FTP directory listings.
+- `Devices-Version` and `Whitelist-Version` for allowed and not allowed device listings.
+
+SFTP write operations increment their resource version after a successful change, allowing clients to detect updates without downloading the complete directory listing.
+
 ## Key Architectural Decisions
 
 - Split `Connection` from `Device` to support multiple interfaces.
@@ -147,6 +156,7 @@ These files serve as:
 - Migrated from FTP to SFTP.
 - Implemented a Role + Scope ACL model.
 - Centralized validation and error handling.
+- Added database-backed resource versions for lightweight client synchronization.
 
 ## Project Structure
 
