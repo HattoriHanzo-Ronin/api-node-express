@@ -35,6 +35,9 @@
 # Expected:
 # Status: 200
 #
+# Headers:
+# Data-Version: 1
+#
 # Response:
 # [
 #   {
