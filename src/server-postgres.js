@@ -4,6 +4,9 @@ import PostgresClient from "./config/db/postgres-client.js";
 
 import FtpController from "./controllers/ftp-controller.js";
 import FtpService from "./services/ftp-service.js";
+import DataVersionsModel from "./models/postgres/data-versions-model.js";
+import DataVersionsService from "./services/data-versions-service.js";
+import DataVersionsController from "./controllers/data-versions-controller.js";
 
 import ConnectionsModel from "./models/postgres/connections-model.js";
 import ConnectionsService from "./services/connections-service.js";
@@ -32,6 +35,8 @@ import AuthController from "./controllers/auth-controller.js";
 const tx = PostgresClient.executeTx;
 
 const ftpController = new FtpController({ ftpService: FtpService });
+const dataVersionsService = new DataVersionsService({ dataVersionsModel: DataVersionsModel });
+const dataVersionsController = new DataVersionsController({ dataVersionsService });
 
 const connectionsService = new ConnectionsService({ connectionsModel: ConnectionsModel });
 const devicesService = new DevicesService({ devicesModel: DevicesModel });
@@ -49,4 +54,11 @@ const refreshTokensService = new RefreshTokensService({ refreshTokensModel: Refr
 const authFacade = new AuthFacade({ usersFacade, refreshTokensService });
 const authController = new AuthController({ authFacade });
 
-createApp({ ftpController, whitelistController, devicesController, usersController, authController });
+createApp({
+    dataVersionsController,
+    ftpController,
+    whitelistController,
+    devicesController,
+    usersController,
+    authController
+});
