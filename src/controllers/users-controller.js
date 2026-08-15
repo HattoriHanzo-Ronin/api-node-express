@@ -13,7 +13,8 @@ export default class UsersController {
     }
 
     getAll = async (req, res) => {
-        res.json(await this.usersFacade.getAll({ authUser: req.user }));
+        const { version, data } = await this.usersFacade.getAll({ authUser: req.user });
+        res.set("Data-Version", version).json(data);
     };
 
     getById = async (req, res) => {

@@ -8,8 +8,9 @@ import { API_ERROR } from "../config/constants.js";
  * @author HattoriHanzo-Ronin
  */
 export default class DevicesFacade {
-    constructor({ devicesService, devicesMapper, connectionsService, tx }) {
+    constructor({ devicesService, dataVersionsService, devicesMapper, connectionsService, tx }) {
         this.devicesService = devicesService;
+        this.dataVersionsService = dataVersionsService;
         this.devicesMapper = devicesMapper;
         this.connectionsService = connectionsService;
         this.tx = tx;
@@ -18,11 +19,14 @@ export default class DevicesFacade {
     /**
      * Returns all devices
      *
-     * @returns {Promise<Object[]>} Devices
+     * @returns {Promise<{ version: string, data: Object[] }>} Devices
      */
     async getAll() {
-        const result = await this.devicesService.getAll();
-        return this.#mapResult({ result });
+        const [{ version }, result] = await Promise.all([
+            this.dataVersionsService.getById({ id: "devices" }),
+            this.devicesService.getAll()
+        ]);
+        return { version, data: await this.#mapResult({ result }) };
     }
 
     /**
@@ -40,24 +44,30 @@ export default class DevicesFacade {
      * Returns the devices allowed on a router
      *
      * @param {string} params.routerId Router identifier
-     * @returns {Promise<Object[]>} Allowed devices
+     * @returns {Promise<{ version: Object, data: Object[] }>} Allowed devices
      */
     async getAllowedDevices({ routerId }) {
-        const result = await this.devicesService.getAllowedDevices({ routerId });
+        const [version, result] = await Promise.all([
+            this.#getVersions(["devices", "whitelist"]),
+            this.devicesService.getAllowedDevices({ routerId })
+        ]);
         const source = this.devicesMapper.createDeviceSource(result);
-        return this.devicesMapper.devicesToDomain(source);
+        return { version, data: this.devicesMapper.devicesToDomain(source) };
     }
 
     /**
      * Returns the devices not allowed on a router
      *
      * @param {string} params.routerId Router identifier
-     * @returns {Promise<Object[]>} Devices not allowed on the router
+     * @returns {Promise<{ version: Object, data: Object[] }>} Devices not allowed on the router
      */
     async getNotAllowedDevices({ routerId }) {
-        const result = await this.devicesService.getNotAllowedDevices({ routerId });
+        const [version, result] = await Promise.all([
+            this.#getVersions(["devices", "whitelist"]),
+            this.devicesService.getNotAllowedDevices({ routerId })
+        ]);
         const source = this.devicesMapper.createDeviceSource(result);
-        return this.devicesMapper.devicesToDomain(source);
+        return { version, data: this.devicesMapper.devicesToDomain(source) };
     }
 
     /**
@@ -251,6 +261,11 @@ export default class DevicesFacade {
             await routerImpl.create({ key, ...addDevice, name: device.name });
         };
         await this.#executeRouterOperation(device, callback, rollbackCallback);
+    }
+
+    async #getVersions(ids) {
+        const dataVersions = await Promise.all(ids.map((id) => this.dataVersionsService.getById({ id })));
+        return Object.fromEntries(ids.map((id, index) => [id, dataVersions[index].version]));
     }
 
     async #mapResult({ id = null, result }) {

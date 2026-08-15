@@ -14,6 +14,7 @@ vi.mock("../../src/devices-routers/router-resolver.js", () => ({
 
 describe("DevicesFacade", () => {
     let devicesService;
+    let dataVersionsService;
     let devicesMapper;
     let connectionsService;
     let devicesFacade;
@@ -30,6 +31,9 @@ describe("DevicesFacade", () => {
             create: vi.fn(),
             update: vi.fn(),
             delete: vi.fn()
+        };
+        dataVersionsService = {
+            getById: vi.fn(({ id }) => Promise.resolve({ version: id === "devices" ? "2" : "3" }))
         };
         devicesMapper = {
             createDeviceSource: vi.fn((source) => source),
@@ -48,7 +52,7 @@ describe("DevicesFacade", () => {
                 }
             }
         );
-        devicesFacade = new DevicesFacade({ devicesService, devicesMapper, connectionsService, tx });
+        devicesFacade = new DevicesFacade({ devicesService, dataVersionsService, devicesMapper, connectionsService, tx });
     });
 
     it("should get all devices and map their connections", async () => {
@@ -56,7 +60,10 @@ describe("DevicesFacade", () => {
         devicesService.getAll.mockResolvedValue([{ id: "device-1", name: "Desktop" }]);
         connectionsService.getByDevices.mockResolvedValue([connection]);
 
-        await expect(devicesFacade.getAll()).resolves.toEqual([{ id: "device-1", name: "Desktop" }]);
+        await expect(devicesFacade.getAll()).resolves.toEqual({
+            version: "2",
+            data: [{ id: "device-1", name: "Desktop" }]
+        });
         expect(connectionsService.getByDevices).toHaveBeenCalledWith({ devicesId: ["device-1"] });
         expect(devicesMapper.devicesToDomain).toHaveBeenCalledWith({
             devices: [{ id: "device-1", name: "Desktop" }],
@@ -70,17 +77,22 @@ describe("DevicesFacade", () => {
     ])("should return %s devices mapped with their connections", async (_, method) => {
         const rows = [{ id: "device-1", name: "Desktop", type: "CLIENT", ctype: "LAN", mac: "AA:BB:CC:DD:EE:01" }];
         devicesService[method].mockResolvedValue(rows);
-        devicesFacade = new DevicesFacade({ devicesService, devicesMapper: DevicesMapper, connectionsService, tx });
+        devicesFacade = new DevicesFacade({ devicesService, dataVersionsService, devicesMapper: DevicesMapper, connectionsService, tx });
 
-        await expect(devicesFacade[method]({ routerId: "router-1" })).resolves.toEqual([
-            {
-                id: "device-1",
-                name: "Desktop",
-                type: "CLIENT",
-                connections: [{ ctype: "LAN", mac: "AA:BB:CC:DD:EE:01" }]
-            }
-        ]);
+        await expect(devicesFacade[method]({ routerId: "router-1" })).resolves.toEqual({
+            version: { devices: "2", whitelist: "3" },
+            data: [
+                {
+                    id: "device-1",
+                    name: "Desktop",
+                    type: "CLIENT",
+                    connections: [{ ctype: "LAN", mac: "AA:BB:CC:DD:EE:01" }]
+                }
+            ]
+        });
         expect(devicesService[method]).toHaveBeenCalledWith({ routerId: "router-1" });
+        expect(dataVersionsService.getById).toHaveBeenCalledWith({ id: "devices" });
+        expect(dataVersionsService.getById).toHaveBeenCalledWith({ id: "whitelist" });
     });
 
     it("should create a device with its connections in a transaction", async () => {

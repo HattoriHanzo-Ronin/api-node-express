@@ -3,6 +3,7 @@ import UsersFacade from "../../src/facades/users-facade.js";
 
 describe("UsersFacade", () => {
     let usersService;
+    let dataVersionsService;
     let userRolesService;
     let usersMapper;
     let usersFacade;
@@ -16,9 +17,26 @@ describe("UsersFacade", () => {
             update: vi.fn(),
             delete: vi.fn()
         };
+        dataVersionsService = { getById: vi.fn().mockResolvedValue({ version: "4" }) };
         userRolesService = { getByUsers: vi.fn(), createMany: vi.fn(), replace: vi.fn() };
         usersMapper = { userToDomain: vi.fn(), usersToDomain: vi.fn() };
-        usersFacade = new UsersFacade({ usersService, userRolesService, usersMapper, tx: async (cb) => cb({}) });
+        usersFacade = new UsersFacade({ usersService, dataVersionsService, userRolesService, usersMapper, tx: async (cb) => cb({}) });
+    });
+
+    describe("getAll", () => {
+        it("should return accessible users with their data version", async () => {
+            const users = [{ id: "1", username: "user" }];
+            usersService.getAll.mockResolvedValue(users);
+            userRolesService.getByUsers.mockResolvedValue([]);
+            usersMapper.usersToDomain.mockReturnValue([{ id: "1", username: "user", roles: ["FTP"] }]);
+
+            await expect(usersFacade.getAll({ authUser: { scope: ["FTP"] } })).resolves.toEqual({
+                version: "4",
+                data: [{ id: "1", username: "user" }]
+            });
+            expect(dataVersionsService.getById).toHaveBeenCalledWith({ id: "users" });
+            expect(usersMapper.usersToDomain).toHaveBeenCalledWith({ users, roles: [] });
+        });
     });
 
     describe("getById", () => {

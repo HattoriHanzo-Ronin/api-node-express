@@ -10,8 +10,9 @@ const { userNotFound, aclPermissionDenied } = API_ERROR;
  * @author HattoriHanzo-Ronin
  */
 export default class UsersFacade {
-    constructor({ usersService, userRolesService, usersMapper, tx }) {
+    constructor({ usersService, dataVersionsService, userRolesService, usersMapper, tx }) {
         this.usersService = usersService;
+        this.dataVersionsService = dataVersionsService;
         this.userRolesService = userRolesService;
         this.usersMapper = usersMapper;
         this.tx = tx;
@@ -21,13 +22,17 @@ export default class UsersFacade {
      * Retrieves all users accessible by the authenticated user
      *
      * @param {Object} params.authUser Authenticated user
-     * @returns {Promise<Object[]>} User collection
+     * @returns {Promise<{ version: string, data: Object[] }>} User collection
      */
     async getAll({ authUser }) {
-        const result = await this.usersService.getAll();
+        const [{ version }, result] = await Promise.all([
+            this.dataVersionsService.getById({ id: "users" }),
+            this.usersService.getAll()
+        ]);
         const roles = await this.userRolesService.getByUsers({ usersId: result.map(({ id }) => id) });
         const users = this.usersMapper.usersToDomain({ users: result, roles });
-        return users.filter((it) => allowedManage(authUser, it.roles)).map((it) => filterAcl(authUser, it));
+        const data = users.filter((it) => allowedManage(authUser, it.roles)).map((it) => filterAcl(authUser, it));
+        return { version, data };
     }
 
     /**

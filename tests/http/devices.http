@@ -38,6 +38,9 @@
 # Expected:
 # Status: 200
 #
+# Headers:
+# Data-Version: 1
+#
 # Response:
 # [
 #   {
@@ -85,6 +88,10 @@ Authorization: Bearer {{token}}
 # Expected:
 # Status: 200
 #
+# Headers:
+# Devices-Version: 1
+# Whitelist-Version: 1
+#
 # Response:
 # [
 #   {
@@ -111,6 +118,10 @@ Authorization: Bearer {{token}}
 #
 # Expected:
 # Status: 200
+#
+# Headers:
+# Devices-Version: 1
+# Whitelist-Version: 1
 #
 # Response:
 # [

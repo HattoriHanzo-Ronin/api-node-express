@@ -21,13 +21,14 @@ describe("DevicesController", () => {
         };
         controller = new DevicesController({ devicesFacade });
         req = { params: {}, body: validClient() };
-        res = { json: vi.fn(), status: vi.fn().mockReturnThis() };
+        res = { json: vi.fn(), set: vi.fn().mockReturnThis(), status: vi.fn().mockReturnThis() };
     });
 
     it("should get all devices", async () => {
-        devicesFacade.getAll.mockResolvedValue([]);
+        devicesFacade.getAll.mockResolvedValue({ version: "2", data: [] });
         await controller.getAll(req, res);
         expect(devicesFacade.getAll).toHaveBeenCalled();
+        expect(res.set).toHaveBeenCalledWith("Data-Version", "2");
         expect(res.json).toHaveBeenCalledWith([]);
     });
 
@@ -41,17 +42,19 @@ describe("DevicesController", () => {
 
     it("should get allowed devices", async () => {
         req.params.id = UUID;
-        devicesFacade.getAllowedDevices.mockResolvedValue([]);
+        devicesFacade.getAllowedDevices.mockResolvedValue({ version: { devices: "2", whitelist: "3" }, data: [] });
         await controller.getAllowedDevices(req, res);
         expect(devicesFacade.getAllowedDevices).toHaveBeenCalledWith({ routerId: UUID });
+        expect(res.set).toHaveBeenCalledWith({ "Devices-Version": "2", "Whitelist-Version": "3" });
         expect(res.json).toHaveBeenCalledWith([]);
     });
 
     it("should get not allowed devices", async () => {
         req.params.id = UUID;
-        devicesFacade.getNotAllowedDevices.mockResolvedValue([]);
+        devicesFacade.getNotAllowedDevices.mockResolvedValue({ version: { devices: "2", whitelist: "3" }, data: [] });
         await controller.getNotAllowedDevices(req, res);
         expect(devicesFacade.getNotAllowedDevices).toHaveBeenCalledWith({ routerId: UUID });
+        expect(res.set).toHaveBeenCalledWith({ "Devices-Version": "2", "Whitelist-Version": "3" });
         expect(res.json).toHaveBeenCalledWith([]);
     });
 

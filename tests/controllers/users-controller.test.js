@@ -15,14 +15,15 @@ describe("UsersController validation", () => {
             params: {},
             body: {}
         };
-        res = { json: vi.fn(), status: vi.fn().mockReturnThis() };
+        res = { json: vi.fn(), set: vi.fn().mockReturnThis(), status: vi.fn().mockReturnThis() };
     });
 
     describe("getAll", () => {
         it("should get all users", async () => {
-            usersFacade.getAll.mockResolvedValue([]);
+            usersFacade.getAll.mockResolvedValue({ version: "4", data: [] });
             await controller.getAll(req, res);
             expect(usersFacade.getAll).toHaveBeenCalled();
+            expect(res.set).toHaveBeenCalledWith("Data-Version", "4");
             expect(res.json).toHaveBeenCalledWith([]);
         });
     });
