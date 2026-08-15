@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import FtpController from "../../src/controllers/ftp-controller.js";
 
 describe("FtpController", () => {
-    let ftpService;
+    let ftpFacade;
     let controller;
     let req;
     let res;
 
     beforeEach(() => {
-        ftpService = {
+        ftpFacade = {
             dir: vi.fn(),
             makeDir: vi.fn(),
             move: vi.fn(),
@@ -17,24 +17,25 @@ describe("FtpController", () => {
             download: vi.fn(),
             delete: vi.fn()
         };
-        controller = new FtpController({ ftpService });
+        controller = new FtpController({ ftpFacade });
         req = { params: {}, query: {}, body: {}, file: undefined, user: { username: "ronin" } };
-        res = { status: vi.fn().mockReturnThis(), json: vi.fn(), download: vi.fn() };
+        res = { status: vi.fn().mockReturnThis(), set: vi.fn().mockReturnThis(), json: vi.fn(), download: vi.fn() };
     });
 
     describe("dir", () => {
         it("should list ftp resources", async () => {
-            ftpService.dir.mockResolvedValue([{ name: "docs", type: "DIR" }]);
+            ftpFacade.dir.mockResolvedValue({ version: "5", data: [{ name: "docs", type: "DIR" }] });
             req.query.dir = "   /files   ";
             await controller.dir(req, res);
-            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "/files", authUser: req.user });
+            expect(ftpFacade.dir).toHaveBeenCalledWith({ dir: "/files", authUser: req.user });
+            expect(res.set).toHaveBeenCalledWith("Data-Version", "5");
             expect(res.json).toHaveBeenCalledWith([{ name: "docs", type: "DIR" }]);
         });
 
         it("should use default dir when missing", async () => {
-            ftpService.dir.mockResolvedValue([]);
+            ftpFacade.dir.mockResolvedValue({ version: "5", data: [] });
             await controller.dir(req, res);
-            expect(ftpService.dir).toHaveBeenCalledWith({ dir: ".", authUser: req.user });
+            expect(ftpFacade.dir).toHaveBeenCalledWith({ dir: ".", authUser: req.user });
         });
 
         it("should fail when dir contains traversal", async () => {
@@ -45,10 +46,10 @@ describe("FtpController", () => {
 
     describe("makeDir", () => {
         it("should create a directory", async () => {
-            ftpService.makeDir.mockResolvedValue({ name: "Nueva Carpeta", type: "DIR" });
+            ftpFacade.makeDir.mockResolvedValue({ name: "Nueva Carpeta", type: "DIR" });
             req.body = { dir: "/files", name: "   Nueva Carpeta   " };
             await controller.makeDir(req, res);
-            expect(ftpService.makeDir).toHaveBeenCalledWith({
+            expect(ftpFacade.makeDir).toHaveBeenCalledWith({
                 dir: "/files",
                 name: "Nueva Carpeta",
                 authUser: req.user
@@ -75,13 +76,13 @@ describe("FtpController", () => {
     describe("move", () => {
         it("should move ftp entries", async () => {
             const entries = [{ name: "file.txt", type: "file" }];
-            ftpService.move.mockResolvedValue({
+            ftpFacade.move.mockResolvedValue({
                 lastContent: ["file.txt"],
                 movedContent: [{ name: "file.txt", type: "FILE" }]
             });
             req.body = { dir: "/files", destination: "/backup", entries };
             await controller.move(req, res);
-            expect(ftpService.move).toHaveBeenCalledWith({
+            expect(ftpFacade.move).toHaveBeenCalledWith({
                 dir: "/files",
                 destination: "/backup",
                 entries: [{ name: "file.txt", type: "FILE" }],
@@ -101,10 +102,10 @@ describe("FtpController", () => {
 
     describe("rename", () => {
         it("should rename a ftp entry", async () => {
-            ftpService.rename.mockResolvedValue({ name: "renamed.txt", type: "FILE" });
+            ftpFacade.rename.mockResolvedValue({ name: "renamed.txt", type: "FILE" });
             req.body = { dir: "/files", entry: { name: "file.txt", type: "file" }, newName: "renamed.txt" };
             await controller.rename(req, res);
-            expect(ftpService.rename).toHaveBeenCalledWith({
+            expect(ftpFacade.rename).toHaveBeenCalledWith({
                 dir: "/files",
                 entry: { name: "file.txt", type: "FILE" },
                 newName: "renamed.txt",
@@ -122,11 +123,11 @@ describe("FtpController", () => {
     describe("upload", () => {
         it("should upload a file", async () => {
             const file = { originalname: "file.txt", buffer: Buffer.from("hello") };
-            ftpService.upload.mockResolvedValue([{ name: "file.txt", type: "FILE" }]);
+            ftpFacade.upload.mockResolvedValue([{ name: "file.txt", type: "FILE" }]);
             req.body.dir = "/upload";
             req.file = file;
             await controller.upload(req, res);
-            expect(ftpService.upload).toHaveBeenCalledWith({ dir: "/upload", file, authUser: req.user });
+            expect(ftpFacade.upload).toHaveBeenCalledWith({ dir: "/upload", file, authUser: req.user });
             expect(res.status).toHaveBeenCalledWith(201);
             expect(res.json).toHaveBeenCalledWith([{ name: "file.txt", type: "FILE" }]);
         });
@@ -134,10 +135,10 @@ describe("FtpController", () => {
 
     describe("download", () => {
         it("should download ftp entries", async () => {
-            ftpService.download.mockResolvedValue("/tmp/file.txt");
+            ftpFacade.download.mockResolvedValue("/tmp/file.txt");
             req.body = { dir: "/files", entries: [{ name: "file.txt", type: "file" }] };
             await controller.download(req, res);
-            expect(ftpService.download).toHaveBeenCalledWith({
+            expect(ftpFacade.download).toHaveBeenCalledWith({
                 dir: "/files",
                 entries: [{ name: "file.txt", type: "FILE" }],
                 authUser: req.user
@@ -159,10 +160,10 @@ describe("FtpController", () => {
     describe("delete", () => {
         it("should delete ftp entries", async () => {
             const entries = [{ name: "file.txt", type: "file" }];
-            ftpService.delete.mockResolvedValue(["file.txt"]);
+            ftpFacade.delete.mockResolvedValue(["file.txt"]);
             req.body = { dir: "/files", entries };
             await controller.delete(req, res);
-            expect(ftpService.delete).toHaveBeenCalledWith({
+            expect(ftpFacade.delete).toHaveBeenCalledWith({
                 dir: "/files",
                 entries: [{ name: "file.txt", type: "FILE" }],
                 authUser: req.user
