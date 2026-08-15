@@ -19,6 +19,7 @@ export default class Middlewares {
      */
     static cors(acceptOrigins) {
         return cors({
+            exposedHeaders: ["Data-Version", "Devices-Version", "Whitelist-Version"],
             origin: (origin, callback) => {
                 if (acceptOrigins) {
                     if (acceptOrigins.includes(origin)) {

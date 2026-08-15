@@ -13,7 +13,8 @@ export default class DevicesController {
     }
 
     getAll = async (req, res) => {
-        res.json(await this.devicesFacade.getAll());
+        const { version, data } = await this.devicesFacade.getAll();
+        res.set("Data-Version", version).json(data);
     };
 
     getById = async (req, res) => {
@@ -23,12 +24,14 @@ export default class DevicesController {
 
     getAllowedDevices = async (req, res) => {
         const routerId = validateRouterId(req);
-        res.json(await this.devicesFacade.getAllowedDevices({ routerId }));
+        const { version, data } = await this.devicesFacade.getAllowedDevices({ routerId });
+        res.set({ "Devices-Version": version.devices, "Whitelist-Version": version.whitelist }).json(data);
     };
 
     getNotAllowedDevices = async (req, res) => {
         const routerId = validateRouterId(req);
-        res.json(await this.devicesFacade.getNotAllowedDevices({ routerId }));
+        const { version, data } = await this.devicesFacade.getNotAllowedDevices({ routerId });
+        res.set({ "Devices-Version": version.devices, "Whitelist-Version": version.whitelist }).json(data);
     };
 
     create = async (req, res) => {
