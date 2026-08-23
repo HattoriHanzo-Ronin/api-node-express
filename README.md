@@ -149,6 +149,19 @@ Collection endpoints keep their original response bodies and expose synchronizat
 
 SFTP write operations increment their resource version after a successful change, allowing clients to detect updates without downloading the complete directory listing.
 
+Data versions can be requested together using the `id` query parameter. Supported entities are `ftp`, `devices`, `whitelist` and `users`:
+
+```http
+GET /data-versions?id=ftp,devices
+```
+
+```json
+{
+    "ftp": "1",
+    "devices": "2"
+}
+```
+
 ## Key Architectural Decisions
 
 - Split `Connection` from `Device` to support multiple interfaces.
