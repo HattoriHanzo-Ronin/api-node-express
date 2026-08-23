@@ -4,7 +4,7 @@ import Middlewares from "../middlewares/middlewares.js";
 export default function createDataVersionsRouter({ dataVersionsController }) {
     const dataVersionsRouter = Router();
 
-    dataVersionsRouter.get("/:id", asyncHandler(dataVersionsController.getById));
+    dataVersionsRouter.get("/", asyncHandler(dataVersionsController.getById));
 
     return dataVersionsRouter;
 }

@@ -1,3 +1,6 @@
+import { dataVersionsSchema } from "../schemas/data-versions-schema.js";
+import ValidateUtils from "../utils/validate-utils.js";
+
 /**
  * Data versions controller
  *
@@ -15,7 +18,9 @@ export default class DataVersionsController {
      * @param {Object} res HTTP response
      */
     getById = async (req, res) => {
-        const { id } = req.params;
+        const { id } = validateData(req.query, dataVersionsSchema);
         res.json(await this.dataVersionsService.getById({ id }));
     };
 }
+
+const { validateData } = ValidateUtils;

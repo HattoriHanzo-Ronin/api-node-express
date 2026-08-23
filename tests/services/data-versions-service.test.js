@@ -6,7 +6,7 @@ describe("DataVersionsService", () => {
     let dataVersionsService;
 
     beforeEach(() => {
-        dataVersionsModel = { getById: vi.fn(), increment: vi.fn() };
+        dataVersionsModel = { getById: vi.fn(), getByIds: vi.fn(), increment: vi.fn() };
         dataVersionsService = new DataVersionsService({ dataVersionsModel });
     });
 
@@ -17,6 +17,19 @@ describe("DataVersionsService", () => {
                 version: "2"
             });
             expect(dataVersionsModel.getById).toHaveBeenCalledWith({ id: "devices" });
+        });
+
+        it("should return data versions keyed by resource identifier", async () => {
+            dataVersionsModel.getByIds.mockResolvedValue([
+                { id: "ftp", version: "1" },
+                { id: "devices", version: "2" }
+            ]);
+
+            await expect(dataVersionsService.getById({ id: ["ftp", "devices"] })).resolves.toEqual({
+                ftp: "1",
+                devices: "2"
+            });
+            expect(dataVersionsModel.getByIds).toHaveBeenCalledWith({ ids: ["ftp", "devices"] });
         });
     });
 
