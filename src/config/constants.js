@@ -29,12 +29,14 @@ const FILE_TYPE = Object.freeze({ dir: "DIR", file: "FILE" });
 const CONNECTION_CTYPE = Object.freeze({ wan: "WAN", lan: "LAN", wifi: "WIFI" });
 const DEVICE_TYPE = Object.freeze({ client: "CLIENT", router: "ROUTER", server: "SERVER" });
 const USER_ROLE = Object.freeze({ admin: "ADMIN", ftp: "FTP", net: "NET" });
+const DATA_VERSION = Object.freeze({ ftp: "ftp", devices: "devices", whitelist: "whitelist", users: "users" });
 const VALIDATION = deepFreeze({
     allowEnums: {
         fileType: Object.values(FILE_TYPE),
         connectionsCtype: Object.values(CONNECTION_CTYPE),
         devicesType: Object.values(DEVICE_TYPE),
-        userRoles: Object.values(USER_ROLE)
+        userRoles: Object.values(USER_ROLE),
+        dataVersions: Object.values(DATA_VERSION)
     },
     errorMessages: {
         typeRequired: { error: (issue) => (issue.input === undefined ? "Requerido" : "Tipo no válido") },
@@ -115,4 +117,4 @@ function deepFreeze(object) {
     return Object.freeze(object);
 }
 
-export { ENV, SECRETS, FILE_TYPE, DEVICE_TYPE, USER_ROLE, VALIDATION, POSTGRES_ERROR, API_ERROR, JWT };
+export { ENV, SECRETS, FILE_TYPE, DEVICE_TYPE, USER_ROLE, DATA_VERSION, VALIDATION, POSTGRES_ERROR, API_ERROR, JWT };

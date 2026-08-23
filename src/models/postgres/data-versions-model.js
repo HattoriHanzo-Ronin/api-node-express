@@ -17,6 +17,16 @@ export default class DataVersionsModel {
     }
 
     /**
+     * Returns data versions by their resource identifiers
+     *
+     * @param {string[]} params.ids Resource identifiers
+     * @returns {Promise<{ id: string, version: string }[]>} Data versions
+     */
+    static async getByIds({ ids }) {
+        return client.any("select id, version from data_versions where id in ($1:csv)", [ids]);
+    }
+
+    /**
      * Increments a data version
      *
      * @param {import("pg-promise").ITask<unknown>} params.clientTx PostgreSQL transaction client
