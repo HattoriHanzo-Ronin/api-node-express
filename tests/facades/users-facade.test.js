@@ -13,6 +13,7 @@ describe("UsersFacade", () => {
             getAll: vi.fn(),
             getById: vi.fn(),
             authenticate: vi.fn(),
+            checkPassword: vi.fn(),
             create: vi.fn(),
             update: vi.fn(),
             delete: vi.fn()
@@ -202,6 +203,41 @@ describe("UsersFacade", () => {
                 data: { id: "2", roles: ["FTP"] }
             });
             expect(userRolesService.replace).toHaveBeenCalled();
+        });
+    });
+
+    describe("changePassword", () => {
+        it("should check current password and update it", async () => {
+            const authUser = { id: "1", roles: ["FTP"], scope: ["FTP"] };
+            usersService.checkPassword.mockResolvedValue();
+            vi.spyOn(usersFacade, "update").mockResolvedValue({ username: "user" });
+
+            await expect(
+                usersFacade.changePassword({
+                    authUser,
+                    currentPassword: "Password123!",
+                    newPassword: "NewPassword123!"
+                })
+            ).resolves.toBeUndefined();
+            expect(usersService.checkPassword).toHaveBeenCalledWith({ id: "1", password: "Password123!" });
+            expect(usersFacade.update).toHaveBeenCalledWith({
+                authUser,
+                data: { id: "1", password: "NewPassword123!" }
+            });
+        });
+
+        it("should not update when current password is incorrect", async () => {
+            usersService.checkPassword.mockRejectedValue(new Error("Contraseña incorrecta"));
+            const update = vi.spyOn(usersFacade, "update");
+
+            await expect(
+                usersFacade.changePassword({
+                    authUser: { id: "1" },
+                    currentPassword: "WrongPassword1!",
+                    newPassword: "NewPassword123!"
+                })
+            ).rejects.toThrow("Contraseña incorrecta");
+            expect(update).not.toHaveBeenCalled();
         });
     });
 

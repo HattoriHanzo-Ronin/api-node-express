@@ -33,6 +33,12 @@ export default class UsersController {
         res.json(await this.usersFacade.update({ authUser: req.user, data }));
     };
 
+    changePassword = async (req, res) => {
+        const data = validateData(req.body, getChangePasswordSchema());
+        await this.usersFacade.changePassword({ authUser: req.user, ...data });
+        res.status(200).end();
+    };
+
     delete = async (req, res) => {
         const { params, user: authUser } = req;
         const { id } = validateData(params, idSchema);
@@ -41,4 +47,4 @@ export default class UsersController {
 }
 
 const { validateData } = ValidateUtils;
-const { getValidatedSchema, getPartialSchema } = UsersSchema;
+const { getValidatedSchema, getPartialSchema, getChangePasswordSchema } = UsersSchema;

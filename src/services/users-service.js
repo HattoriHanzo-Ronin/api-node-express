@@ -55,6 +55,24 @@ export default class UsersService {
     }
 
     /**
+     * Checks a user's password
+     *
+     * @param {string} params.id User identifier
+     * @param {string} params.password User password
+     */
+    async checkPassword({ id, password }) {
+        const result = await this.usersModel.checkPassword({ id, password });
+        handleApiErrors([
+            {
+                condition: !result,
+                message: "Contraseña incorrecta",
+                status: 401,
+                apiError: API_ERROR.userIncorrectPassword
+            }
+        ]);
+    }
+
+    /**
      * Creates a user
      *
      * @param {import("pg-promise").ITask<unknown>} params.clientTx PostgreSQL transaction client

@@ -10,6 +10,7 @@ describe("UsersService", () => {
             getAll: vi.fn(),
             getById: vi.fn(),
             authenticate: vi.fn(),
+            checkPassword: vi.fn(),
             insert: vi.fn(),
             update: vi.fn(),
             delete: vi.fn()
@@ -58,6 +59,22 @@ describe("UsersService", () => {
             await expect(usersService.authenticate({ username: "admin", password: "1234" })).rejects.toThrow(
                 "Usuario o contraseña incorrectos"
             );
+        });
+    });
+
+    describe("checkPassword", () => {
+        it("should finish when password is correct", async () => {
+            usersModel.checkPassword.mockResolvedValue({ bool: true });
+            await expect(usersService.checkPassword({ id: "1", password: "Password123!" })).resolves.toBeUndefined();
+            expect(usersModel.checkPassword).toHaveBeenCalledWith({ id: "1", password: "Password123!" });
+        });
+
+        it("should fail when password is incorrect", async () => {
+            usersModel.checkPassword.mockResolvedValue(null);
+            await expect(usersService.checkPassword({ id: "1", password: "WrongPassword1!" })).rejects.toMatchObject({
+                code: "USER_INCORRECT_PASSWORD",
+                status: 401
+            });
         });
     });
 
