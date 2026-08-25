@@ -8,14 +8,14 @@ describe("UsersController validation", () => {
     let res;
 
     beforeEach(() => {
-        usersFacade = { getAll: vi.fn(), getById: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() };
+        usersFacade = { getAll: vi.fn(), getById: vi.fn(), create: vi.fn(), update: vi.fn(), changePassword: vi.fn(), delete: vi.fn() };
         controller = new UsersController({ usersFacade });
         req = {
             user: { id: "550e8400-e29b-41d4-a716-446655440000", roles: ["ADMIN"], scope: ["ADMIN"] },
             params: {},
             body: {}
         };
-        res = { json: vi.fn(), set: vi.fn().mockReturnThis(), status: vi.fn().mockReturnThis() };
+        res = { json: vi.fn(), end: vi.fn(), set: vi.fn().mockReturnThis(), status: vi.fn().mockReturnThis() };
     });
 
     describe("getAll", () => {
@@ -142,6 +142,30 @@ describe("UsersController validation", () => {
         it("should fail with invalid role enum", async () => {
             req.body.roles = ["INVALID_ROLE"];
             await expect(controller.update(req, res)).rejects.toThrow();
+        });
+    });
+
+    describe("changePassword validation", () => {
+        beforeEach(() => {
+            req.body = { currentPassword: "Password123!", newPassword: "NewPassword123!" };
+        });
+
+        it("should change password", async () => {
+            usersFacade.changePassword.mockResolvedValue();
+            await controller.changePassword(req, res);
+            expect(usersFacade.changePassword).toHaveBeenCalledWith({ authUser: req.user, ...req.body });
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.end).toHaveBeenCalled();
+        });
+
+        it("should fail with invalid current password", async () => {
+            req.body.currentPassword = "short";
+            await expect(controller.changePassword(req, res)).rejects.toThrow();
+        });
+
+        it("should fail with invalid new password", async () => {
+            req.body.newPassword = "short";
+            await expect(controller.changePassword(req, res)).rejects.toThrow();
         });
     });
 

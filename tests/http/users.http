@@ -199,40 +199,21 @@ Content-Type: application/json
 ###
 
 ############################################################
-# Update password
+# Change own password
 #
 # Expected:
 # Status: 200
 #
-# Response:
-# {
-#   "username": "test_user"
-# }
-#
-# ADMIN Response:
-# {
-#   "id": "...",
-#   "username": "test_user",
-#   "active": true
-# }
-#
-# SUPER ADMIN Response:
-# {
-#   "id": "...",
-#   "username": "admin_test",
-#   "active": true,
-#   "roles": ["ADMIN"],
-#   "scope": ["FTP", "NET"]
-# }
+# Response: Empty
 ############################################################
 
-PATCH {{baseUrl}}
+PATCH {{baseUrl}}/password
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "id": "{{userId}}",
-    "password": "NewPassword123!"
+    "currentPassword": "Password123!",
+    "newPassword": "NewPassword123!"
 }
 
 ###
@@ -531,4 +512,28 @@ Content-Type: application/json
     "password": "Password123!",
     "active": true,
     "roles": ["FTP"]
+}
+
+###
+
+############################################################
+# Business Error - Incorrect current password
+#
+# Expected:
+# Status: 401
+#
+# Response:
+# {
+#   "code": "USER_INCORRECT_PASSWORD",
+#   "message": "Contraseña incorrecta"
+# }
+############################################################
+
+PATCH {{baseUrl}}/password
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "currentPassword": "WrongPassword1!",
+    "newPassword": "NewPassword123!"
 }

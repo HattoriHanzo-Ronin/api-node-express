@@ -88,6 +88,7 @@ const API_ERROR = deepFreeze({
     userUsernameAlreadyExists: { code: "USER_USERNAME_ALREADY_EXISTS" },
     userNotFound: { code: "USER_NOT_FOUND" },
     userInvalidCredentials: { code: "USER_INVALID_CREDENTIALS" },
+    userIncorrectPassword: { code: "USER_INCORRECT_PASSWORD" },
     userEmptyUpdate: { code: "USER_EMPTY_UPDATE" },
     aclRoleRequired: { code: "ACL_ROLE_REQUIRED" },
     aclPermissionDenied: { code: "ACL_PERMISSION_DENIED" },

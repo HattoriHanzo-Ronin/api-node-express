@@ -42,6 +42,17 @@ export default class UsersModel {
     }
 
     /**
+     * Checks a user's password
+     *
+     * @param {string} params.id User identifier
+     * @param {string} params.password User password
+     * @returns {Promise<Object | null>} Password check result
+     */
+    static async checkPassword({ id, password }) {
+        return client.oneOrNone("select true from users where id = $1 and password = crypt($2, password)", [id, password]);
+    }
+
+    /**
      * Inserts a user
      *
      * @param {import("pg-promise").ITask<unknown>} params.clientTx PostgreSQL transaction client

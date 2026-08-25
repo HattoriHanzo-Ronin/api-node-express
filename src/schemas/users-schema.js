@@ -21,6 +21,10 @@ export default class UsersSchema {
         const updateSchema = useRequiredProperties(usersSchema.partial(), idSchema.shape);
         return withSuperRefine(updateSchema, cases);
     }
+
+    static getChangePasswordSchema() {
+        return z.object({ currentPassword: passwordSchema, newPassword: passwordSchema });
+    }
 }
 
 const {
@@ -38,6 +42,12 @@ const rolesArraySchema = z
     .array(zodEnumIgnoreCase(z, z.enum(userRoles, invalidEnum(userRoles)), typeRequired), typeRequired)
     .min(1, emptyArray)
     .optional();
+const passwordSchema = z
+    .string(typeRequired)
+    .trim()
+    .min(12, length(12, "min"))
+    .max(128, length(128, "max"))
+    .regex(passwordRegex, format);
 const usersSchema = z.object({
     username: z
         .string(typeRequired)
@@ -45,12 +55,7 @@ const usersSchema = z.object({
         .min(3, length(3, "min"))
         .max(30, length(30, "max"))
         .regex(/^[a-z0-9_-]+$/, format),
-    password: z
-        .string(typeRequired)
-        .trim()
-        .min(12, length(12, "min"))
-        .max(128, length(128, "max"))
-        .regex(passwordRegex, format),
+    password: passwordSchema,
     roles: rolesArraySchema,
     scope: rolesArraySchema,
     active: z.boolean(typeRequired)

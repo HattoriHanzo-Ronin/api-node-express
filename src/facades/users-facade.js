@@ -206,6 +206,19 @@ export default class UsersFacade {
     }
 
     /**
+     * Changes the authenticated user's password
+     *
+     * @param {Object} params.authUser Authenticated user
+     * @param {string} params.currentPassword Current password
+     * @param {string} params.newPassword New password
+     */
+    async changePassword({ authUser, currentPassword, newPassword }) {
+        const { id } = authUser;
+        await this.usersService.checkPassword({ id, password: currentPassword });
+        await this.update({ authUser, data: { id, password: newPassword } });
+    }
+
+    /**
      * Deletes a user
      *
      * @param {Object} params.authUser Authenticated user

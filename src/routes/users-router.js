@@ -15,6 +15,8 @@ export default function createUsersRouter({ usersController }) {
     
     router.delete("/:id", authorizedRoles([admin]), asyncHandler(usersController.delete));
 
+    router.patch("/password", asyncHandler(usersController.changePassword));
+
     router.put("/", asyncHandler(usersController.update));
     router.patch("/", asyncHandler(usersController.update));
 
