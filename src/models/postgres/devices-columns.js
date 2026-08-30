@@ -1,6 +1,6 @@
 import DbUtils from "../../utils/db-utils.js";
 
-const { skipNullOrUndefined, createColumnSet } = DbUtils;
+const { createColumnSet } = DbUtils;
 const TABLE = "devices";
 const commonColumns = [{ name: "name" }, { name: "model" }];
 const infoCommonColumns = [{ name: "id", cast: "uuid" }, ...commonColumns];
@@ -18,7 +18,7 @@ const devicesColumns = {
     routerInfo: createColumnSet([...infoCommonColumns, ...routerColumns], TABLE),
     insert: createColumnSet(insertionColumns, TABLE),
     update: createColumnSet(
-        insertionColumns.map((it) => ({ ...it, skip: skipNullOrUndefined })),
+        insertionColumns.map((it) => ({ ...it, skip: (c) => c.value === undefined })),
         TABLE
     )
 };
