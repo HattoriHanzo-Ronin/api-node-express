@@ -43,11 +43,9 @@ const memoryCache = new MemoryCache();
 const directoryCache = new DirectoryCache();
 const ftpFacade = new FtpFacade({
     ftpService: FtpService,
-    dataVersionsService,
     ftpMapper: FtpMapper,
     memoryCache,
-    directoryCache,
-    tx
+    directoryCache
 });
 const ftpController = new FtpController({ ftpFacade });
 const dataVersionsController = new DataVersionsController({ dataVersionsService });

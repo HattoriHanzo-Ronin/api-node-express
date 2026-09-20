@@ -9,31 +9,26 @@ import ValidateUtils from "../utils/validate-utils.js";
  * @author HattoriHanzo-Ronin
  */
 export default class FtpFacade {
-    constructor({ ftpService, dataVersionsService, ftpMapper, memoryCache, directoryCache, tx }) {
+    constructor({ ftpService, ftpMapper, memoryCache, directoryCache }) {
         this.ftpService = ftpService;
-        this.dataVersionsService = dataVersionsService;
         this.ftpMapper = ftpMapper;
         this.memoryCache = memoryCache;
         this.directoryCache = directoryCache;
-        this.tx = tx;
     }
 
     /**
      * Returns FTP directory content
      *
      * @param {Object} data FTP directory data
-     * @returns {Promise<{ version: string, data: Object[] }>} Directory resources
+     * @returns {Promise<{ hash: string, data: Object[] }>} Directory resources
      */
     async dir(data) {
         const { dir, authUser } = data;
-        const [{ version }, result] = await Promise.all([
-            this.dataVersionsService.getById({ id: "ftp" }),
-            this.ftpService.dir(data)
-        ]);
+        const result = await this.ftpService.dir(data);
         const names = result.filter(({ type }) => type === FILE_TYPE.file).map(({ name }) => name);
         const bufferMap = await this.#syncThumbnails({ dir, names, authUser });
-        await this.#watchDirectory({ dir, authUser, entries: result });
-        return { version, data: this.ftpMapper.entriesToDomain({ entries: result, bufferMap }) };
+        const hash = await this.#watchDirectory({ dir, authUser, entries: result });
+        return { hash, data: this.ftpMapper.entriesToDomain({ entries: result, bufferMap }) };
     }
 
     /**
@@ -64,24 +59,24 @@ export default class FtpFacade {
     }
 
     /**
-     * Creates a FTP directory and increments its data version
+     * Creates a FTP directory
      *
      * @param {Object} data FTP directory data
-     * @returns {Promise<{ version: string, data: Object[] }>} Updated directory resources
+     * @returns {Promise<{ hash: string, data: Object[] }>} Updated directory resources
      */
     async makeDir(data) {
-        await this.#mutate(() => this.ftpService.makeDir(data));
+        await this.ftpService.makeDir(data);
         return this.dir({ dir: data.dir, authUser: data.authUser });
     }
 
     /**
-     * Moves FTP resources and increments their data version
+     * Moves FTP resources
      *
      * @param {Object} data FTP move data
-     * @returns {Promise<{ version: string, data: Object[] }>} Destination directory resources
+     * @returns {Promise<{ hash: string, data: Object[] }>} Destination directory resources
      */
     async move(data) {
-        const result = await this.#mutate(() => this.ftpService.move(data));
+        const result = await this.ftpService.move(data);
         const { dir, destination, entries, authUser } = data;
         for (const [index, entry] of entries.entries()) {
             if (entry.type === FILE_TYPE.dir) {
@@ -99,13 +94,13 @@ export default class FtpFacade {
     }
 
     /**
-     * Renames a FTP resource and increments its data version
+     * Renames a FTP resource
      *
      * @param {Object} data FTP rename data
-     * @returns {Promise<{ version: string, data: Object[] }>} Updated directory resources
+     * @returns {Promise<{ hash: string, data: Object[] }>} Updated directory resources
      */
     async rename(data) {
-        const result = await this.#mutate(() => this.ftpService.rename(data));
+        const result = await this.ftpService.rename(data);
         const { dir, entry, authUser } = data;
         if (entry.type === FILE_TYPE.dir) {
             await this.#moveCachedDirectory(
@@ -119,13 +114,13 @@ export default class FtpFacade {
     }
 
     /**
-     * Uploads FTP resources and increments their data version
+     * Uploads FTP resources
      *
      * @param {Object} data FTP upload data
-     * @returns {Promise<{ version: string, data: Object[] }>} Updated directory resources
+     * @returns {Promise<{ hash: string, data: Object[] }>} Updated directory resources
      */
     async upload(data) {
-        await this.#mutate(() => this.ftpService.upload(data));
+        await this.ftpService.upload(data);
         return this.dir({ dir: data.dir, authUser: data.authUser });
     }
 
@@ -140,13 +135,13 @@ export default class FtpFacade {
     }
 
     /**
-     * Deletes FTP resources and increments their data version
+     * Deletes FTP resources
      *
      * @param {Object} data FTP delete data
-     * @returns {Promise<{ version: string, data: Object[] }>} Updated directory resources
+     * @returns {Promise<{ hash: string, data: Object[] }>} Updated directory resources
      */
     async delete(data) {
-        await this.#mutate(() => this.ftpService.delete(data));
+        await this.ftpService.delete(data);
         const { dir, entries, authUser } = data;
         for (const entry of entries) {
             if (entry.type === FILE_TYPE.dir) {
@@ -206,10 +201,13 @@ export default class FtpFacade {
     async #watchDirectory({ dir, authUser, entries, hash }) {
         const ownerId = authUser.id;
         const watching = this.directoryCache.has(ownerId, dir);
-        this.directoryCache.set(ownerId, dir, { username: authUser.username, hash: hash ?? hashDirectory(entries) });
+        const directoryHash = hash ?? hashDirectory(entries);
+        this.directoryCache.set(ownerId, dir, { username: authUser.username, hash: directoryHash });
         if (!watching) {
             setTimeout(() => this.#checkDirectory(ownerId, dir), directoryCheckTimeout);
         }
+
+        return directoryHash;
     }
 
     async #checkDirectory(ownerId, dir) {
@@ -247,17 +245,6 @@ export default class FtpFacade {
                 hash: directory.hash
             });
         }
-    }
-
-    async #mutate(callback) {
-        return this.tx(async (clientTx) => {
-            const result = await callback();
-            await this.dataVersionsService.increment({
-                clientTx,
-                id: "ftp"
-            });
-            return result;
-        });
     }
 }
 

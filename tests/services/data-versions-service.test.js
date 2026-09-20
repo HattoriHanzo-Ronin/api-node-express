@@ -6,7 +6,7 @@ describe("DataVersionsService", () => {
     let dataVersionsService;
 
     beforeEach(() => {
-        dataVersionsModel = { getById: vi.fn(), getByIds: vi.fn(), increment: vi.fn() };
+        dataVersionsModel = { getById: vi.fn(), getByIds: vi.fn() };
         dataVersionsService = new DataVersionsService({ dataVersionsModel });
     });
 
@@ -21,23 +21,15 @@ describe("DataVersionsService", () => {
 
         it("should return data versions keyed by resource identifier", async () => {
             dataVersionsModel.getByIds.mockResolvedValue([
-                { id: "ftp", version: "1" },
+                { id: "users", version: "4" },
                 { id: "devices", version: "2" }
             ]);
 
-            await expect(dataVersionsService.getById({ id: ["ftp", "devices"] })).resolves.toEqual({
-                ftp: "1",
+            await expect(dataVersionsService.getById({ id: ["users", "devices"] })).resolves.toEqual({
+                users: "4",
                 devices: "2"
             });
-            expect(dataVersionsModel.getByIds).toHaveBeenCalledWith({ ids: ["ftp", "devices"] });
-        });
-    });
-
-    describe("increment", () => {
-        it("should increment a data version", async () => {
-            dataVersionsModel.increment.mockResolvedValue();
-            await expect(dataVersionsService.increment({ clientTx: {}, id: "ftp" })).resolves.toBeUndefined();
-            expect(dataVersionsModel.increment).toHaveBeenCalledWith({ clientTx: {}, id: "ftp" });
+            expect(dataVersionsModel.getByIds).toHaveBeenCalledWith({ ids: ["users", "devices"] });
         });
     });
 });
