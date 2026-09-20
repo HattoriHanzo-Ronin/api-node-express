@@ -255,7 +255,7 @@ const directoryCheckTimeout = 5000;
 
 function hashDirectory(entries) {
     const source = entries
-        .map(({ name, size, modifiedAt, type }) => `${name}:${size}:${modifiedAt}:${type}`)
+        .map(({ name, size, modifyTime, type }) => `${name}:${size}:${modifyTime}:${type}`)
         .sort()
         .join("|");
     return createHash(hashAlgorithm).update(source).digest("hex");

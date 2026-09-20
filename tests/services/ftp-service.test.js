@@ -63,14 +63,14 @@ describe("FtpService", () => {
 
     describe("dir", () => {
         it("should list ftp resources", async () => {
-            const modifiedAt = new Date("2026-09-20T10:00:00.000Z");
+            const modifyTime = new Date("2026-09-20T10:00:00.000Z");
             mockClient.list.mockResolvedValue([
-                { name: "docs", type: "d", size: 0, modifiedAt },
-                { name: "file.txt", type: "-", size: 128, modifiedAt }
+                { name: "docs", type: "d", size: 0, modifyTime },
+                { name: "file.txt", type: "-", size: 128, modifyTime }
             ]);
             await expect(FtpService.dir({ dir: "/files", authUser })).resolves.toEqual([
-                { name: "docs", type: "DIR", size: 0, modifiedAt },
-                { name: "file.txt", type: "FILE", size: 128, modifiedAt }
+                { name: "docs", type: "DIR", size: 0, modifyTime },
+                { name: "file.txt", type: "FILE", size: 128, modifyTime }
             ]);
             expect(FtpConnection.getClient).toHaveBeenCalledWith(authUser.username);
             expect(mockClient.list).toHaveBeenCalledWith("/files");
@@ -140,20 +140,14 @@ describe("FtpService", () => {
 
     describe("makeDir", () => {
         it("should create a directory", async () => {
-            await expect(FtpService.makeDir({ dir: "/files", name: "images", authUser })).resolves.toEqual({
-                name: "images",
-                type: "DIR"
-            });
+            await expect(FtpService.makeDir({ dir: "/files", name: "images", authUser })).resolves.toBeUndefined();
             expect(mockClient.list).toHaveBeenCalledWith("/files");
             expect(mockClient.mkdir).toHaveBeenCalledWith("/files/images");
         });
 
         it("should generate a copy name when directory already exists", async () => {
             mockClient.list.mockResolvedValue([{ name: "images" }]);
-            await expect(FtpService.makeDir({ dir: "/files", name: "images", authUser })).resolves.toEqual({
-                name: "copia_images",
-                type: "DIR"
-            });
+            await expect(FtpService.makeDir({ dir: "/files", name: "images", authUser })).resolves.toBeUndefined();
             expect(mockClient.mkdir).toHaveBeenCalledWith("/files/copia_images");
         });
 
@@ -228,9 +222,7 @@ describe("FtpService", () => {
 
         it("should upload a regular file", async () => {
             const file = { originalname: "test.txt", mimetype: "text/plain", buffer: Buffer.from("hello") };
-            await expect(FtpService.upload({ dir: "/upload", file, authUser })).resolves.toEqual([
-                { name: "test.txt", type: "FILE" }
-            ]);
+            await expect(FtpService.upload({ dir: "/upload", file, authUser })).resolves.toBeUndefined();
             expect(mockClient.list).toHaveBeenCalledWith("/upload");
             expect(mockClient.put).toHaveBeenCalledWith(file.buffer, "/upload/test.txt");
             expect(mockZip.extractAllTo).not.toHaveBeenCalled();
@@ -240,9 +232,7 @@ describe("FtpService", () => {
         it("should rename uploaded file when it already exists", async () => {
             const file = { originalname: "test.txt", mimetype: "text/plain", buffer: Buffer.from("hello") };
             mockClient.list.mockResolvedValue([{ name: "test.txt" }]);
-            await expect(FtpService.upload({ dir: "/upload", file, authUser })).resolves.toEqual([
-                { name: "copia_test.txt", type: "FILE" }
-            ]);
+            await expect(FtpService.upload({ dir: "/upload", file, authUser })).resolves.toBeUndefined();
             expect(mockClient.put).toHaveBeenCalledWith(file.buffer, "/upload/copia_test.txt");
         });
 
@@ -255,10 +245,7 @@ describe("FtpService", () => {
                 ])
                 .mockResolvedValueOnce(["file1.jpg"])
                 .mockResolvedValueOnce([{ name: "nested.jpg", isDirectory: () => false }]);
-            await expect(FtpService.upload({ dir: "/upload", file, authUser })).resolves.toEqual([
-                { name: "images", type: "DIR" },
-                { name: "logo.png", type: "FILE" }
-            ]);
+            await expect(FtpService.upload({ dir: "/upload", file, authUser })).resolves.toBeUndefined();
             expect(mockZip.extractAllTo).toHaveBeenCalledWith(`${process.cwd()}/temp1783417469000`, true);
             expect(mockClient.mkdir).toHaveBeenCalledWith("/upload/images");
             expect(mockClient.fastPut).toHaveBeenCalledWith(expect.stringContaining("logo.png"), "/upload/logo.png");
@@ -269,13 +256,13 @@ describe("FtpService", () => {
     describe("delete", () => {
         it("should delete files", async () => {
             const entries = [{ name: "test.txt", type: "FILE" }];
-            await expect(FtpService.delete({ dir: "/files", entries, authUser })).resolves.toEqual(["test.txt"]);
+            await expect(FtpService.delete({ dir: "/files", entries, authUser })).resolves.toBeUndefined();
             expect(mockClient.delete).toHaveBeenCalledWith("/files/test.txt");
         });
 
         it("should delete directories", async () => {
             const entries = [{ name: "images", type: "DIR" }];
-            await expect(FtpService.delete({ dir: "/files", entries, authUser })).resolves.toEqual(["images"]);
+            await expect(FtpService.delete({ dir: "/files", entries, authUser })).resolves.toBeUndefined();
             expect(mockClient.rmdir).toHaveBeenCalledWith("/files/images", true);
         });
     });
