@@ -1,3 +1,4 @@
 allowBuilds:
   cpu-features: true
+  ffmpeg-static: true
   ssh2: true
