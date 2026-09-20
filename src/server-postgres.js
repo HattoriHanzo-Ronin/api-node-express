@@ -4,7 +4,9 @@ import PostgresClient from "./config/db/postgres-client.js";
 
 import FtpController from "./controllers/ftp-controller.js";
 import FtpService from "./services/ftp-service.js";
+import FtpMapper from "./mappers/ftp-mapper.js";
 import FtpFacade from "./facades/ftp-facade.js";
+import MemoryCache from "./cache/memory-cache.js";
 import DataVersionsModel from "./models/postgres/data-versions-model.js";
 import DataVersionsService from "./services/data-versions-service.js";
 import DataVersionsController from "./controllers/data-versions-controller.js";
@@ -36,7 +38,14 @@ import AuthController from "./controllers/auth-controller.js";
 const tx = PostgresClient.executeTx;
 
 const dataVersionsService = new DataVersionsService({ dataVersionsModel: DataVersionsModel });
-const ftpFacade = new FtpFacade({ ftpService: FtpService, dataVersionsService, tx });
+const memoryCache = new MemoryCache();
+const ftpFacade = new FtpFacade({
+    ftpService: FtpService,
+    dataVersionsService,
+    ftpMapper: FtpMapper,
+    memoryCache,
+    tx
+});
 const ftpController = new FtpController({ ftpFacade });
 const dataVersionsController = new DataVersionsController({ dataVersionsService });
 

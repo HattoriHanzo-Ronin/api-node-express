@@ -5,6 +5,7 @@ export default function createFtpRouter({ ftpController }) {
     const router = Router();
 
     router.get("/", asyncHandler(ftpController.dir));
+    router.get("/thumbnail/:name", asyncHandler(ftpController.getThumbnail));
 
     router.post("/mkdir", asyncHandler(ftpController.makeDir));
     router.post("/move", asyncHandler(ftpController.move));

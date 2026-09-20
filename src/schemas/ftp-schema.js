@@ -12,6 +12,10 @@ export default class FtpSchema {
         return z.object({ dir });
     }
 
+    static getThumbnailSchema() {
+        return z.object({ dir, name });
+    }
+
     static getMakeDirSchema() {
         return z.object({ dir, name });
     }
