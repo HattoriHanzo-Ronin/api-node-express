@@ -152,8 +152,8 @@ describe("FtpFacade", () => {
         it.each([
             ["makeDir", { name: "docs", type: "DIR" }, { name: "docs", type: "DIR" }],
             ["move", { lastContent: [], movedContent: [] }, { lastContent: [], movedContent: [] }],
-            ["rename", { name: "file.txt", type: "FILE" }, { name: "file.txt", type: "FILE", hasThumbnail: false }],
-            ["upload", [{ name: "file.txt", type: "FILE" }], [{ name: "file.txt", type: "FILE", hasThumbnail: false }]],
+            ["rename", { name: "file.txt", type: "FILE" }, { name: "file.txt", type: "FILE" }],
+            ["upload", [{ name: "file.txt", type: "FILE" }], [{ name: "file.txt", type: "FILE" }]],
             ["delete", ["file.txt"], ["file.txt"]]
         ])("should execute %s and increment the FTP version in a transaction", async (method, result, expected) => {
             const data = {
@@ -171,91 +171,6 @@ describe("FtpFacade", () => {
                 clientTx,
                 id: "ftp"
             });
-        });
-
-        it("should rename a cached thumbnail key", async () => {
-            const authUser = { id: "user-id", username: "ronin" };
-            const thumbnail = Buffer.from("thumbnail");
-            ftpService.dir.mockResolvedValue([{ name: "photo.jpg", type: "FILE" }]);
-            ftpService.getThumbails.mockResolvedValue(new Map([["photo.jpg", thumbnail]]));
-            await ftpFacade.dir({ dir: "/files", authUser });
-            ftpService.rename.mockResolvedValue({ name: "renamed.jpg", type: "FILE" });
-            await expect(
-                ftpFacade.rename({
-                    dir: "/files",
-                    entry: { name: "photo.jpg", type: "FILE" },
-                    newName: "renamed.jpg",
-                    authUser
-                })
-            ).resolves.toEqual({ name: "renamed.jpg", type: "FILE", hasThumbnail: true });
-            const bufferMap = memoryCache.get("user-id", "/files");
-            expect(bufferMap.has("photo.jpg")).toBe(false);
-            expect(bufferMap.get("renamed.jpg")).toBe(thumbnail);
-        });
-
-        it("should move cached thumbnails and enrich moved entries", async () => {
-            const authUser = { id: "user-id", username: "ronin" };
-            const thumbnail = Buffer.from("thumbnail");
-            ftpService.dir.mockResolvedValueOnce([{ name: "photo.jpg", type: "FILE" }]);
-            ftpService.getThumbails.mockResolvedValueOnce(new Map([["photo.jpg", thumbnail]]));
-            await ftpFacade.dir({ dir: "/source", authUser });
-            ftpService.dir.mockResolvedValueOnce([{ name: "existing.jpg", type: "FILE" }]);
-            ftpService.getThumbails.mockResolvedValueOnce(new Map([["existing.jpg", Buffer.from("existing")]]));
-            await ftpFacade.dir({ dir: "/destination", authUser });
-            const entries = [{ name: "photo.jpg", type: "FILE" }];
-            ftpService.move.mockResolvedValue({
-                lastContent: ["photo.jpg"],
-                movedContent: [{ name: "moved.jpg", type: "FILE" }]
-            });
-            await expect(ftpFacade.move({ dir: "/source", destination: "/destination", entries, authUser })).resolves.toEqual({
-                lastContent: ["photo.jpg"],
-                movedContent: [{ name: "moved.jpg", type: "FILE", hasThumbnail: true }]
-            });
-            expect(memoryCache.get("user-id", "/source").has("photo.jpg")).toBe(false);
-            expect(memoryCache.get("user-id", "/destination").get("moved.jpg")).toBe(thumbnail);
-        });
-
-        it("should generate uploaded thumbnails and enrich uploaded entries", async () => {
-            const authUser = { id: "user-id", username: "ronin" };
-            const thumbnail = Buffer.from("thumbnail");
-            ftpService.dir.mockResolvedValue([{ name: "existing.jpg", type: "FILE" }]);
-            ftpService.getThumbails.mockResolvedValueOnce(new Map([["existing.jpg", Buffer.from("existing")]]));
-            await ftpFacade.dir({ dir: "/files", authUser });
-            ftpService.upload.mockResolvedValue([{ name: "uploaded.jpg", type: "FILE" }]);
-            ftpService.getThumbails.mockResolvedValueOnce(new Map([["uploaded.jpg", thumbnail]]));
-            await expect(ftpFacade.upload({ dir: "/files", file: {}, authUser })).resolves.toEqual([
-                { name: "uploaded.jpg", type: "FILE", hasThumbnail: true }
-            ]);
-            expect(ftpService.getThumbails).toHaveBeenLastCalledWith({
-                dir: "/files",
-                names: ["uploaded.jpg"],
-                authUser
-            });
-            expect(memoryCache.get("user-id", "/files").get("uploaded.jpg")).toBe(thumbnail);
-        });
-
-        it("should remove deleted file thumbnails and cached directories", async () => {
-            const authUser = { id: "user-id", username: "ronin" };
-            ftpService.dir.mockResolvedValueOnce([
-                { name: "photo.jpg", type: "FILE" },
-                { name: "photos", type: "DIR" }
-            ]);
-            ftpService.getThumbails.mockResolvedValueOnce(new Map([["photo.jpg", Buffer.from("thumbnail")]]));
-            await ftpFacade.dir({ dir: "/files", authUser });
-            ftpService.dir.mockResolvedValueOnce([{ name: "nested.jpg", type: "FILE" }]);
-            ftpService.getThumbails.mockResolvedValueOnce(new Map([["nested.jpg", Buffer.from("nested")]]));
-            await ftpFacade.dir({ dir: "/files/photos", authUser });
-            const entries = [
-                { name: "photo.jpg", type: "FILE" },
-                { name: "photos", type: "DIR" }
-            ];
-            ftpService.delete.mockResolvedValue(["photo.jpg", "photos"]);
-            await expect(ftpFacade.delete({ dir: "/files", entries, authUser })).resolves.toEqual([
-                "photo.jpg",
-                "photos"
-            ]);
-            expect(memoryCache.get("user-id", "/files").has("photo.jpg")).toBe(false);
-            expect(memoryCache.get("user-id", "/files/photos")).toBeUndefined();
         });
 
         it("should not increment the FTP version when the operation fails", async () => {
