@@ -8,7 +8,7 @@
 
 @baseUrl = http://localhost:60004/data-versions
 @token = PASTE_ACCESS_TOKEN
-@resources = ftp,devices,whitelist,users
+@resources = devices,whitelist,users
 
 ############################################################
 # Get resource version
@@ -17,7 +17,6 @@
 # Status: 200
 # Response:
 # {
-#   "ftp": "1",
 #   "devices": "1",
 #   "whitelist": "1",
 #   "users": "1"

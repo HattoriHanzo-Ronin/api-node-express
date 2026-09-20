@@ -38,7 +38,7 @@
 # Status: 200
 #
 # Headers:
-# Data-Version: 1
+# Data-Version: <SHA-256 directory hash>
 #
 # Response:
 # [
@@ -102,12 +102,16 @@ Authorization: Bearer {{token}}
 #
 # Expected:
 # Status: 201
+# Headers:
+# Data-Version: <SHA-256 directory hash>
 #
 # Response:
-# {
-#   "name": "Test Folder",
-#   "type": "DIR"
-# }
+# [
+#   {
+#       "name": "Test Folder",
+#       "type": "DIR"
+#   }
+# ]
 ############################################################
 
 POST {{baseUrl}}/mkdir
@@ -125,6 +129,8 @@ Content-Type: application/json
 #
 # Expected:
 # Status: 201
+# Headers:
+# Data-Version: <SHA-256 directory hash>
 #
 # Response:
 # [
@@ -175,11 +181,11 @@ Content-Type: application/json
 #
 # Expected:
 # Status: 200
+# Headers:
+# Data-Version: <SHA-256 directory hash>
 #
 # Response:
-# [
-#   "test.txt"
-# ]
+# []
 ############################################################
 
 DELETE {{baseUrl}}

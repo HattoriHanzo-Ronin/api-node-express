@@ -14,38 +14,43 @@ export default class FtpController {
     dir = async (req, res) => {
         const { query, user: authUser } = req;
         const { dir } = validateData(query, getDirSchema());
-        const { version, data } = await this.ftpFacade.dir({ dir, authUser });
-        res.set("Data-Version", version).json(data);
+        const { hash, data } = await this.ftpFacade.dir({ dir, authUser });
+        res.set("Data-Version", hash).json(data);
     };
 
     getThumbnail = async (req, res) => {
         const { params, query, user: authUser } = req;
         const { dir, name } = validateData({ ...query, ...params }, getThumbnailSchema());
-        res.type("jpeg").send(await this.ftpFacade.getThumbnail({ dir, name, authUser }));
+        const thumbnail = await this.ftpFacade.getThumbnail({ dir, name, authUser });
+        res.type("jpeg").send(thumbnail);
     };
 
     makeDir = async (req, res) => {
         const { body, user: authUser } = req;
         const { dir, name } = validateData(body, getMakeDirSchema());
-        res.status(201).json(await this.ftpFacade.makeDir({ dir, name, authUser }));
+        const { hash, data } = await this.ftpFacade.makeDir({ dir, name, authUser });
+        res.set("Data-Version", hash).status(201).json(data);
     };
 
     move = async (req, res) => {
         const { body, user: authUser } = req;
         const { dir, entries, destination } = validateData(body, getMoveSchema());
-        res.json(await this.ftpFacade.move({ dir, entries, destination, authUser }));
+        const { hash, data } = await this.ftpFacade.move({ dir, entries, destination, authUser });
+        res.set("Data-Version", hash).json(data);
     };
 
     rename = async (req, res) => {
         const { body, user: authUser } = req;
         const { dir, entry, newName } = validateData(body, getRenameSchema());
-        res.json(await this.ftpFacade.rename({ dir, entry, newName, authUser }));
+        const { hash, data } = await this.ftpFacade.rename({ dir, entry, newName, authUser });
+        res.set("Data-Version", hash).json(data);
     };
 
     upload = async (req, res) => {
         const { body, file, user: authUser } = req;
         const { dir } = validateData(body, getUploadSchema());
-        res.status(201).json(await this.ftpFacade.upload({ dir, file, authUser }));
+        const { hash, data } = await this.ftpFacade.upload({ dir, file, authUser });
+        res.set("Data-Version", hash).status(201).json(data);
     };
 
     download = async (req, res) => {
@@ -57,7 +62,8 @@ export default class FtpController {
     delete = async (req, res) => {
         const { body, user: authUser } = req;
         const { dir, entries } = validateData(body, getDeleteSchema());
-        res.json(await this.ftpFacade.delete({ dir, entries, authUser }));
+        const { hash, data } = await this.ftpFacade.delete({ dir, entries, authUser });
+        res.set("Data-Version", hash).json(data);
     };
 }
 

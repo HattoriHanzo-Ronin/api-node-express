@@ -10,17 +10,17 @@ describe("DataVersionsController", () => {
     beforeEach(() => {
         dataVersionsService = { getById: vi.fn() };
         controller = new DataVersionsController({ dataVersionsService });
-        req = { query: { id: "ftp, devices" } };
+        req = { query: { id: "devices, users" } };
         res = { json: vi.fn() };
     });
 
     it("should get a data version by resource identifier", async () => {
-        const dataVersion = { ftp: "1", devices: "2" };
+        const dataVersion = { devices: "2", users: "4" };
         dataVersionsService.getById.mockResolvedValue(dataVersion);
 
         await controller.getById(req, res);
 
-        expect(dataVersionsService.getById).toHaveBeenCalledWith({ id: ["ftp", "devices"] });
+        expect(dataVersionsService.getById).toHaveBeenCalledWith({ id: ["devices", "users"] });
         expect(res.json).toHaveBeenCalledWith(dataVersion);
     });
 
@@ -42,14 +42,14 @@ describe("DataVersionsController", () => {
     });
 
     it("should fail when the resource identifier list is malformed", async () => {
-        req.query.id = "ftp,,users";
+        req.query.id = "devices,,users";
 
         await expect(controller.getById(req, res)).rejects.toThrow("Error al validar los datos");
         expect(dataVersionsService.getById).not.toHaveBeenCalled();
     });
 
     it("should fail when a resource identifier is unknown", async () => {
-        req.query.id = "ftp,unknown";
+        req.query.id = "devices,unknown";
 
         await expect(controller.getById(req, res)).rejects.toThrow("Error al validar los datos");
         expect(dataVersionsService.getById).not.toHaveBeenCalled();

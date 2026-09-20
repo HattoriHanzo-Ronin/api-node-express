@@ -26,16 +26,6 @@ export default class DataVersionsModel {
         return client.any("select id, version from data_versions where id in ($1:csv)", [ids]);
     }
 
-    /**
-     * Increments a data version
-     *
-     * @param {import("pg-promise").ITask<unknown>} params.clientTx PostgreSQL transaction client
-     * @param {string} params.id Resource identifier
-     * @returns {Promise<void>}
-     */
-    static async increment({ clientTx, id }) {
-        return clientTx.none("update data_versions set version = version + 1 where id = $1", [id]);
-    }
 }
 
 const { getClient } = PostgresClient;
