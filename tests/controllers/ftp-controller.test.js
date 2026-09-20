@@ -10,6 +10,7 @@ describe("FtpController", () => {
     beforeEach(() => {
         ftpFacade = {
             dir: vi.fn(),
+            getThumbnail: vi.fn(),
             makeDir: vi.fn(),
             move: vi.fn(),
             rename: vi.fn(),
@@ -18,8 +19,8 @@ describe("FtpController", () => {
             delete: vi.fn()
         };
         controller = new FtpController({ ftpFacade });
-        req = { params: {}, query: {}, body: {}, file: undefined, user: { username: "ronin" } };
-        res = { status: vi.fn().mockReturnThis(), set: vi.fn().mockReturnThis(), json: vi.fn(), download: vi.fn() };
+        req = { params: {}, query: {}, body: {}, file: undefined, user: { id: "user-id", username: "ronin" } };
+        res = { status: vi.fn().mockReturnThis(), set: vi.fn().mockReturnThis(), type: vi.fn().mockReturnThis(), json: vi.fn(), send: vi.fn(), download: vi.fn() };
     });
 
     describe("dir", () => {
@@ -41,6 +42,31 @@ describe("FtpController", () => {
         it("should fail when dir contains traversal", async () => {
             req.query.dir = "../secret";
             await expect(controller.dir(req, res)).rejects.toThrow("Error al validar los datos");
+        });
+    });
+
+    describe("getThumbnail", () => {
+        it("should return a cached JPEG thumbnail", async () => {
+            const thumbnail = Buffer.from("thumbnail");
+            req.params.name = "photo.jpg";
+            req.query.dir = "/files";
+            ftpFacade.getThumbnail.mockResolvedValue(thumbnail);
+            await controller.getThumbnail(req, res);
+            expect(ftpFacade.getThumbnail).toHaveBeenCalledWith({ dir: "/files", name: "photo.jpg", authUser: req.user });
+            expect(res.type).toHaveBeenCalledWith("jpeg");
+            expect(res.send).toHaveBeenCalledWith(thumbnail);
+        });
+
+        it("should fail when the file name is invalid", async () => {
+            req.params.name = "../photo.jpg";
+            req.query.dir = "/files";
+            await expect(controller.getThumbnail(req, res)).rejects.toThrow("Error al validar los datos");
+        });
+
+        it("should use root when dir is missing", async () => {
+            req.params.name = "photo.jpg";
+            await controller.getThumbnail(req, res);
+            expect(ftpFacade.getThumbnail).toHaveBeenCalledWith({ dir: ".", name: "photo.jpg", authUser: req.user });
         });
     });
 

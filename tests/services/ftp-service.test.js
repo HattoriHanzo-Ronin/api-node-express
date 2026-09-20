@@ -1,10 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import path from "path";
+import { tmpdir } from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import ffmpegPath from "ffmpeg-static";
 
 const authUser = { username: "ronin" };
 const { mockClient, mockCloseClient } = vi.hoisted(() => ({
     mockClient: {
         list: vi.fn(),
+        get: vi.fn(),
         mkdir: vi.fn(),
         rename: vi.fn(),
         put: vi.fn(),
@@ -41,6 +46,8 @@ import fs from "fs/promises";
 import FtpConnection from "../../src/config/ftp-connection.js";
 import FtpService from "../../src/services/ftp-service.js";
 
+const mediaFs = await vi.importActual("node:fs/promises");
+
 describe("FtpService", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -69,8 +76,8 @@ describe("FtpService", () => {
             expect(mockCloseClient).toHaveBeenCalledWith(mockClient);
         });
 
-        it("should use current directory when dir is null", async () => {
-            await FtpService.dir({ dir: null, authUser });
+        it("should use the directory normalized by the schema", async () => {
+            await FtpService.dir({ dir: ".", authUser });
             expect(mockClient.list).toHaveBeenCalledWith(".");
         });
 
@@ -78,6 +85,56 @@ describe("FtpService", () => {
             mockClient.list.mockRejectedValue(new Error("ftp down"));
             await expect(FtpService.dir({ dir: "/files", authUser })).rejects.toThrow("Error al listar la carpeta");
         });
+    });
+
+    describe("getThumbails", () => {
+        const executeFile = promisify(execFile);
+        let fixtureDir;
+        beforeAll(async () => {
+            fixtureDir = await mediaFs.mkdtemp(path.join(tmpdir(), "ftp-media-test-"));
+            await executeFile(ffmpegPath, ["-f", "lavfi", "-i", "color=c=red:s=640x360", "-frames:v", "1", path.join(fixtureDir, "photo.PNG")]);
+            await executeFile(ffmpegPath, ["-f", "lavfi", "-i", "testsrc2=s=360x640", "-t", "1", "-c:v", "mpeg4", path.join(fixtureDir, "video.mp4")]);
+        });
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+            mockClient.get.mockImplementation((remote) => mediaFs.readFile(path.join(fixtureDir, path.posix.basename(remote))));
+        });
+
+        afterAll(async () => {
+            await mediaFs.rm(fixtureDir, { recursive: true, force: true });
+        });
+
+        it("returns real JPEG thumbnails and continues after corrupt or unavailable files", async () => {
+            await mediaFs.writeFile(path.join(fixtureDir, "broken.jpg"), "invalid image");
+            const names = ["photo.PNG", "broken.jpg", "missing.mp4", "video.mp4", "notes.txt"];
+            const video = await mediaFs.readFile(path.join(fixtureDir, "video.mp4"));
+            expect(video.indexOf(Buffer.from("moov"))).toBeGreaterThan(32768);
+            const result = await FtpService.getThumbails({ dir: "/media", names, authUser });
+            expect(result).toBeInstanceOf(Map);
+            expect([...result.keys()]).toEqual(["photo.PNG", "broken.jpg", "missing.mp4", "video.mp4", "notes.txt"]);
+            expect(result.get("notes.txt")).toBeNull();
+            expect(result.get("broken.jpg")).toBeNull();
+            expect(result.get("missing.mp4")).toBeNull();
+            for (const name of ["photo.PNG", "video.mp4"]) {
+                const buffer = result.get(name);
+                expect(Buffer.isBuffer(buffer)).toBe(true);
+                expect(buffer.subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8]));
+                const output = path.join(fixtureDir, `${name}.jpg`);
+                await mediaFs.writeFile(output, buffer);
+                const { stderr } = await executeFile(ffmpegPath, ["-i", output, "-f", "null", "-"]);
+                expect(stderr).toContain(name === "photo.PNG" ? "320x180" : "180x320");
+            }
+            expect(mockCloseClient).toHaveBeenCalledWith(mockClient);
+        });
+
+        it("returns an empty map for a directory without media", async () => {
+            await expect(FtpService.getThumbails({ dir: ".", names: [], authUser })).resolves.toEqual(new Map());
+            expect(mockClient.list).not.toHaveBeenCalled();
+            expect(mockClient.get).not.toHaveBeenCalled();
+            expect(mockCloseClient).not.toHaveBeenCalled();
+        });
+
     });
 
     describe("makeDir", () => {

@@ -23,11 +23,13 @@
 # - dir defaults to "." when it is not provided.
 # - Resource entries must include name and type.
 # - Allowed entry types are DIR and FILE.
+# - FILE responses include hasThumbnail.
 
 @baseUrl = http://localhost:60004/ftp
 @token = PASTE_ACCESS_TOKEN
 @folderName = Test Folder
 @fileName = test.txt
+@thumbnailName = photo.jpg
 
 ############################################################
 # List directory
@@ -46,12 +48,51 @@
 #   },
 #   {
 #       "name": "test.txt",
-#       "type": "FILE"
+#       "type": "FILE",
+#       "hasThumbnail": false
 #   }
 # ]
 ############################################################
 
 GET {{baseUrl}}
+Authorization: Bearer {{token}}
+
+###
+
+############################################################
+# Get thumbnail
+#
+# Prerequisite:
+# - List the directory first.
+# - Ensure photo.jpg exists and hasThumbnail is true.
+#
+# Expected:
+# Status: 200
+# Content-Type: image/jpeg
+#
+# Response:
+# JPEG image
+############################################################
+
+GET {{baseUrl}}/thumbnail/{{thumbnailName}}?dir=.
+Authorization: Bearer {{token}}
+
+###
+
+############################################################
+# ApiError - Thumbnail not available
+#
+# Expected:
+# Status: 404
+#
+# Response:
+# {
+#   "code": "FTP_THUMBNAIL_NOT_FOUND",
+#   "message": "La miniatura no existe"
+# }
+############################################################
+
+GET {{baseUrl}}/thumbnail/{{fileName}}?dir=.
 Authorization: Bearer {{token}}
 
 ###
@@ -89,7 +130,8 @@ Content-Type: application/json
 # [
 #   {
 #       "name": "test.txt",
-#       "type": "FILE"
+#       "type": "FILE",
+#       "hasThumbnail": false
 #   }
 # ]
 ############################################################
@@ -136,10 +178,7 @@ Content-Type: application/json
 #
 # Response:
 # [
-#   {
-#       "name": "test.txt",
-#       "type": "FILE"
-#   }
+#   "test.txt"
 # ]
 ############################################################
 

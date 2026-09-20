@@ -1,16 +1,13 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { createServer } from "node:http";
+import ffmpegPath from "ffmpeg-static";
 import fs from "fs/promises";
 import AdmZip from "adm-zip";
 import path from "path";
 import ValidateUtils from "../utils/validate-utils.js";
 import FtpConnection from "../config/ftp-connection.js";
 import { API_ERROR, FILE_TYPE } from "../config/constants.js";
-
-const { dir: dirType, file: fileType } = FILE_TYPE;
-
-/**
- * @typedef {{ name: string, type: "FILE" | "DIR" }} FtpEntry
- * @typedef {{ lastContent: string[], movedContent: FtpEntry[] }} FtpMoveResult
- */
 
 /**
  * FTP service
@@ -21,15 +18,15 @@ export default class FtpService {
     /**
      * Returns FTP directory content
      *
-     * @param {string | null} params.dir FTP directory path
+     * @param {string} params.dir FTP directory path
      * @param {{ username: string }} params.authUser Authenticated user
-     * @returns {Promise<FtpEntry[]>} Directory resources
+     * @returns {Promise<Object[]>} Directory resources
      */
     static async dir({ dir, authUser }) {
         let client;
         try {
             client = await getClient(authUser.username);
-            const list = await client.list(dir ?? ".");
+            const list = await client.list(dir);
             return list.map(({ name, type }) => ({ name, type: type === "d" ? dirType : fileType }));
         } catch (err) {
             ftpError("Error al listar la carpeta", ftpDirFailed);
@@ -39,12 +36,48 @@ export default class FtpService {
     }
 
     /**
+     * Returns image and video thumbnails from a FTP directory
+     *
+     * @param {string} params.dir FTP directory path
+     * @param {string[]} params.names File names
+     * @param {Object} params.authUser Authenticated user
+     * @returns {Promise<Map<string, Buffer | null>>} JPEG thumbnails by file name, or null when processing fails
+     */
+    static async getThumbails({ dir, names, authUser }) {
+        const thumbnails = new Map();
+        if (!names.length) {
+            return thumbnails;
+        }
+
+        let client;
+        try {
+            client = await getClient(authUser.username);
+            for (const name of names) {
+                if (!MEDIA_EXTENSION.test(path.extname(name))) {
+                    thumbnails.set(name, null);
+                    continue;
+                }
+
+                try {
+                    const buffer = await client.get(path.posix.join(dir, name));
+                    thumbnails.set(name, await createThumbnail(buffer));
+                } catch (err) {
+                    thumbnails.set(name, null);
+                }
+            }
+            return thumbnails;
+        } finally {
+            await closeClient(client);
+        }
+    }
+
+    /**
      * Creates a FTP directory
      *
-     * @param {string | null} params.dir FTP directory path
+     * @param {string} params.dir FTP directory path
      * @param {string} params.name Directory name
      * @param {{ username: string }} params.authUser Authenticated user
-     * @returns {Promise<FtpEntry>} Created directory
+     * @returns {Promise<Object>} Created directory
      */
     static async makeDir({ dir, name, authUser }) {
         let client;
@@ -65,10 +98,10 @@ export default class FtpService {
      * Moves FTP resources
      *
      * @param {string} params.dir Source FTP directory path
-     * @param {FtpEntry[]} params.entries Resources to move
+     * @param {Object[]} params.entries Resources to move
      * @param {string} params.destination Destination FTP directory path
      * @param {{ username: string }} params.authUser Authenticated user
-     * @returns {Promise<FtpMoveResult>} Moved resources
+     * @returns {Promise<{ lastContent: string[], movedContent: Object[] }>} Moved resources
      */
     static async move({ dir, entries, destination, authUser }) {
         let client;
@@ -94,10 +127,10 @@ export default class FtpService {
      * Renames a FTP resource
      *
      * @param {string} params.dir FTP directory path
-     * @param {FtpEntry} params.entry Resource to rename
+     * @param {Object} params.entry Resource to rename
      * @param {string} params.newName New resource name
      * @param {{ username: string }} params.authUser Authenticated user
-     * @returns {Promise<FtpEntry>} Renamed resource
+     * @returns {Promise<Object>} Renamed resource
      */
     static async rename({ dir, entry, newName, authUser }) {
         let client;
@@ -117,10 +150,10 @@ export default class FtpService {
     /**
      * Creates FTP resources from an uploaded file
      *
-     * @param {string | null} params.dir FTP directory path
+     * @param {string} params.dir FTP directory path
      * @param {{ originalname: string, mimetype: string, buffer: Buffer }} params.file Uploaded file
      * @param {{ username: string }} params.authUser Authenticated user
-     * @returns {Promise<FtpEntry[]>} Uploaded resources
+     * @returns {Promise<Object[]>} Uploaded resources
      */
     static async upload({ dir, file, authUser }) {
         handleApiErrors([
@@ -178,8 +211,8 @@ export default class FtpService {
     /**
      * Downloads FTP resources
      *
-     * @param {string | null} params.dir FTP directory path
-     * @param {FtpEntry[]} params.entries Resources to download
+     * @param {string} params.dir FTP directory path
+     * @param {Object[]} params.entries Resources to download
      * @param {{ username: string }} params.authUser Authenticated user
      * @returns {Promise<string>} the generated local file path
      */
@@ -235,7 +268,7 @@ export default class FtpService {
      * Deletes FTP resources
      *
      * @param {string} params.dir FTP directory path
-     * @param {FtpEntry[]} params.entries Resources to delete
+     * @param {Object[]} params.entries Resources to delete
      * @param {{ username: string }} params.authUser Authenticated user
      * @returns {Promise<string[]>} Deleted resource names
      */
@@ -260,6 +293,9 @@ export default class FtpService {
     }
 }
 
+const executeFile = promisify(execFile);
+const MEDIA_EXTENSION = /\.(jpe?g|png|webp|gif|bmp|tiff?|avif|heic|heif|mp4|m4v|mov|mkv|webm|avi|mpeg|mpg|wmv|flv|3gp|mts|m2ts|ogv)$/i;
+const { dir: dirType, file: fileType } = FILE_TYPE;
 const { getClient, closeClient } = FtpConnection;
 const { handleApiErrors } = ValidateUtils;
 const {
@@ -272,6 +308,56 @@ const {
     ftpDeleteFailed,
     ftpFileRequired
 } = API_ERROR;
+
+/**
+ * Creates a JPEG thumbnail using seekable access to an in-memory media buffer
+ *
+ * @param {Buffer} buffer Media content
+ * @returns {Promise<Buffer | null>} JPEG thumbnail
+ */
+async function createThumbnail(buffer) {
+    if (!buffer.length) {
+        return null;
+    }
+
+    const server = createServer((request, response) => {
+        const range = request.headers.range?.match(/^bytes=(\d+)-(\d*)$/);
+        const start = range ? Number(range[1]) : 0;
+        const end = range?.[2] ? Math.min(Number(range[2]), buffer.length - 1) : buffer.length - 1;
+        if (start > end || start >= buffer.length) {
+            response.writeHead(416, { "Content-Range": `bytes */${buffer.length}` });
+            response.end();
+            return;
+        }
+
+        const headers = { "Accept-Ranges": "bytes", "Content-Length": end - start + 1 };
+        if (range) {
+            headers["Content-Range"] = `bytes ${start}-${end}/${buffer.length}`;
+        }
+
+        response.writeHead(range ? 206 : 200, headers);
+        response.end(buffer.subarray(start, end + 1));
+    });
+    try {
+        await new Promise((resolve, reject) => {
+            server.once("error", reject);
+            server.listen(0, "127.0.0.1", resolve);
+        });
+        const { stdout } = await executeFile(ffmpegPath, [
+            "-nostdin", "-loglevel", "error", "-http_proxy", "",
+            "-i", `http://127.0.0.1:${server.address().port}/media`,
+            "-map", "0:v:0", "-frames:v", "1",
+            "-vf", "scale=320:320:force_original_aspect_ratio=decrease",
+            "-c:v", "mjpeg", "-f", "image2pipe", "pipe:1"
+        ], { encoding: "buffer", timeout: 30000, maxBuffer: 5 * 1024 * 1024 });
+        return stdout.length ? stdout : null;
+    } finally {
+        await new Promise((resolve) => {
+            server.close(resolve);
+            server.closeAllConnections();
+        });
+    }
+}
 
 /**
  * Generates an available resource name

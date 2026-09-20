@@ -18,6 +18,12 @@ export default class FtpController {
         res.set("Data-Version", version).json(data);
     };
 
+    getThumbnail = async (req, res) => {
+        const { params, query, user: authUser } = req;
+        const { dir, name } = validateData({ ...query, ...params }, getThumbnailSchema());
+        res.type("jpeg").send(await this.ftpFacade.getThumbnail({ dir, name, authUser }));
+    };
+
     makeDir = async (req, res) => {
         const { body, user: authUser } = req;
         const { dir, name } = validateData(body, getMakeDirSchema());
@@ -57,6 +63,7 @@ export default class FtpController {
 
 const {
     getDeleteSchema,
+    getThumbnailSchema,
     getDirSchema,
     getMoveSchema,
     getRenameSchema,
