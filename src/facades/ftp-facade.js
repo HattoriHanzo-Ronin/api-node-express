@@ -1,3 +1,5 @@
+import path from "node:path";
+import { createHash } from "node:crypto";
 import { API_ERROR, FILE_TYPE } from "../config/constants.js";
 import ValidateUtils from "../utils/validate-utils.js";
 
@@ -7,11 +9,12 @@ import ValidateUtils from "../utils/validate-utils.js";
  * @author HattoriHanzo-Ronin
  */
 export default class FtpFacade {
-    constructor({ ftpService, dataVersionsService, ftpMapper, memoryCache, tx }) {
+    constructor({ ftpService, dataVersionsService, ftpMapper, memoryCache, directoryCache, tx }) {
         this.ftpService = ftpService;
         this.dataVersionsService = dataVersionsService;
         this.ftpMapper = ftpMapper;
         this.memoryCache = memoryCache;
+        this.directoryCache = directoryCache;
         this.tx = tx;
     }
 
@@ -29,6 +32,7 @@ export default class FtpFacade {
         ]);
         const names = result.filter(({ type }) => type === FILE_TYPE.file).map(({ name }) => name);
         const bufferMap = await this.#syncThumbnails({ dir, names, authUser });
+        await this.#watchDirectory({ dir, authUser, entries: result });
         return { version, data: this.ftpMapper.entriesToDomain({ entries: result, bufferMap }) };
     }
 
@@ -63,40 +67,66 @@ export default class FtpFacade {
      * Creates a FTP directory and increments its data version
      *
      * @param {Object} data FTP directory data
-     * @returns {Promise<Object>} Created directory
+     * @returns {Promise<{ version: string, data: Object[] }>} Updated directory resources
      */
     async makeDir(data) {
-        return this.#mutate(() => this.ftpService.makeDir(data));
+        await this.#mutate(() => this.ftpService.makeDir(data));
+        return this.dir({ dir: data.dir, authUser: data.authUser });
     }
 
     /**
      * Moves FTP resources and increments their data version
      *
      * @param {Object} data FTP move data
-     * @returns {Promise<Object>} Moved resources
+     * @returns {Promise<{ version: string, data: Object[] }>} Destination directory resources
      */
     async move(data) {
-        return this.#mutate(() => this.ftpService.move(data));
+        const result = await this.#mutate(() => this.ftpService.move(data));
+        const { dir, destination, entries, authUser } = data;
+        for (const [index, entry] of entries.entries()) {
+            if (entry.type === FILE_TYPE.dir) {
+                await this.#moveCachedDirectory(
+                    authUser.id,
+                    path.posix.join(dir, entry.name),
+                    path.posix.join(destination, result.movedContent[index].name)
+                );
+            }
+        }
+
+        this.memoryCache.delete(authUser.id, dir);
+        this.directoryCache.delete(authUser.id, dir);
+        return this.dir({ dir: destination, authUser });
     }
 
     /**
      * Renames a FTP resource and increments its data version
      *
      * @param {Object} data FTP rename data
-     * @returns {Promise<Object>} Renamed resource
+     * @returns {Promise<{ version: string, data: Object[] }>} Updated directory resources
      */
     async rename(data) {
-        return this.#mutate(() => this.ftpService.rename(data));
+        const result = await this.#mutate(() => this.ftpService.rename(data));
+        const { dir, entry, authUser } = data;
+        if (entry.type === FILE_TYPE.dir) {
+            await this.#moveCachedDirectory(
+                authUser.id,
+                path.posix.join(dir, entry.name),
+                path.posix.join(dir, result.name)
+            );
+        }
+
+        return this.dir({ dir, authUser });
     }
 
     /**
      * Uploads FTP resources and increments their data version
      *
      * @param {Object} data FTP upload data
-     * @returns {Promise<Object[]>} Uploaded resources
+     * @returns {Promise<{ version: string, data: Object[] }>} Updated directory resources
      */
     async upload(data) {
-        return this.#mutate(() => this.ftpService.upload(data));
+        await this.#mutate(() => this.ftpService.upload(data));
+        return this.dir({ dir: data.dir, authUser: data.authUser });
     }
 
     /**
@@ -113,10 +143,20 @@ export default class FtpFacade {
      * Deletes FTP resources and increments their data version
      *
      * @param {Object} data FTP delete data
-     * @returns {Promise<string[]>} Deleted resource names
+     * @returns {Promise<{ version: string, data: Object[] }>} Updated directory resources
      */
     async delete(data) {
-        return this.#mutate(() => this.ftpService.delete(data));
+        await this.#mutate(() => this.ftpService.delete(data));
+        const { dir, entries, authUser } = data;
+        for (const entry of entries) {
+            if (entry.type === FILE_TYPE.dir) {
+                const key = path.posix.join(dir, entry.name);
+                this.memoryCache.delete(authUser.id, key);
+                this.directoryCache.delete(authUser.id, key);
+            }
+        }
+
+        return this.dir({ dir, authUser });
     }
 
     /**
@@ -155,6 +195,60 @@ export default class FtpFacade {
         return bufferMap;
     }
 
+    /**
+     * Caches and watches a directory version
+     *
+     * @param {string} params.dir Directory path
+     * @param {Object} params.authUser Authenticated user
+     * @param {Object[]} [params.entries] Directory entries to hash
+     * @param {string} [params.hash] Previously calculated directory hash
+     */
+    async #watchDirectory({ dir, authUser, entries, hash }) {
+        const ownerId = authUser.id;
+        const watching = this.directoryCache.has(ownerId, dir);
+        this.directoryCache.set(ownerId, dir, { username: authUser.username, hash: hash ?? hashDirectory(entries) });
+        if (!watching) {
+            setTimeout(() => this.#checkDirectory(ownerId, dir), directoryCheckTimeout);
+        }
+    }
+
+    async #checkDirectory(ownerId, dir) {
+        const cachedDirectory = this.directoryCache.get(ownerId, dir);
+        if (!cachedDirectory) {
+            return;
+        }
+
+        try {
+            const entries = await this.ftpService.dir({ dir, authUser: { username: cachedDirectory.username } });
+            const hash = hashDirectory(entries);
+            if (hash !== cachedDirectory.hash) {
+                this.directoryCache.set(ownerId, dir, { ...cachedDirectory, hash });
+            }
+        } catch {}
+
+        if (this.directoryCache.has(ownerId, dir)) {
+            setTimeout(() => this.#checkDirectory(ownerId, dir), directoryCheckTimeout);
+        }
+    }
+
+    async #moveCachedDirectory(ownerId, sourceKey, destinationKey) {
+        const bufferMap = this.memoryCache.get(ownerId, sourceKey);
+        const directory = this.directoryCache.get(ownerId, sourceKey);
+        this.memoryCache.delete(ownerId, sourceKey);
+        this.directoryCache.delete(ownerId, sourceKey);
+        if (bufferMap !== undefined) {
+            this.memoryCache.set(ownerId, destinationKey, bufferMap);
+        }
+
+        if (directory !== undefined) {
+            await this.#watchDirectory({
+                dir: destinationKey,
+                authUser: { id: ownerId, username: directory.username },
+                hash: directory.hash
+            });
+        }
+    }
+
     async #mutate(callback) {
         return this.tx(async (clientTx) => {
             const result = await callback();
@@ -169,3 +263,13 @@ export default class FtpFacade {
 
 const { handleApiErrors } = ValidateUtils;
 const { ftpThumbnailNotFound } = API_ERROR;
+const hashAlgorithm = "sha256";
+const directoryCheckTimeout = 5000;
+
+function hashDirectory(entries) {
+    const source = entries
+        .map(({ name, size, modifiedAt, type }) => `${name}:${size}:${modifiedAt}:${type}`)
+        .sort()
+        .join("|");
+    return createHash(hashAlgorithm).update(source).digest("hex");
+}

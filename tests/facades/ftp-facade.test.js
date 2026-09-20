@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MemoryCache from "../../src/cache/memory-cache.js";
+import DirectoryCache from "../../src/cache/directory-cache.js";
 import FtpFacade from "../../src/facades/ftp-facade.js";
 import FtpMapper from "../../src/mappers/ftp-mapper.js";
 
@@ -7,6 +8,7 @@ describe("FtpFacade", () => {
     let ftpService;
     let dataVersionsService;
     let memoryCache;
+    let directoryCache;
     let tx;
     let ftpFacade;
     const clientTx = {};
@@ -28,13 +30,16 @@ describe("FtpFacade", () => {
             increment: vi.fn()
         };
         tx = vi.fn(async (callback) => callback(clientTx));
+        ftpService.dir.mockResolvedValue([]);
         ftpService.getThumbails.mockResolvedValue(new Map());
         memoryCache = new MemoryCache();
+        directoryCache = new DirectoryCache();
         ftpFacade = new FtpFacade({
             ftpService,
             dataVersionsService,
             ftpMapper: FtpMapper,
             memoryCache,
+            directoryCache,
             tx
         });
     });
@@ -66,6 +71,28 @@ describe("FtpFacade", () => {
             await expect(ftpFacade.getThumbnail({ dir: data.dir, name: "photo.jpg", authUser: data.authUser })).resolves.toEqual(Buffer.from("thumbnail"));
             expect(dataVersionsService.getById).toHaveBeenCalledWith({ id: "ftp" });
             expect(tx).not.toHaveBeenCalled();
+        });
+
+        it("should update the directory hash every five seconds without exposing its metadata", async () => {
+            const data = { dir: "/files", authUser: { id: "user-id", username: "ronin" } };
+            ftpService.dir
+                .mockResolvedValueOnce([
+                    { name: "photo.jpg", type: "FILE", size: 100, modifiedAt: "2026-09-20T10:00:00.000Z" }
+                ])
+                .mockResolvedValueOnce([
+                    { name: "photo.jpg", type: "FILE", size: 200, modifiedAt: "2026-09-20T10:01:00.000Z" }
+                ]);
+            await expect(ftpFacade.dir(data)).resolves.toEqual({
+                version: "5",
+                data: [{ name: "photo.jpg", type: "FILE", hasThumbnail: false }]
+            });
+            const initialHash = directoryCache.get("user-id", "/files").hash;
+            await vi.advanceTimersByTimeAsync(5000);
+            expect(ftpService.dir).toHaveBeenCalledTimes(2);
+            expect(directoryCache.get("user-id", "/files")).toEqual({
+                username: "ronin",
+                hash: expect.not.stringMatching(initialHash)
+            });
         });
 
         it("should synchronize cached thumbnails with external directory changes", async () => {
@@ -150,12 +177,12 @@ describe("FtpFacade", () => {
 
     describe("write operations", () => {
         it.each([
-            ["makeDir", { name: "docs", type: "DIR" }, { name: "docs", type: "DIR" }],
-            ["move", { lastContent: [], movedContent: [] }, { lastContent: [], movedContent: [] }],
-            ["rename", { name: "file.txt", type: "FILE" }, { name: "file.txt", type: "FILE" }],
-            ["upload", [{ name: "file.txt", type: "FILE" }], [{ name: "file.txt", type: "FILE" }]],
-            ["delete", ["file.txt"], ["file.txt"]]
-        ])("should execute %s and increment the FTP version in a transaction", async (method, result, expected) => {
+            ["makeDir", { name: "docs", type: "DIR" }, "/files"],
+            ["move", { lastContent: [], movedContent: [] }, "/destination"],
+            ["rename", { name: "file.txt", type: "FILE" }, "/files"],
+            ["upload", [{ name: "file.txt", type: "FILE" }], "/files"],
+            ["delete", ["file.txt"], "/files"]
+        ])("should execute %s and return its synchronized directory", async (method, result, expectedDir) => {
             const data = {
                 dir: "/files",
                 destination: "/destination",
@@ -164,13 +191,70 @@ describe("FtpFacade", () => {
                 authUser: { id: "user-id", username: "ronin" }
             };
             ftpService[method].mockResolvedValue(result);
-            await expect(ftpFacade[method](data)).resolves.toEqual(expected);
+            await expect(ftpFacade[method](data)).resolves.toEqual({ version: "5", data: [] });
             expect(ftpService[method]).toHaveBeenCalledWith(data);
+            expect(ftpService.dir).toHaveBeenCalledWith({ dir: expectedDir, authUser: data.authUser });
             expect(tx).toHaveBeenCalledOnce();
             expect(dataVersionsService.increment).toHaveBeenCalledWith({
                 clientTx,
                 id: "ftp"
             });
+        });
+
+        it("should delete moved folder caches and return the destination directory", async () => {
+            const authUser = { id: "user-id", username: "ronin" };
+            const thumbnail = new Map([["photo.jpg", Buffer.from("thumbnail")]]);
+            const directory = { username: "ronin", hash: "hash" };
+            memoryCache.set("user-id", "/source/photos", thumbnail);
+            directoryCache.set("user-id", "/source/photos", directory);
+            const entries = [{ name: "photos", type: "DIR" }];
+            ftpService.move.mockResolvedValue({
+                lastContent: ["photos"],
+                movedContent: [{ name: "moved-photos", type: "DIR" }]
+            });
+            ftpService.dir.mockResolvedValue([{ name: "moved-photos", type: "DIR" }]);
+            await expect(
+                ftpFacade.move({ dir: "/source", destination: "/destination", entries, authUser })
+            ).resolves.toEqual({ version: "5", data: [{ name: "moved-photos", type: "DIR" }] });
+            expect(memoryCache.get("user-id", "/source/photos")).toBeUndefined();
+            expect(memoryCache.get("user-id", "/destination/moved-photos")).toBe(thumbnail);
+            expect(directoryCache.has("user-id", "/source/photos")).toBe(false);
+            expect(directoryCache.get("user-id", "/destination/moved-photos")).toEqual(directory);
+        });
+
+        it("should delete renamed folder caches", async () => {
+            const authUser = { id: "user-id", username: "ronin" };
+            const directory = { username: "ronin", hash: "hash" };
+            const bufferMap = new Map();
+            memoryCache.set("user-id", "/files/photos", bufferMap);
+            directoryCache.set("user-id", "/files/photos", directory);
+            ftpService.rename.mockResolvedValue({ name: "renamed", type: "DIR" });
+            ftpService.dir.mockResolvedValue([{ name: "renamed", type: "DIR" }]);
+            await ftpFacade.rename({
+                dir: "/files",
+                entry: { name: "photos", type: "DIR" },
+                newName: "renamed",
+                authUser
+            });
+            expect(memoryCache.has("user-id", "/files/photos")).toBe(false);
+            expect(memoryCache.get("user-id", "/files/renamed")).toBe(bufferMap);
+            expect(directoryCache.has("user-id", "/files/photos")).toBe(false);
+            expect(directoryCache.get("user-id", "/files/renamed")).toEqual(directory);
+        });
+
+        it("should delete cached folder paths and return the current directory", async () => {
+            const authUser = { id: "user-id", username: "ronin" };
+            const directory = { username: "ronin", hash: "hash" };
+            memoryCache.set("user-id", "/files/photos", new Map());
+            directoryCache.set("user-id", "/files/photos", directory);
+            ftpService.delete.mockResolvedValue(["photos"]);
+            const entries = [{ name: "photos", type: "DIR" }];
+            await expect(ftpFacade.delete({ dir: "/files", entries, authUser })).resolves.toEqual({
+                version: "5",
+                data: []
+            });
+            expect(memoryCache.has("user-id", "/files/photos")).toBe(false);
+            expect(directoryCache.has("user-id", "/files/photos")).toBe(false);
         });
 
         it("should not increment the FTP version when the operation fails", async () => {

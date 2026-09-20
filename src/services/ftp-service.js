@@ -27,7 +27,12 @@ export default class FtpService {
         try {
             client = await getClient(authUser.username);
             const list = await client.list(dir);
-            return list.map(({ name, type }) => ({ name, type: type === "d" ? dirType : fileType }));
+            return list.map(({ name, type, size, modifiedAt }) => ({
+                name,
+                type: type === "d" ? dirType : fileType,
+                size,
+                modifiedAt
+            }));
         } catch (err) {
             ftpError("Error al listar la carpeta", ftpDirFailed);
         } finally {

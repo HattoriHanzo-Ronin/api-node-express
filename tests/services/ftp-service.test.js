@@ -63,13 +63,14 @@ describe("FtpService", () => {
 
     describe("dir", () => {
         it("should list ftp resources", async () => {
+            const modifiedAt = new Date("2026-09-20T10:00:00.000Z");
             mockClient.list.mockResolvedValue([
-                { name: "docs", type: "d" },
-                { name: "file.txt", type: "-" }
+                { name: "docs", type: "d", size: 0, modifiedAt },
+                { name: "file.txt", type: "-", size: 128, modifiedAt }
             ]);
             await expect(FtpService.dir({ dir: "/files", authUser })).resolves.toEqual([
-                { name: "docs", type: "DIR" },
-                { name: "file.txt", type: "FILE" }
+                { name: "docs", type: "DIR", size: 0, modifiedAt },
+                { name: "file.txt", type: "FILE", size: 128, modifiedAt }
             ]);
             expect(FtpConnection.getClient).toHaveBeenCalledWith(authUser.username);
             expect(mockClient.list).toHaveBeenCalledWith("/files");
