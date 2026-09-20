@@ -13,8 +13,9 @@ export default class FtpMapper {
      * @returns {Object} Domain FTP entry
      */
     static entryToDomain(source) {
-        const { thumbnail, ...entry } = source;
-        return entry.type === FILE_TYPE.file ? { ...entry, hasThumbnail: thumbnail !== null && thumbnail !== undefined } : entry;
+        const { name, type, thumbnail } = source;
+        const entry = { name, type };
+        return type === FILE_TYPE.file ? { ...entry, hasThumbnail: thumbnail !== null && thumbnail !== undefined } : entry;
     }
 
     /**

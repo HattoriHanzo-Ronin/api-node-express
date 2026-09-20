@@ -7,6 +7,7 @@ import FtpService from "./services/ftp-service.js";
 import FtpMapper from "./mappers/ftp-mapper.js";
 import FtpFacade from "./facades/ftp-facade.js";
 import MemoryCache from "./cache/memory-cache.js";
+import DirectoryCache from "./cache/directory-cache.js";
 import DataVersionsModel from "./models/postgres/data-versions-model.js";
 import DataVersionsService from "./services/data-versions-service.js";
 import DataVersionsController from "./controllers/data-versions-controller.js";
@@ -39,11 +40,13 @@ const tx = PostgresClient.executeTx;
 
 const dataVersionsService = new DataVersionsService({ dataVersionsModel: DataVersionsModel });
 const memoryCache = new MemoryCache();
+const directoryCache = new DirectoryCache();
 const ftpFacade = new FtpFacade({
     ftpService: FtpService,
     dataVersionsService,
     ftpMapper: FtpMapper,
     memoryCache,
+    directoryCache,
     tx
 });
 const ftpController = new FtpController({ ftpFacade });
