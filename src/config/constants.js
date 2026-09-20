@@ -26,6 +26,11 @@ const SECRETS = Object.freeze({
     }
 });
 const FILE_TYPE = Object.freeze({ dir: "DIR", file: "FILE" });
+const CACHE = Object.freeze({
+    maxSize: 2 * 1024 ** 3,
+    maxSizePerUser: 400 * 1024 ** 2,
+    inactivityTimeout: 5 * 60 * 1000
+});
 const CONNECTION_CTYPE = Object.freeze({ wan: "WAN", lan: "LAN", wifi: "WIFI" });
 const DEVICE_TYPE = Object.freeze({ client: "CLIENT", router: "ROUTER", server: "SERVER" });
 const USER_ROLE = Object.freeze({ admin: "ADMIN", ftp: "FTP", net: "NET" });
@@ -118,4 +123,4 @@ function deepFreeze(object) {
     return Object.freeze(object);
 }
 
-export { ENV, SECRETS, FILE_TYPE, DEVICE_TYPE, USER_ROLE, DATA_VERSION, VALIDATION, POSTGRES_ERROR, API_ERROR, JWT };
+export { ENV, SECRETS, FILE_TYPE, CACHE, DEVICE_TYPE, USER_ROLE, DATA_VERSION, VALIDATION, POSTGRES_ERROR, API_ERROR, JWT };
