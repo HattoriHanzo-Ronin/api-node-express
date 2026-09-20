@@ -24,14 +24,10 @@ export default class MemoryCache {
             this.#cache.set(ownerId, entry);
         }
 
-        if (this.#cache.size > 1) {
-            this.#cache.delete(ownerId);
-            this.#cache.set(ownerId, entry);
-        }
+        this.#refreshOwner(ownerId, entry);
 
-        const previousValue = entry.values.get(key);
-        if (previousValue !== undefined) {
-            const previousSize = getValueSize(previousValue);
+        if (this.has(ownerId, key)) {
+            const previousSize = getValueSize(entry.values.get(key));
             entry.size -= previousSize;
             this.#size -= previousSize;
             entry.values.delete(key);
@@ -53,16 +49,18 @@ export default class MemoryCache {
      * @returns {Map<string, Buffer | null> | undefined} Cached value
      */
     get(ownerId, key) {
-        const entry = this.#cache.get(ownerId);
-        if (!entry?.values.has(key)) {
+        if (!this.has(ownerId, key)) {
             return undefined;
         }
 
-        this.#cache.delete(ownerId);
-        this.#cache.set(ownerId, entry);
+        const entry = this.#cache.get(ownerId);
+        this.#refreshOwner(ownerId, entry);
         const value = entry.values.get(key);
-        entry.values.delete(key);
-        entry.values.set(key, value);
+        if (entry.values.size > 1) {
+            entry.values.delete(key);
+            entry.values.set(key, value);
+        }
+
         this.#clear(ownerId);
         return value;
     }
@@ -85,18 +83,25 @@ export default class MemoryCache {
      * @param {string} key Cache entry key
      */
     delete(ownerId, key) {
-        const entry = this.#cache.get(ownerId);
-        const value = entry?.values.get(key);
-        if (!entry || value === undefined) {
+        if (!this.has(ownerId, key)) {
             return;
         }
 
+        const entry = this.#cache.get(ownerId);
+        const value = entry.values.get(key);
         const size = getValueSize(value);
         entry.size -= size;
         this.#size -= size;
         entry.values.delete(key);
         if (!entry.values.size) {
             this.#deleteOwner(ownerId);
+        }
+    }
+
+    #refreshOwner(ownerId, entry) {
+        if (this.#cache.size > 1) {
+            this.#cache.delete(ownerId);
+            this.#cache.set(ownerId, entry);
         }
     }
 
