@@ -66,10 +66,10 @@ describe("FtpFacade", () => {
             const data = { dir: "/files", authUser: { id: "user-id", username: "ronin" } };
             ftpService.dir
                 .mockResolvedValueOnce([
-                    { name: "photo.jpg", type: "FILE", size: 100, modifiedAt: "2026-09-20T10:00:00.000Z" }
+                    { name: "photo.jpg", type: "FILE", size: 100, modifyTime: "2026-09-20T10:00:00.000Z" }
                 ])
                 .mockResolvedValueOnce([
-                    { name: "photo.jpg", type: "FILE", size: 200, modifiedAt: "2026-09-20T10:01:00.000Z" }
+                    { name: "photo.jpg", type: "FILE", size: 200, modifyTime: "2026-09-20T10:01:00.000Z" }
                 ]);
             await expect(ftpFacade.dir(data)).resolves.toEqual({
                 hash: expect.any(String),

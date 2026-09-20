@@ -27,11 +27,11 @@ export default class FtpService {
         try {
             client = await getClient(authUser.username);
             const list = await client.list(dir);
-            return list.map(({ name, type, size, modifiedAt }) => ({
+            return list.map(({ name, type, size, modifyTime }) => ({
                 name,
                 type: type === "d" ? dirType : fileType,
                 size,
-                modifiedAt
+                modifyTime
             }));
         } catch (err) {
             ftpError("Error al listar la carpeta", ftpDirFailed);
@@ -82,7 +82,6 @@ export default class FtpService {
      * @param {string} params.dir FTP directory path
      * @param {string} params.name Directory name
      * @param {{ username: string }} params.authUser Authenticated user
-     * @returns {Promise<Object>} Created directory
      */
     static async makeDir({ dir, name, authUser }) {
         let client;
@@ -91,7 +90,6 @@ export default class FtpService {
             const list = await client.list(dir);
             const newName = getFileName(name, list);
             await client.mkdir(`${dir}/${newName}`);
-            return { name: newName, type: dirType };
         } catch (err) {
             ftpError("Error al crear la carpeta", ftpMkdirFailed);
         } finally {
@@ -158,7 +156,6 @@ export default class FtpService {
      * @param {string} params.dir FTP directory path
      * @param {{ originalname: string, mimetype: string, buffer: Buffer }} params.file Uploaded file
      * @param {{ username: string }} params.authUser Authenticated user
-     * @returns {Promise<Object[]>} Uploaded resources
      */
     static async upload({ dir, file, authUser }) {
         handleApiErrors([
@@ -173,13 +170,12 @@ export default class FtpService {
             if (!isZip) {
                 const fileName = `${getFileName(originalname, await client.list(dir))}`;
                 await client.put(buffer, `${dir}/${fileName}`);
-                return [{ name: fileName, type: fileType }];
+                return;
             }
 
             tempDir = `${process.cwd()}/temp${Date.now()}`;
             const zip = new AdmZip(buffer);
             zip.extractAllTo(tempDir, true);
-            const addedContent = [];
             const uploadTempDir = async ({ remoteDir, localDir }) => {
                 const list = await client.list(remoteDir);
                 for (const { name, isDirectory } of await fs.readdir(localDir, { withFileTypes: true })) {
@@ -196,13 +192,9 @@ export default class FtpService {
                     }
 
                     list.push({ name: newName });
-                    if (localDir === tempDir) {
-                        addedContent.push({ name: newName, type: isDirectory() ? dirType : fileType });
-                    }
                 }
             };
             await uploadTempDir({ remoteDir: dir, localDir: tempDir });
-            return addedContent;
         } catch (err) {
             ftpError("Error al subir los datos", ftpUploadFailed);
         } finally {
@@ -275,7 +267,6 @@ export default class FtpService {
      * @param {string} params.dir FTP directory path
      * @param {Object[]} params.entries Resources to delete
      * @param {{ username: string }} params.authUser Authenticated user
-     * @returns {Promise<string[]>} Deleted resource names
      */
     static async delete({ dir, entries, authUser }) {
         let client;
@@ -289,7 +280,6 @@ export default class FtpService {
                     await client.delete(remotePath);
                 }
             }
-            return entries.map(({ name }) => name);
         } catch (err) {
             ftpError("Error al borrar", ftpDeleteFailed);
         } finally {
