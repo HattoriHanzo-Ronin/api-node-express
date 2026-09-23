@@ -25,3 +25,17 @@
 
 GET {{baseUrl}}?id={{resources}}
 Authorization: Bearer {{token}}
+
+############################################################
+# Get FTP directory version
+#
+# Expected:
+# Status: 200
+# Response:
+# {
+#   "version": "<SHA-256 directory hash>"
+# }
+############################################################
+
+GET {{baseUrl}}/ftp?dir=.
+Authorization: Bearer {{token}}

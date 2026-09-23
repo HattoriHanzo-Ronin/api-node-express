@@ -1,6 +1,7 @@
 import z from "zod";
 import { VALIDATION } from "../config/constants.js";
 import ValidateUtils from "../utils/validate-utils.js";
+import dirSchema from "./common/dir-schema.js";
 
 /**
  * Factory for FTP validation schemas
@@ -42,14 +43,10 @@ export default class FtpSchema {
 }
 
 const { handleValidationIssues, zodEnumIgnoreCase, withSuperRefine } = ValidateUtils;
-const { allowEnums, errorMessages, regex } = VALIDATION;
-const { typeRequired, typeNotRequired, format, emptyArray, emptyString, invalidEnum } = errorMessages;
+const { allowEnums, errorMessages } = VALIDATION;
+const { typeRequired, format, emptyArray, emptyString, invalidEnum } = errorMessages;
 const { fileType } = allowEnums;
-const { pathRegex } = regex;
-const dir = withSuperRefine(
-    z.string(typeNotRequired).trim().min(1, emptyString).regex(pathRegex, format).default("."),
-    pathCases
-);
+const { dir } = dirSchema.shape;
 const name = z
     .string(typeRequired)
     .trim()
@@ -57,13 +54,6 @@ const name = z
     .regex(/^[\p{L}\p{N} ._-]+$/u, format);
 const entry = z.object({ type: zodEnumIgnoreCase(z, z.enum(fileType, invalidEnum(fileType)), typeRequired), name });
 const entries = z.array(entry, typeRequired).min(1, emptyArray);
-
-function pathCases(path, ctx) {
-    return handleValidationIssues(
-        [{ condition: path && path.split("/").some((it) => it.trim() === ".."), message: "Ruta no válida" }],
-        ctx
-    );
-}
 
 function renameCases({ entry, newName }, ctx) {
     return handleValidationIssues(

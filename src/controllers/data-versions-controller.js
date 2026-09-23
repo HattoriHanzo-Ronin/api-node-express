@@ -1,4 +1,5 @@
 import { dataVersionsSchema } from "../schemas/data-versions-schema.js";
+import dirSchema from "../schemas/common/dir-schema.js";
 import ValidateUtils from "../utils/validate-utils.js";
 
 /**
@@ -7,8 +8,8 @@ import ValidateUtils from "../utils/validate-utils.js";
  * @author HattoriHanzo-Ronin
  */
 export default class DataVersionsController {
-    constructor({ dataVersionsService }) {
-        this.dataVersionsService = dataVersionsService;
+    constructor({ dataVersionsFacade }) {
+        this.dataVersionsFacade = dataVersionsFacade;
     }
 
     /**
@@ -19,7 +20,19 @@ export default class DataVersionsController {
      */
     getById = async (req, res) => {
         const { id } = validateData(req.query, dataVersionsSchema);
-        res.json(await this.dataVersionsService.getById({ id }));
+        res.json(await this.dataVersionsFacade.getById({ id }));
+    };
+
+    /**
+     * Returns a FTP directory version
+     *
+     * @param {Object} req HTTP request
+     * @param {Object} res HTTP response
+     */
+    getFtp = async (req, res) => {
+        const { query, user: authUser } = req;
+        const { dir } = validateData(query, dirSchema);
+        res.json(await this.dataVersionsFacade.getFtp({ dir, authUser }));
     };
 }
 
