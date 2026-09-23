@@ -106,21 +106,21 @@ describe("MemoryCache", () => {
     it("should restart the inactivity timeout on get and set", () => {
         const first = new Map();
         cache.set("user-id", "/first", first);
-        vi.advanceTimersByTime(4 * 60 * 1000);
+        vi.advanceTimersByTime(9 * 60 * 1000);
         expect(cache.get("user-id", "/first")).toBe(first);
-        vi.advanceTimersByTime(4 * 60 * 1000);
+        vi.advanceTimersByTime(9 * 60 * 1000);
         expect(cache.has("user-id", "/first")).toBe(true);
         cache.set("user-id", "/second", new Map());
-        vi.advanceTimersByTime(4 * 60 * 1000);
+        vi.advanceTimersByTime(9 * 60 * 1000);
         expect(cache.has("user-id", "/second")).toBe(true);
         vi.advanceTimersByTime(60 * 1000);
         expect(cache.has("user-id", "/second")).toBe(false);
     });
 
-    it("should delete an owner cache after five minutes of inactivity", () => {
-        expect(CACHE.inactivityTimeout).toBe(5 * 60 * 1000);
+    it("should delete an owner cache after ten minutes of inactivity", () => {
+        expect(CACHE.inactivityTimeout).toBe(10 * 60 * 1000);
         cache.set("owner-id", "/media", new Map());
-        vi.advanceTimersByTime(5 * 60 * 1000 - 1);
+        vi.advanceTimersByTime(10 * 60 * 1000 - 1);
         expect(cache.has("owner-id", "/media")).toBe(true);
         vi.advanceTimersByTime(1);
         expect(cache.has("owner-id", "/media")).toBe(false);
