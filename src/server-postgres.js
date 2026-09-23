@@ -10,6 +10,7 @@ import MemoryCache from "./cache/memory-cache.js";
 import DirectoryCache from "./cache/directory-cache.js";
 import DataVersionsModel from "./models/postgres/data-versions-model.js";
 import DataVersionsService from "./services/data-versions-service.js";
+import DataVersionsFacade from "./facades/data-versions-facade.js";
 import DataVersionsController from "./controllers/data-versions-controller.js";
 
 import ConnectionsModel from "./models/postgres/connections-model.js";
@@ -48,7 +49,8 @@ const ftpFacade = new FtpFacade({
     directoryCache
 });
 const ftpController = new FtpController({ ftpFacade });
-const dataVersionsController = new DataVersionsController({ dataVersionsService });
+const dataVersionsFacade = new DataVersionsFacade({ dataVersionsService, ftpFacade });
+const dataVersionsController = new DataVersionsController({ dataVersionsFacade });
 
 const connectionsService = new ConnectionsService({ connectionsModel: ConnectionsModel });
 const devicesService = new DevicesService({ devicesModel: DevicesModel });

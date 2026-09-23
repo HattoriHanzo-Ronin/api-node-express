@@ -32,6 +32,23 @@ export default class FtpFacade {
     }
 
     /**
+     * Returns a FTP directory hash
+     *
+     * @param {string} params.dir FTP directory path
+     * @param {Object} params.authUser Authenticated user
+     * @returns {Promise<string>} Directory hash
+     */
+    async getHash({ dir, authUser }) {
+        const directory = this.directoryCache.get(authUser.id, dir);
+        if (directory) {
+            return directory.hash;
+        }
+
+        const { hash } = await this.dir({ dir, authUser });
+        return hash;
+    }
+
+    /**
      * Returns a cached FTP thumbnail
      *
      * @param {string} params.dir FTP directory path

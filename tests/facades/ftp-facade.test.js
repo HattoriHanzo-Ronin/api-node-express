@@ -40,6 +40,23 @@ describe("FtpFacade", () => {
     });
 
     describe("read operations", () => {
+        it("should return a cached directory hash", async () => {
+            const authUser = { id: "user-id", username: "ronin" };
+            directoryCache.set(authUser.id, "/files", { username: authUser.username, hash: "directory-hash" });
+            await expect(ftpFacade.getHash({ dir: "/files", authUser })).resolves.toBe("directory-hash");
+            expect(ftpService.dir).not.toHaveBeenCalled();
+        });
+
+        it("should rebuild a directory hash when it is not cached", async () => {
+            const authUser = { id: "user-id", username: "ronin" };
+            ftpService.dir.mockResolvedValue([
+                { name: "photo.jpg", type: "FILE", size: 100, modifyTime: "2026-09-20T10:00:00.000Z" }
+            ]);
+            await expect(ftpFacade.getHash({ dir: "/files", authUser })).resolves.toEqual(expect.any(String));
+            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "/files", authUser });
+            expect(directoryCache.has(authUser.id, "/files")).toBe(true);
+        });
+
         it("should cache thumbnails from normalized file entries while returning directory content", async () => {
             const data = { dir: "/files", authUser: { id: "user-id", username: "ronin" } };
             const entries = [
