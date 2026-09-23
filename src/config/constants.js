@@ -29,7 +29,7 @@ const FILE_TYPE = Object.freeze({ dir: "DIR", file: "FILE" });
 const CACHE = Object.freeze({
     maxSize: 2 * 1024 ** 3,
     maxSizePerUser: 400 * 1024 ** 2,
-    inactivityTimeout: 5 * 60 * 1000
+    inactivityTimeout: 10 * 60 * 1000
 });
 const CONNECTION_CTYPE = Object.freeze({ wan: "WAN", lan: "LAN", wifi: "WIFI" });
 const DEVICE_TYPE = Object.freeze({ client: "CLIENT", router: "ROUTER", server: "SERVER" });

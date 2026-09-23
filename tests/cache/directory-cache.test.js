@@ -39,18 +39,18 @@ describe("DirectoryCache", () => {
     it("should restart the inactivity timeout on set", () => {
         const value = { username: "ronin", hash: "first-hash" };
         cache.set("user-id", "/files", value);
-        vi.advanceTimersByTime(4 * 60 * 1000);
+        vi.advanceTimersByTime(9 * 60 * 1000);
         cache.set("user-id", "/files", { ...value, hash: "second-hash" });
-        vi.advanceTimersByTime(4 * 60 * 1000);
+        vi.advanceTimersByTime(9 * 60 * 1000);
         expect(cache.has("user-id", "/files")).toBe(true);
-        vi.advanceTimersByTime(CACHE.inactivityTimeout - 4 * 60 * 1000);
+        vi.advanceTimersByTime(CACHE.inactivityTimeout - 9 * 60 * 1000);
         expect(cache.has("user-id", "/files")).toBe(false);
     });
 
     it("should not restart the inactivity timeout on get", () => {
         const value = { username: "ronin", hash: "hash" };
         cache.set("user-id", "/files", value);
-        vi.advanceTimersByTime(4 * 60 * 1000);
+        vi.advanceTimersByTime(9 * 60 * 1000);
         expect(cache.get("user-id", "/files")).toBe(value);
         vi.advanceTimersByTime(60 * 1000);
         expect(cache.has("user-id", "/files")).toBe(false);
@@ -59,12 +59,12 @@ describe("DirectoryCache", () => {
     it("should expire each directory independently", () => {
         const value = { username: "ronin", hash: "hash" };
         cache.set("user-id", "/first", value);
-        vi.advanceTimersByTime(4 * 60 * 1000);
+        vi.advanceTimersByTime(9 * 60 * 1000);
         cache.set("user-id", "/second", value);
         vi.advanceTimersByTime(60 * 1000);
         expect(cache.has("user-id", "/first")).toBe(false);
         expect(cache.has("user-id", "/second")).toBe(true);
-        vi.advanceTimersByTime(4 * 60 * 1000);
+        vi.advanceTimersByTime(9 * 60 * 1000);
         expect(cache.has("user-id", "/second")).toBe(false);
     });
 });
