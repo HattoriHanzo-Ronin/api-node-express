@@ -107,7 +107,8 @@ const API_ERROR = deepFreeze({
     ftpRenameFailed: { code: "FTP_RENAME_FAILED" },
     ftpDeleteFailed: { code: "FTP_DELETE_FAILED" },
     ftpThumbnailNotFound: { code: "FTP_THUMBNAIL_NOT_FOUND" },
-    ftpFileRequired: { code: "FTP_FILE_REQUIRED" }
+    ftpFileRequired: { code: "FTP_FILE_REQUIRED" },
+    zipInvalidPath: { code: "ZIP_INVALID_PATH" }
 });
 const JWT = Object.freeze({ accessTokenExpiresIn: "30min", refreshTokenExpiresIn: "60d" });
 
