@@ -1,11 +1,11 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createServer } from "node:http";
+import { finished } from "node:stream/promises";
 import ffmpegPath from "ffmpeg-static";
-import fs from "fs/promises";
-import AdmZip from "adm-zip";
 import path from "path";
 import ValidateUtils from "../utils/validate-utils.js";
+import CompressionUtils from "../utils/compression-utils.js";
 import FtpConnection from "../config/ftp-connection.js";
 import { API_ERROR, FILE_TYPE } from "../config/constants.js";
 
@@ -154,10 +154,11 @@ export default class FtpService {
      * Creates FTP resources from an uploaded file
      *
      * @param {string} params.dir FTP directory path
+     * @param {boolean} params.extract Extract ZIP content
      * @param {{ originalname: string, mimetype: string, stream: import("node:stream").Readable }} params.file Uploaded file
      * @param {{ username: string }} params.authUser Authenticated user
      */
-    static async upload({ dir, file, authUser }) {
+    static async upload({ dir, extract, file, authUser }) {
         handleApiErrors([
             { condition: !file, message: "Debe proporcionar un archivo", status: 400, apiError: ftpFileRequired }
         ]);
@@ -165,9 +166,23 @@ export default class FtpService {
         let client;
         try {
             client = await getClient(authUser.username);
-            const fileName = getFileName(originalname, await client.list(dir));
-            await client.put(stream, path.posix.join(dir, fileName));
+            if (!extract) {
+                const fileName = getFileName(originalname, await client.list(dir));
+                await client.put(stream, path.posix.join(dir, fileName));
+                return;
+            }
+
+            const directories = new Map([[".", "."]]);
+            const list = await client.list(dir);
+            await CompressionUtils.executeUpload({
+                stream,
+                callback: (entry) => uploadZipEntry({ client, dir, entry, directories, list })
+            });
         } catch (err) {
+            if (err.code === zipInvalidPath.code) {
+                throw err;
+            }
+
             ftpError("Error al subir los datos", ftpUploadFailed);
         } finally {
             await closeClient(client);
@@ -180,53 +195,28 @@ export default class FtpService {
      * @param {string} params.dir FTP directory path
      * @param {Object[]} params.entries Resources to download
      * @param {{ username: string }} params.authUser Authenticated user
-     * @returns {Promise<string>} the generated local file path
+     * @param {import("node:stream").Writable} params.stream Download destination
      */
-    static async download({ dir, entries, authUser }) {
+    static async download({ dir, entries, authUser, stream }) {
         const isSingleFile = entries.length === 1 && entries[0].type === fileType;
-        const tempDir = `${process.cwd()}/temp${Date.now()}`;
         let client;
         try {
             client = await getClient(authUser.username);
-            await fs.mkdir(tempDir);
             if (isSingleFile) {
-                const { name } = entries[0];
-                const newFile = `${tempDir}/${name}`;
-                await client.fastGet(`${dir}/${name}`, newFile);
-                return newFile;
+                await client.get(path.posix.join(dir, entries[0].name), stream);
+                await finished(stream, { readable: false });
+                return;
             }
 
-            const tempToZip = `${tempDir}/toZip`;
-            const zipFile = `${tempDir}/${Date.now()}.zip`;
-            await fs.mkdir(tempToZip);
-            const downloadRemoteDir = async ({ remoteDir, remoteList, localDir }) => {
-                for (const { name, type } of remoteList) {
-                    const localPath = path.join(localDir, name);
-                    const remotePath = `${remoteDir}/${name}`;
-                    if (["d", dirType].includes(type)) {
-                        await fs.mkdir(localPath);
-                        await downloadRemoteDir({
-                            remoteDir: remotePath,
-                            remoteList: await client.list(remotePath),
-                            localDir: localPath
-                        });
-                    } else {
-                        await client.fastGet(remotePath, localPath);
-                    }
-                }
-            };
-            await downloadRemoteDir({ remoteDir: dir, remoteList: entries, localDir: tempToZip });
-            const zip = new AdmZip();
-            zip.addLocalFolder(tempToZip);
-            await zip.writeZipPromise(zipFile);
-            return zipFile;
+            await CompressionUtils.executeDownload({
+                entries: createDownloadEntries(client, dir, entries),
+                stream,
+                callback: ({ remotePath }, destination) => client.get(remotePath, destination)
+            });
         } catch (err) {
             ftpError("Error al descargar", ftpDownloadFailed);
         } finally {
             await closeClient(client);
-            setTimeout(async () => {
-                await fs.rm(tempDir, { recursive: true, force: true });
-            }, 60000);
         }
     }
 
@@ -270,8 +260,59 @@ const {
     ftpMoveFailed,
     ftpRenameFailed,
     ftpDeleteFailed,
-    ftpFileRequired
+    ftpFileRequired,
+    zipInvalidPath
 } = API_ERROR;
+
+/**
+ * Returns download entries preserving their relative paths
+ *
+ * @param {import("ssh2-sftp-client")} client SFTP client
+ * @param {string} remoteDir Remote directory path
+ * @param {Object[]} entries Directory entries
+ * @param {string} [relativeDir] Relative download path
+ * @returns {AsyncGenerator<{ name: string, type: string, remotePath: string }>} Download entries
+ */
+async function* createDownloadEntries(client, remoteDir, entries, relativeDir = ".") {
+    for (const entry of entries) {
+        const name = path.posix.join(relativeDir, entry.name);
+        const remotePath = path.posix.join(remoteDir, entry.name);
+        const type = ["d", dirType].includes(entry.type) ? dirType : fileType;
+        yield { name, type, remotePath };
+        if (type === dirType) {
+            yield* createDownloadEntries(client, remotePath, await client.list(remotePath), name);
+        }
+    }
+}
+
+/**
+ * Uploads a ZIP entry preserving its directory structure
+ *
+ * @param {import("ssh2-sftp-client")} params.client SFTP client
+ * @param {string} params.dir Destination directory
+ * @param {{ name: string, isDirectory: boolean, stream?: import("node:stream").Readable }} params.entry ZIP entry
+ * @param {Map<string, string>} params.directories Resolved directory paths
+ * @param {{ name: string }[]} params.list Destination directory content
+ */
+async function uploadZipEntry({ client, dir, entry, directories, list }) {
+    const sourceDir = path.posix.dirname(entry.name);
+    const destinationDir = directories.get(sourceDir);
+    const remoteDir = destinationDir === "." ? dir : path.posix.join(dir, destinationDir);
+    const isRoot = sourceDir === ".";
+    const sourceName = path.posix.basename(entry.name);
+    const name = isRoot ? getFileName(sourceName, list) : sourceName;
+    const remotePath = path.posix.join(remoteDir, name);
+    if (entry.isDirectory) {
+        await client.mkdir(remotePath);
+        directories.set(entry.name, path.posix.join(destinationDir, name));
+    } else {
+        await client.put(entry.stream, remotePath);
+    }
+
+    if (isRoot) {
+        list.push({ name });
+    }
+}
 
 /**
  * Creates a JPEG thumbnail using seekable access to an in-memory media buffer

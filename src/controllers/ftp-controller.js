@@ -49,8 +49,8 @@ export default class FtpController {
     upload = async (req, res) => {
         const { query, file, user: authUser } = req;
         try {
-            const { dir } = validateData(query, getUploadSchema());
-            const { hash, data } = await this.ftpFacade.upload({ dir, file, authUser });
+            const { dir, extract } = validateData(query, getUploadSchema());
+            const { hash, data } = await this.ftpFacade.upload({ dir, extract, file, authUser });
             res.set("Data-Version", hash).status(201).json(data);
         } catch (error) {
             file?.stream.resume();
@@ -61,7 +61,7 @@ export default class FtpController {
     download = async (req, res) => {
         const { body, user: authUser } = req;
         const { dir, entries } = validateData(body, getDownloadSchema());
-        res.download(await this.ftpFacade.download({ dir, entries, authUser }));
+        await this.ftpFacade.download({ dir, entries, authUser, stream: res });
     };
 
     delete = async (req, res) => {

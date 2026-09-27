@@ -19,7 +19,7 @@ export default class Middlewares {
      */
     static cors(acceptOrigins) {
         return cors({
-            exposedHeaders: ["Data-Version", "Devices-Version", "Whitelist-Version"],
+            exposedHeaders: ["Data-Version", "Devices-Version", "Whitelist-Version", "Content-Disposition"],
             origin: (origin, callback) => {
                 if (acceptOrigins) {
                     if (acceptOrigins.includes(origin)) {
@@ -126,6 +126,11 @@ export default class Middlewares {
      * @param {import("express").NextFunction} next Express next function
      */
     static errorHandler(err, req, res, next) {
+        if (res.headersSent) {
+            next(err);
+            return;
+        }
+
         const status = err.status || 500;
         const isApiError = err instanceof ApiError;
         const message = isApiError ? err.message : "Error inesperado";

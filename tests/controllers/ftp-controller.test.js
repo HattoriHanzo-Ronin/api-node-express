@@ -20,7 +20,7 @@ describe("FtpController", () => {
         };
         controller = new FtpController({ ftpFacade });
         req = { params: {}, query: {}, body: {}, file: undefined, user: { id: "user-id", username: "ronin" } };
-        res = { status: vi.fn().mockReturnThis(), set: vi.fn().mockReturnThis(), type: vi.fn().mockReturnThis(), json: vi.fn(), send: vi.fn(), download: vi.fn() };
+        res = { status: vi.fn().mockReturnThis(), set: vi.fn().mockReturnThis(), type: vi.fn().mockReturnThis(), json: vi.fn(), send: vi.fn() };
     });
 
     describe("dir", () => {
@@ -159,10 +159,10 @@ describe("FtpController", () => {
             const file = { originalname: "file.txt", stream: {} };
             const data = [{ name: "file.txt", type: "FILE" }];
             ftpFacade.upload.mockResolvedValue({ hash: "directory-hash", data });
-            req.query.dir = "/upload";
+            req.query = { dir: "/upload", extract: "false" };
             req.file = file;
             await controller.upload(req, res);
-            expect(ftpFacade.upload).toHaveBeenCalledWith({ dir: "/upload", file, authUser: req.user });
+            expect(ftpFacade.upload).toHaveBeenCalledWith({ dir: "/upload", extract: false, file, authUser: req.user });
             expect(res.status).toHaveBeenCalledWith(201);
             expect(res.set).toHaveBeenCalledWith("Data-Version", "directory-hash");
             expect(res.json).toHaveBeenCalledWith(data);
@@ -171,15 +171,14 @@ describe("FtpController", () => {
 
     describe("download", () => {
         it("should download ftp entries", async () => {
-            ftpFacade.download.mockResolvedValue("/tmp/file.txt");
             req.body = { dir: "/files", entries: [{ name: "file.txt", type: "file" }] };
             await controller.download(req, res);
             expect(ftpFacade.download).toHaveBeenCalledWith({
                 dir: "/files",
                 entries: [{ name: "file.txt", type: "FILE" }],
-                authUser: req.user
+                authUser: req.user,
+                stream: res
             });
-            expect(res.download).toHaveBeenCalledWith("/tmp/file.txt");
         });
 
         it("should fail with empty entries", async () => {

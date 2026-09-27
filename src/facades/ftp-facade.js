@@ -145,10 +145,19 @@ export default class FtpFacade {
      * Downloads FTP resources
      *
      * @param {Object} data FTP download data
-     * @returns {Promise<string>} Downloaded resource path
      */
     async download(data) {
-        return this.ftpService.download(data);
+        const { entries, stream } = data;
+        const [entry] = entries;
+        let name = entry.name;
+        let type = name;
+        if (entries.length > 1 || entry.type === FILE_TYPE.dir) {
+            name = `download-${Date.now()}.zip`;
+            type = "application/zip";
+        }
+
+        stream.type(type).attachment(name);
+        await this.ftpService.download(data);
     }
 
     /**

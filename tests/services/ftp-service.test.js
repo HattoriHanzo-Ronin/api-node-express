@@ -3,11 +3,11 @@ import path from "path";
 import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { Readable } from "node:stream";
+import { PassThrough, Readable } from "node:stream";
 import ffmpegPath from "ffmpeg-static";
 
 const authUser = { username: "ronin" };
-const { mockClient, mockCloseClient } = vi.hoisted(() => ({
+const { mockClient, mockCloseClient, mockCompressionUtils } = vi.hoisted(() => ({
     mockClient: {
         list: vi.fn(),
         get: vi.fn(),
@@ -19,31 +19,16 @@ const { mockClient, mockCloseClient } = vi.hoisted(() => ({
         delete: vi.fn(),
         rmdir: vi.fn()
     },
-    mockCloseClient: vi.fn()
+    mockCloseClient: vi.fn(),
+    mockCompressionUtils: { executeUpload: vi.fn(), executeDownload: vi.fn() }
 }));
-const mockZip = {
-    addLocalFolder: vi.fn(),
-    writeZipPromise: vi.fn().mockResolvedValue(undefined),
-    extractAllTo: vi.fn()
-};
 
 vi.mock("../../src/config/ftp-connection.js", () => ({
     default: { getClient: vi.fn(async () => mockClient), closeClient: mockCloseClient }
 }));
 
-vi.mock("adm-zip", () => ({
-    default: class MockZip {
-        constructor() {
-            return mockZip;
-        }
-    }
-}));
+vi.mock("../../src/utils/compression-utils.js", () => ({ default: mockCompressionUtils }));
 
-vi.mock("fs/promises", () => ({
-    default: { mkdir: vi.fn(), rm: vi.fn(), readdir: vi.fn() }
-}));
-
-import fs from "fs/promises";
 import FtpConnection from "../../src/config/ftp-connection.js";
 import FtpService from "../../src/services/ftp-service.js";
 
@@ -53,9 +38,6 @@ describe("FtpService", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockClient.list.mockResolvedValue([]);
-        mockZip.writeZipPromise.mockResolvedValue(undefined);
-        vi.spyOn(Date, "now").mockReturnValue(1783417469000);
-        vi.spyOn(global, "setTimeout").mockImplementation(() => 0);
     });
 
     afterEach(() => {
@@ -226,6 +208,7 @@ describe("FtpService", () => {
             await expect(FtpService.upload({ dir: "/upload", file, authUser })).resolves.toBeUndefined();
             expect(mockClient.list).toHaveBeenCalledWith("/upload");
             expect(mockClient.put).toHaveBeenCalledWith(file.stream, "/upload/test.txt");
+            expect(mockCompressionUtils.executeUpload).not.toHaveBeenCalled();
         });
 
         it("should rename uploaded file when it already exists", async () => {
@@ -233,6 +216,35 @@ describe("FtpService", () => {
             mockClient.list.mockResolvedValue([{ name: "test.txt" }]);
             await expect(FtpService.upload({ dir: "/upload", file, authUser })).resolves.toBeUndefined();
             expect(mockClient.put).toHaveBeenCalledWith(file.stream, "/upload/copia_test.txt");
+        });
+
+        it("should upload zip content", async () => {
+            const file = { originalname: "test.zip", mimetype: "application/zip", stream: Readable.from("zip") };
+            const logo = Readable.from("logo");
+            const nested = Readable.from("nested");
+            mockClient.list.mockResolvedValue([{ name: "images" }]);
+            mockCompressionUtils.executeUpload.mockImplementation(async ({ callback }) => {
+                await callback({ name: "images", isDirectory: true });
+                await callback({ name: "images/nested.jpg", isDirectory: false, stream: nested });
+                await callback({ name: "logo.png", isDirectory: false, stream: logo });
+            });
+            await expect(FtpService.upload({ dir: "/upload", extract: true, file, authUser })).resolves.toBeUndefined();
+            expect(mockCompressionUtils.executeUpload).toHaveBeenCalledWith({
+                stream: file.stream,
+                callback: expect.any(Function)
+            });
+            expect(mockClient.list).toHaveBeenCalledOnce();
+            expect(mockClient.mkdir).toHaveBeenCalledWith("/upload/copia_images");
+            expect(mockClient.put).toHaveBeenCalledWith(nested, "/upload/copia_images/nested.jpg");
+            expect(mockClient.put).toHaveBeenCalledWith(logo, "/upload/logo.png");
+        });
+
+        it("should preserve invalid ZIP path errors", async () => {
+            const file = { originalname: "test.zip", mimetype: "application/zip", stream: Readable.from("zip") };
+            const error = Object.assign(new Error("El ZIP contiene una ruta no válida"), { code: "ZIP_INVALID_PATH" });
+            mockCompressionUtils.executeUpload.mockRejectedValue(error);
+            await expect(FtpService.upload({ dir: "/upload", extract: true, file, authUser })).rejects.toBe(error);
+            expect(mockCloseClient).toHaveBeenCalledWith(mockClient);
         });
     });
 
@@ -252,36 +264,54 @@ describe("FtpService", () => {
 
     describe("download", () => {
         it("should download a single file", async () => {
-            const result = await FtpService.download({
+            const stream = new PassThrough();
+            mockClient.get.mockImplementation(async (remotePath, destination) => destination.end("content"));
+            await expect(FtpService.download({
                 dir: "/files",
                 entries: [{ name: "file.txt", type: "FILE" }],
-                authUser
-            });
-            expect(fs.mkdir).toHaveBeenCalledWith(`${process.cwd()}/temp1783417469000`);
-            expect(mockClient.fastGet).toHaveBeenCalledWith("/files/file.txt", `${process.cwd()}/temp1783417469000/file.txt`);
-            expect(result).toBe(`${process.cwd()}/temp1783417469000/file.txt`);
+                authUser,
+                stream
+            })).resolves.toBeUndefined();
+            expect(mockClient.get).toHaveBeenCalledWith("/files/file.txt", stream);
+            expect(mockCompressionUtils.executeDownload).not.toHaveBeenCalled();
         });
 
         it("should create zip for multiple resources", async () => {
-            const result = await FtpService.download({
+            const stream = new PassThrough();
+            const receivedEntries = [];
+            mockClient.list.mockImplementation(async (remotePath) =>
+                remotePath === "/files/docs" ? [{ name: "nested.txt", type: "-" }] : []
+            );
+            mockClient.get.mockImplementation(async (remotePath, destination) => destination.end(remotePath));
+            mockCompressionUtils.executeDownload.mockImplementation(async ({ entries, callback }) => {
+                for await (const entry of entries) {
+                    receivedEntries.push(entry);
+                    if (entry.type === "FILE") {
+                        await callback(entry, new PassThrough());
+                    }
+                }
+            });
+            await expect(FtpService.download({
                 dir: "/files",
                 entries: [
                     { name: "file1.txt", type: "FILE" },
                     { name: "docs", type: "DIR" }
                 ],
-                authUser
-            });
-            expect(fs.mkdir).toHaveBeenCalledWith(`${process.cwd()}/temp1783417469000/toZip`);
-            expect(mockClient.fastGet).toHaveBeenCalledWith(
-                "/files/file1.txt",
-                path.join(`${process.cwd()}/temp1783417469000/toZip`, "file1.txt")
-            );
+                authUser,
+                stream
+            })).resolves.toBeUndefined();
+            expect(receivedEntries).toEqual([
+                { name: "file1.txt", type: "FILE", remotePath: "/files/file1.txt" },
+                { name: "docs", type: "DIR", remotePath: "/files/docs" },
+                { name: "docs/nested.txt", type: "FILE", remotePath: "/files/docs/nested.txt" }
+            ]);
             expect(mockClient.list).toHaveBeenCalledWith("/files/docs");
-            expect(mockZip.addLocalFolder).toHaveBeenCalledWith(`${process.cwd()}/temp1783417469000/toZip`);
-            expect(mockZip.writeZipPromise).toHaveBeenCalledWith(
-                `${process.cwd()}/temp1783417469000/1783417469000.zip`
-            );
-            expect(result).toBe(`${process.cwd()}/temp1783417469000/1783417469000.zip`);
+            expect(mockClient.get).toHaveBeenCalledTimes(2);
+            expect(mockCompressionUtils.executeDownload).toHaveBeenCalledWith({
+                entries: expect.anything(),
+                stream,
+                callback: expect.any(Function)
+            });
         });
     });
 });
