@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import multer from "multer";
+import busboy from "busboy";
 import ApiError from "../utils/api-error.js";
 import JWTUtils from "../utils/jwt-utils.js";
 import { API_ERROR } from "../config/constants.js";
@@ -45,10 +45,55 @@ export default class Middlewares {
     /**
      * Creates multipart form-data middleware
      *
-     * @returns {import("multer").Multer} Multer middleware factory
+     * @returns {import("express").RequestHandler} Multipart middleware
      */
-    static mult() {
-        return multer({ storage: multer.memoryStorage() });
+    static multipart() {
+        return (req, res, next) => {
+            if (!req.headers["content-type"]?.startsWith("multipart/form-data")) {
+                next();
+                return;
+            }
+
+            let parser;
+            try {
+                parser = busboy({ headers: req.headers });
+            } catch (error) {
+                next(error);
+                return;
+            }
+
+            let fileStream;
+            let nextCalled = false;
+            parser.on("file", (fieldName, stream, { filename, mimeType }) => {
+                if (nextCalled || fieldName !== "file" || !filename) {
+                    stream.resume();
+                    return;
+                }
+
+                nextCalled = true;
+                fileStream = stream;
+                req.file = { originalname: filename, mimetype: mimeType, stream };
+                next();
+            });
+            parser.once("finish", () => {
+                if (!nextCalled) {
+                    nextCalled = true;
+                    next();
+                }
+            });
+            parser.once("error", (error) => {
+                if (fileStream) {
+                    fileStream.destroy(error);
+                    return;
+                }
+
+                if (!nextCalled) {
+                    nextCalled = true;
+                    next(error);
+                }
+            });
+            req.pipe(parser);
+        };
     }
 
     /**

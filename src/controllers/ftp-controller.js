@@ -47,10 +47,15 @@ export default class FtpController {
     };
 
     upload = async (req, res) => {
-        const { body, file, user: authUser } = req;
-        const { dir } = validateData(body, getUploadSchema());
-        const { hash, data } = await this.ftpFacade.upload({ dir, file, authUser });
-        res.set("Data-Version", hash).status(201).json(data);
+        const { query, file, user: authUser } = req;
+        try {
+            const { dir } = validateData(query, getUploadSchema());
+            const { hash, data } = await this.ftpFacade.upload({ dir, file, authUser });
+            res.set("Data-Version", hash).status(201).json(data);
+        } catch (error) {
+            file?.stream.resume();
+            throw error;
+        }
     };
 
     download = async (req, res) => {

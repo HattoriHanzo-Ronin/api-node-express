@@ -142,10 +142,11 @@ Content-Type: application/json
 # ]
 ############################################################
 
-POST {{baseUrl}}/upload
+POST {{baseUrl}}/upload?dir=.
 Authorization: Bearer {{token}}
 Content-Type: multipart/form-data; boundary=Boundary
 
+--Boundary
 Content-Disposition: form-data; name="file"; filename="test.txt"
 Content-Type: text/plain
 

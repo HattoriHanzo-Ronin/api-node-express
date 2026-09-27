@@ -10,7 +10,7 @@ export default function createFtpRouter({ ftpController }) {
     router.post("/mkdir", asyncHandler(ftpController.makeDir));
     router.post("/move", asyncHandler(ftpController.move));
     router.post("/rename", asyncHandler(ftpController.rename));
-    router.post("/upload", mult().single("file"), asyncHandler(ftpController.upload));
+    router.post("/upload", multipart(), asyncHandler(ftpController.upload));
     router.post("/download", asyncHandler(ftpController.download));
 
     router.delete("/", asyncHandler(ftpController.delete));
@@ -18,4 +18,4 @@ export default function createFtpRouter({ ftpController }) {
     return router;
 }
 
-const { asyncHandler, mult } = Middlewares;
+const { asyncHandler, multipart } = Middlewares;
