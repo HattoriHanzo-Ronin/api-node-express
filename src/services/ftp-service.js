@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createServer } from "node:http";
-import { finished } from "node:stream/promises";
+import { finished, pipeline } from "node:stream/promises";
 import ffmpegPath from "ffmpeg-static";
 import path from "path";
 import ValidateUtils from "../utils/validate-utils.js";
@@ -64,8 +64,9 @@ export default class FtpService {
                 }
 
                 try {
-                    const buffer = await client.get(path.posix.join(dir, name));
-                    thumbnails.set(name, await createThumbnail(buffer));
+                    const remotePath = path.posix.join(dir, name);
+                    const { size } = await client.stat(remotePath);
+                    thumbnails.set(name, await createThumbnail({ client, remotePath, size }));
                 } catch (err) {
                     thumbnails.set(name, null);
                 }
@@ -315,33 +316,42 @@ async function uploadZipEntry({ client, dir, entry, directories, list }) {
 }
 
 /**
- * Creates a JPEG thumbnail using seekable access to an in-memory media buffer
+ * Creates a JPEG thumbnail using seekable access to a SFTP file
  *
- * @param {Buffer} buffer Media content
+ * @param {import("ssh2-sftp-client")} params.client SFTP client
+ * @param {string} params.remotePath Remote media path
+ * @param {number} params.size Media size in bytes
  * @returns {Promise<Buffer | null>} JPEG thumbnail
  */
-async function createThumbnail(buffer) {
-    if (!buffer.length) {
+async function createThumbnail({ client, remotePath, size }) {
+    if (!size) {
         return null;
     }
 
-    const server = createServer((request, response) => {
-        const range = request.headers.range?.match(/^bytes=(\d+)-(\d*)$/);
-        const start = range ? Number(range[1]) : 0;
-        const end = range?.[2] ? Math.min(Number(range[2]), buffer.length - 1) : buffer.length - 1;
-        if (start > end || start >= buffer.length) {
-            response.writeHead(416, { "Content-Range": `bytes */${buffer.length}` });
+    const server = createServer(async (request, response) => {
+        const { start, end, partial } = getRange(request.headers.range, size);
+        if (start > end || start >= size) {
+            response.writeHead(416, { "Content-Range": `bytes */${size}` });
             response.end();
             return;
         }
 
         const headers = { "Accept-Ranges": "bytes", "Content-Length": end - start + 1 };
-        if (range) {
-            headers["Content-Range"] = `bytes ${start}-${end}/${buffer.length}`;
+        if (partial) {
+            headers["Content-Range"] = `bytes ${start}-${end}/${size}`;
         }
 
-        response.writeHead(range ? 206 : 200, headers);
-        response.end(buffer.subarray(start, end + 1));
+        response.writeHead(partial ? 206 : 200, headers);
+        if (request.method === "HEAD") {
+            response.end();
+            return;
+        }
+
+        try {
+            await pipeline(client.createReadStream(remotePath, { start, end }), response);
+        } catch (error) {
+            response.destroy(error);
+        }
     });
     try {
         await new Promise((resolve, reject) => {
@@ -362,6 +372,29 @@ async function createThumbnail(buffer) {
             server.closeAllConnections();
         });
     }
+}
+
+/**
+ * Returns the requested byte range
+ *
+ * @param {string | undefined} source HTTP range header
+ * @param {number} size Resource size in bytes
+ * @returns {{ start: number, end: number, partial: boolean }} Byte range
+ */
+function getRange(source, size) {
+    const range = source?.match(/^bytes=(\d*)-(\d*)$/);
+    if (!range) {
+        return { start: 0, end: size - 1, partial: false };
+    }
+
+    if (!range[1]) {
+        const length = Math.min(Number(range[2]), size);
+        return { start: size - length, end: size - 1, partial: true };
+    }
+
+    const start = Number(range[1]);
+    const end = range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+    return { start, end, partial: true };
 }
 
 /**

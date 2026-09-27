@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import path from "path";
 import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
+import { createReadStream } from "node:fs";
 import { promisify } from "node:util";
 import { PassThrough, Readable } from "node:stream";
 import ffmpegPath from "ffmpeg-static";
@@ -11,6 +12,8 @@ const { mockClient, mockCloseClient, mockCompressionUtils } = vi.hoisted(() => (
     mockClient: {
         list: vi.fn(),
         get: vi.fn(),
+        stat: vi.fn(),
+        createReadStream: vi.fn(),
         mkdir: vi.fn(),
         rename: vi.fn(),
         put: vi.fn(),
@@ -82,7 +85,10 @@ describe("FtpService", () => {
 
         beforeEach(() => {
             vi.clearAllMocks();
-            mockClient.get.mockImplementation((remote) => mediaFs.readFile(path.join(fixtureDir, path.posix.basename(remote))));
+            mockClient.stat.mockImplementation((remote) => mediaFs.stat(path.join(fixtureDir, path.posix.basename(remote))));
+            mockClient.createReadStream.mockImplementation((remote, options) =>
+                createReadStream(path.join(fixtureDir, path.posix.basename(remote)), options)
+            );
         });
 
         afterAll(async () => {
@@ -109,13 +115,23 @@ describe("FtpService", () => {
                 const { stderr } = await executeFile(ffmpegPath, ["-i", output, "-f", "null", "-"]);
                 expect(stderr).toContain(name === "photo.PNG" ? "320x180" : "180x320");
             }
+            expect(mockClient.createReadStream).toHaveBeenCalledWith(
+                "/media/photo.PNG",
+                expect.objectContaining({ start: expect.any(Number), end: expect.any(Number) })
+            );
+            expect(mockClient.createReadStream).toHaveBeenCalledWith(
+                "/media/video.mp4",
+                expect.objectContaining({ start: expect.any(Number), end: expect.any(Number) })
+            );
+            expect(mockClient.get).not.toHaveBeenCalled();
             expect(mockCloseClient).toHaveBeenCalledWith(mockClient);
         });
 
         it("returns an empty map for a directory without media", async () => {
             await expect(FtpService.getThumbails({ dir: ".", names: [], authUser })).resolves.toEqual(new Map());
             expect(mockClient.list).not.toHaveBeenCalled();
-            expect(mockClient.get).not.toHaveBeenCalled();
+            expect(mockClient.stat).not.toHaveBeenCalled();
+            expect(mockClient.createReadStream).not.toHaveBeenCalled();
             expect(mockCloseClient).not.toHaveBeenCalled();
         });
 
