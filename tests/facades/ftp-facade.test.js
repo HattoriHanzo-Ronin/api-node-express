@@ -172,9 +172,31 @@ describe("FtpFacade", () => {
         });
 
         it("should download resources", async () => {
-            const data = { dir: "/files", entries: [], authUser: { username: "ronin" } };
-            ftpService.download.mockResolvedValue("/tmp/file.txt");
-            await expect(ftpFacade.download(data)).resolves.toBe("/tmp/file.txt");
+            const stream = { type: vi.fn().mockReturnThis(), attachment: vi.fn().mockReturnThis() };
+            const data = {
+                dir: "/files",
+                entries: [{ name: "file.txt", type: "FILE" }],
+                authUser: { username: "ronin" },
+                stream
+            };
+            await expect(ftpFacade.download(data)).resolves.toBeUndefined();
+            expect(stream.type).toHaveBeenCalledWith("file.txt");
+            expect(stream.attachment).toHaveBeenCalledWith("file.txt");
+            expect(ftpService.download).toHaveBeenCalledWith(data);
+        });
+
+        it("should enrich directory downloads as ZIP files", async () => {
+            vi.spyOn(Date, "now").mockReturnValue(1783417469000);
+            const stream = { type: vi.fn().mockReturnThis(), attachment: vi.fn().mockReturnThis() };
+            const data = {
+                dir: "/files",
+                entries: [{ name: "docs", type: "DIR" }],
+                authUser: { username: "ronin" },
+                stream
+            };
+            await ftpFacade.download(data);
+            expect(stream.type).toHaveBeenCalledWith("application/zip");
+            expect(stream.attachment).toHaveBeenCalledWith("download-1783417469000.zip");
             expect(ftpService.download).toHaveBeenCalledWith(data);
         });
     });

@@ -24,6 +24,7 @@
 # - Resource entries must include name and type.
 # - Allowed entry types are DIR and FILE.
 # - FILE responses include hasThumbnail.
+# - Upload uses query parameter extract=true to extract a ZIP tree; false uploads the ZIP as a regular file.
 
 @baseUrl = http://localhost:60004/ftp
 @token = PASTE_ACCESS_TOKEN
@@ -142,7 +143,7 @@ Content-Type: application/json
 # ]
 ############################################################
 
-POST {{baseUrl}}/upload?dir=.
+POST {{baseUrl}}/upload?dir=.&extract=false
 Authorization: Bearer {{token}}
 Content-Type: multipart/form-data; boundary=Boundary
 
@@ -160,6 +161,8 @@ Hello FTP
 #
 # Expected:
 # Status: 200
+# Content-Disposition: attachment; filename="test.txt"
+# Content-Type: text/plain
 #
 # Response:
 # File download

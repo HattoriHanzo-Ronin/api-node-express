@@ -53,9 +53,10 @@ export default class CompressionUtils {
     /**
      * Creates a ZIP stream from download entries
      *
-     * @param {Iterable<{ name: string, type: string }> | AsyncIterable<{ name: string, type: string }>} params.entries Download entries
+     * @template {{ name: string, type: string }} T
+     * @param {Iterable<T> | AsyncIterable<T>} params.entries Download entries
      * @param {import("node:stream").Writable} params.stream ZIP destination stream
-     * @param {(entry: { name: string, type: string }, destination: import("node:stream").Writable) => Promise<void>} params.callback File downloader
+     * @param {(entry: T, destination: import("node:stream").Writable) => Promise<void>} params.callback File downloader
      */
     static async executeDownload({ entries, stream, callback }) {
         const archive = new ZipArchive();

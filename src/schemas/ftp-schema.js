@@ -30,7 +30,7 @@ export default class FtpSchema {
     }
 
     static getUploadSchema() {
-        return z.object({ dir });
+        return z.object({ dir, extract: z.enum(["true", "false"]).default("false").transform((it) => it === "true") });
     }
 
     static getDownloadSchema() {
