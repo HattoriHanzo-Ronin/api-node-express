@@ -154,54 +154,23 @@ export default class FtpService {
      * Creates FTP resources from an uploaded file
      *
      * @param {string} params.dir FTP directory path
-     * @param {{ originalname: string, mimetype: string, buffer: Buffer }} params.file Uploaded file
+     * @param {{ originalname: string, mimetype: string, stream: import("node:stream").Readable }} params.file Uploaded file
      * @param {{ username: string }} params.authUser Authenticated user
      */
     static async upload({ dir, file, authUser }) {
         handleApiErrors([
             { condition: !file, message: "Debe proporcionar un archivo", status: 400, apiError: ftpFileRequired }
         ]);
-        const { originalname, mimetype, buffer } = file;
+        const { originalname, stream } = file;
         let client;
-        let tempDir;
         try {
             client = await getClient(authUser.username);
-            const isZip = mimetype === "application/zip" || originalname.toLowerCase().endsWith(".zip");
-            if (!isZip) {
-                const fileName = `${getFileName(originalname, await client.list(dir))}`;
-                await client.put(buffer, `${dir}/${fileName}`);
-                return;
-            }
-
-            tempDir = `${process.cwd()}/temp${Date.now()}`;
-            const zip = new AdmZip(buffer);
-            zip.extractAllTo(tempDir, true);
-            const uploadTempDir = async ({ remoteDir, localDir }) => {
-                const list = await client.list(remoteDir);
-                for (const { name, isDirectory } of await fs.readdir(localDir, { withFileTypes: true })) {
-                    const newName = getFileName(name, list);
-                    const remotePath = `${remoteDir}/${newName}`;
-                    const localPath = path.join(localDir, name);
-                    if (isDirectory()) {
-                        await client.mkdir(remotePath);
-                        if ((await fs.readdir(localPath)).length > 0) {
-                            await uploadTempDir({ remoteDir: remotePath, localDir: localPath });
-                        }
-                    } else {
-                        await client.fastPut(localPath, remotePath);
-                    }
-
-                    list.push({ name: newName });
-                }
-            };
-            await uploadTempDir({ remoteDir: dir, localDir: tempDir });
+            const fileName = getFileName(originalname, await client.list(dir));
+            await client.put(stream, path.posix.join(dir, fileName));
         } catch (err) {
             ftpError("Error al subir los datos", ftpUploadFailed);
         } finally {
             await closeClient(client);
-            if (tempDir) {
-                await fs.rm(tempDir, { recursive: true, force: true });
-            }
         }
     }
 

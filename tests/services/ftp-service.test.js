@@ -3,6 +3,7 @@ import path from "path";
 import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { Readable } from "node:stream";
 import ffmpegPath from "ffmpeg-static";
 
 const authUser = { username: "ronin" };
@@ -221,35 +222,17 @@ describe("FtpService", () => {
         });
 
         it("should upload a regular file", async () => {
-            const file = { originalname: "test.txt", mimetype: "text/plain", buffer: Buffer.from("hello") };
+            const file = { originalname: "test.txt", mimetype: "text/plain", stream: Readable.from("hello") };
             await expect(FtpService.upload({ dir: "/upload", file, authUser })).resolves.toBeUndefined();
             expect(mockClient.list).toHaveBeenCalledWith("/upload");
-            expect(mockClient.put).toHaveBeenCalledWith(file.buffer, "/upload/test.txt");
-            expect(mockZip.extractAllTo).not.toHaveBeenCalled();
-            expect(mockClient.fastPut).not.toHaveBeenCalled();
+            expect(mockClient.put).toHaveBeenCalledWith(file.stream, "/upload/test.txt");
         });
 
         it("should rename uploaded file when it already exists", async () => {
-            const file = { originalname: "test.txt", mimetype: "text/plain", buffer: Buffer.from("hello") };
+            const file = { originalname: "test.txt", mimetype: "text/plain", stream: Readable.from("hello") };
             mockClient.list.mockResolvedValue([{ name: "test.txt" }]);
             await expect(FtpService.upload({ dir: "/upload", file, authUser })).resolves.toBeUndefined();
-            expect(mockClient.put).toHaveBeenCalledWith(file.buffer, "/upload/copia_test.txt");
-        });
-
-        it("should upload zip content", async () => {
-            const file = { originalname: "test.zip", mimetype: "application/zip", buffer: Buffer.from("zip") };
-            fs.readdir
-                .mockResolvedValueOnce([
-                    { name: "images", isDirectory: () => true },
-                    { name: "logo.png", isDirectory: () => false }
-                ])
-                .mockResolvedValueOnce(["file1.jpg"])
-                .mockResolvedValueOnce([{ name: "nested.jpg", isDirectory: () => false }]);
-            await expect(FtpService.upload({ dir: "/upload", file, authUser })).resolves.toBeUndefined();
-            expect(mockZip.extractAllTo).toHaveBeenCalledWith(`${process.cwd()}/temp1783417469000`, true);
-            expect(mockClient.mkdir).toHaveBeenCalledWith("/upload/images");
-            expect(mockClient.fastPut).toHaveBeenCalledWith(expect.stringContaining("logo.png"), "/upload/logo.png");
-            expect(fs.rm).toHaveBeenCalledWith(`${process.cwd()}/temp1783417469000`, { recursive: true, force: true });
+            expect(mockClient.put).toHaveBeenCalledWith(file.stream, "/upload/copia_test.txt");
         });
     });
 

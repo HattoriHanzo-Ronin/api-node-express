@@ -156,10 +156,10 @@ describe("FtpController", () => {
 
     describe("upload", () => {
         it("should upload a file", async () => {
-            const file = { originalname: "file.txt", buffer: Buffer.from("hello") };
+            const file = { originalname: "file.txt", stream: {} };
             const data = [{ name: "file.txt", type: "FILE" }];
             ftpFacade.upload.mockResolvedValue({ hash: "directory-hash", data });
-            req.body.dir = "/upload";
+            req.query.dir = "/upload";
             req.file = file;
             await controller.upload(req, res);
             expect(ftpFacade.upload).toHaveBeenCalledWith({ dir: "/upload", file, authUser: req.user });
