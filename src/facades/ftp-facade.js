@@ -1,6 +1,7 @@
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { API_ERROR, FILE_TYPE } from "../config/constants.js";
+import { FILE_TYPE } from "../config/constants.js";
+import { API_ERROR } from "../config/errors.js";
 import ValidateUtils from "../utils/validate-utils.js";
 
 /**

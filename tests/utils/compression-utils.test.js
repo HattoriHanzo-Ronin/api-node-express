@@ -4,8 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 import CompressionUtils from "../../src/utils/compression-utils.js";
 
 vi.mock("../../src/config/constants.js", () => ({
-    API_ERROR: { zipInvalidPath: { code: "ZIP_INVALID_PATH" } },
     FILE_TYPE: { dir: "DIR", file: "FILE" }
+}));
+
+vi.mock("../../src/config/errors.js", () => ({
+    API_ERROR: { zipInvalidPath: { code: "ZIP_INVALID_PATH" } }
 }));
 
 function createZip() {

@@ -1,6 +1,6 @@
 import RouterResolver from "../devices-routers/router-resolver.js";
 import ValidateUtils from "../utils/validate-utils.js";
-import { API_ERROR } from "../config/constants.js";
+import { API_ERROR } from "../config/errors.js";
 
 /**
  * Whitelist facade

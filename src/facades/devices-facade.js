@@ -1,6 +1,6 @@
 import ValidateUtils from "../utils/validate-utils.js";
 import RouterResolver from "../devices-routers/router-resolver.js";
-import { API_ERROR } from "../config/constants.js";
+import { API_ERROR } from "../config/errors.js";
 
 /**
  * Devices facade

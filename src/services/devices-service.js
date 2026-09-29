@@ -1,7 +1,7 @@
 import DevicesSchema from "../schemas/devices-schema.js";
 import PostgresErrors from "../utils/error/postgres-errors.js";
 import ValidateUtils from "../utils/validate-utils.js";
-import { API_ERROR } from "../config/constants.js";
+import { API_ERROR } from "../config/errors.js";
 
 /**
  * Devices service
