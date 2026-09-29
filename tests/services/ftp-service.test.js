@@ -26,13 +26,13 @@ const { mockClient, mockCloseClient, mockCompressionUtils } = vi.hoisted(() => (
     mockCompressionUtils: { executeUpload: vi.fn(), executeDownload: vi.fn() }
 }));
 
-vi.mock("../../src/config/ftp-connection.js", () => ({
+vi.mock("../../src/utils/connection/ftp-client.js", () => ({
     default: { getClient: vi.fn(async () => mockClient), closeClient: mockCloseClient }
 }));
 
 vi.mock("../../src/utils/compression-utils.js", () => ({ default: mockCompressionUtils }));
 
-import FtpConnection from "../../src/config/ftp-connection.js";
+import FtpClient from "../../src/utils/connection/ftp-client.js";
 import FtpService from "../../src/services/ftp-service.js";
 
 const mediaFs = await vi.importActual("node:fs/promises");
@@ -60,7 +60,7 @@ describe("FtpService", () => {
                 { name: "file.txt", type: "FILE", size: 128, modifyTime, supportsThumbnail: false },
                 { name: "photo.jpg", type: "FILE", size: 256, modifyTime, supportsThumbnail: true }
             ]);
-            expect(FtpConnection.getClient).toHaveBeenCalledWith(authUser.username);
+            expect(FtpClient.getClient).toHaveBeenCalledWith(authUser.username);
             expect(mockClient.list).toHaveBeenCalledWith("/files");
             expect(mockCloseClient).toHaveBeenCalledWith(mockClient);
         });
@@ -125,7 +125,7 @@ describe("FtpService", () => {
                 expect.objectContaining({ start: expect.any(Number), end: expect.any(Number) })
             );
             expect(mockClient.get).not.toHaveBeenCalled();
-            expect(FtpConnection.getClient).toHaveBeenCalledOnce();
+            expect(FtpClient.getClient).toHaveBeenCalledOnce();
             expect(mockCloseClient).toHaveBeenCalledWith(mockClient);
         });
 

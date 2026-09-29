@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CACHE } from "../../src/config/constants.js";
-import DirectoryCache from "../../src/cache/directory-cache.js";
+import { CACHE } from "../../../src/config/constants.js";
+import DirectoryCache from "../../../src/utils/cache/directory-cache.js";
 
 describe("DirectoryCache", () => {
     let cache;

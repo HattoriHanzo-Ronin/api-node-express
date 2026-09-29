@@ -6,7 +6,7 @@ import ffmpegPath from "ffmpeg-static";
 import path from "path";
 import ValidateUtils from "../utils/validate-utils.js";
 import CompressionUtils from "../utils/compression-utils.js";
-import FtpConnection from "../config/ftp-connection.js";
+import FtpClient from "../utils/connection/ftp-client.js";
 import { API_ERROR, FILE_TYPE } from "../config/constants.js";
 
 /**
@@ -246,7 +246,7 @@ export default class FtpService {
 const executeFile = promisify(execFile);
 const MEDIA_EXTENSION = /\.(jpe?g|png|webp|gif|bmp|tiff?|avif|heic|heif|mp4|m4v|mov|mkv|webm|avi|mpeg|mpg|wmv|flv|3gp|mts|m2ts|ogv)$/i;
 const { dir: dirType, file: fileType } = FILE_TYPE;
-const { getClient, closeClient } = FtpConnection;
+const { getClient, closeClient } = FtpClient;
 const { handleApiErrors } = ValidateUtils;
 const {
     ftpUploadFailed,

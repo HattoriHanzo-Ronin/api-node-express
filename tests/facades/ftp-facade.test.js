@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CACHE } from "../../src/config/constants.js";
-import MemoryCache from "../../src/cache/memory-cache.js";
-import DirectoryCache from "../../src/cache/directory-cache.js";
+import MemoryCache from "../../src/utils/cache/memory-cache.js";
+import DirectoryCache from "../../src/utils/cache/directory-cache.js";
 import FtpFacade from "../../src/facades/ftp-facade.js";
 import FtpMapper from "../../src/mappers/ftp-mapper.js";
 

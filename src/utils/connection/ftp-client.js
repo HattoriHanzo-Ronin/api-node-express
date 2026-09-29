@@ -1,5 +1,5 @@
 import SftpClient from "ssh2-sftp-client";
-import { ENV, SECRETS } from "./constants.js";
+import { ENV, SECRETS } from "../../config/constants.js";
 
 const { ftpHost, ftpPort } = ENV;
 
@@ -8,7 +8,7 @@ const { ftpHost, ftpPort } = ENV;
  *
  * @author HattoriHanzo-Ronin
  */
-export default class FtpConnection {
+export default class FtpClient {
     /**
      * Returns a connected SFTP client
      *

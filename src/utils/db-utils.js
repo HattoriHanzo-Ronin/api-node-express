@@ -1,4 +1,4 @@
-import PostgresClient from "../config/db/postgres-client.js";
+import PostgresClient from "./connection/postgres-client.js";
 
 /**
  * Database utility helpers, provides reusable database helper methods

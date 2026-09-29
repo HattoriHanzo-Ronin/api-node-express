@@ -1,4 +1,4 @@
-import PostgresClient from "../../config/db/postgres-client.js";
+import PostgresClient from "../../utils/connection/postgres-client.js";
 import DbUtils from "../../utils/db-utils.js";
 import devicesColumns from "./devices-columns.js";
 
