@@ -1,4 +1,4 @@
-import ApiError from "./api-error.js";
+import ApiError from "./error/api-error.js";
 import { API_ERROR } from "../config/constants.js";
 
 /**

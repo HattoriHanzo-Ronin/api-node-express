@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import busboy from "busboy";
-import ApiError from "../utils/api-error.js";
+import ApiError from "../utils/error/api-error.js";
 import JWTUtils from "../utils/jwt-utils.js";
 import { API_ERROR } from "../config/constants.js";
 

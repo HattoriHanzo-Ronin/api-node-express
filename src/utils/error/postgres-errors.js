@@ -1,5 +1,5 @@
-import { API_ERROR, POSTGRES_ERROR } from "../config/constants.js";
-import ValidateUtils from "./validate-utils.js";
+import { API_ERROR, POSTGRES_ERROR } from "../../config/constants.js";
+import ValidateUtils from "../validate-utils.js";
 
 /**
  * Centralizes the translation of PostgreSQL errors into application errors

@@ -1,13 +1,13 @@
 import { createApp } from "./app.js";
 
-import PostgresClient from "./config/db/postgres-client.js";
+import PostgresClient from "./utils/connection/postgres-client.js";
 
 import FtpController from "./controllers/ftp-controller.js";
 import FtpService from "./services/ftp-service.js";
 import FtpMapper from "./mappers/ftp-mapper.js";
 import FtpFacade from "./facades/ftp-facade.js";
-import MemoryCache from "./cache/memory-cache.js";
-import DirectoryCache from "./cache/directory-cache.js";
+import MemoryCache from "./utils/cache/memory-cache.js";
+import DirectoryCache from "./utils/cache/directory-cache.js";
 import DataVersionsModel from "./models/postgres/data-versions-model.js";
 import DataVersionsService from "./services/data-versions-service.js";
 import DataVersionsFacade from "./facades/data-versions-facade.js";

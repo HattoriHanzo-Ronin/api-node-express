@@ -1,4 +1,4 @@
-import { CACHE } from "../config/constants.js";
+import { CACHE } from "../../config/constants.js";
 
 /**
  * Manages the last directory version cached for each owner

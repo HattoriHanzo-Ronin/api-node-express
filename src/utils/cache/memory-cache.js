@@ -1,4 +1,4 @@
-import { CACHE } from "../config/constants.js";
+import { CACHE } from "../../config/constants.js";
 
 /**
  * Manages a size-limited two-level memory cache

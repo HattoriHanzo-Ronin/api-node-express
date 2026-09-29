@@ -1,4 +1,4 @@
-import PostgresErrors from "../utils/postgres-errors.js";
+import PostgresErrors from "../utils/error/postgres-errors.js";
 import ValidateUtils from "../utils/validate-utils.js";
 import { API_ERROR } from "../config/constants.js";
 

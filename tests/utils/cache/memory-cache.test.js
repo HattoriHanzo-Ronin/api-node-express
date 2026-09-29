@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CACHE } from "../../src/config/constants.js";
-import MemoryCache from "../../src/cache/memory-cache.js";
+import { CACHE } from "../../../src/config/constants.js";
+import MemoryCache from "../../../src/utils/cache/memory-cache.js";
 
 const MB = 1024 ** 2;
 const sizedBuffer = (size) => ({ length: size });
