@@ -2,7 +2,7 @@ import { API_ERROR } from "../config/errors.js";
 import JWTUtils from "../utils/jwt-utils.js";
 
 /**
- * Authentication service
+ * Authentication facade
  *
  * @author HattoriHanzo-Ronin
  */

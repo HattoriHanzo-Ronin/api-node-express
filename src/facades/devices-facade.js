@@ -256,7 +256,7 @@ export default class DevicesFacade {
     }
 
     async #deleteRouterWhitelist(device) {
-        const callback = async ({ key, delDevice, routerImpl }) => await routerImpl.delete({ key, ...delDevice });
+        const callback = ({ key, delDevice, routerImpl }) => routerImpl.delete({ key, ...delDevice });
         const rollbackCallback = async ({ key, addDevice, routerImpl }) => {
             await routerImpl.create({ key, ...addDevice, name: device.name });
         };

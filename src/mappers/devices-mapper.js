@@ -59,6 +59,6 @@ export default class DevicesMapper {
      */
     static devicesToDomain(source) {
         const { devices, connections } = source;
-        return devices.map((device) => this.deviceToDomain({ ...device, connections }));
+        return devices.map((device) => DevicesMapper.deviceToDomain({ ...device, connections }));
     }
 }

@@ -1,5 +1,5 @@
 /**
- * Manages the last directory version cached for each owner
+ * Manages cached directory versions for each owner
  *
  * @author HattoriHanzo-Ronin
  */

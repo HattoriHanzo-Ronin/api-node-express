@@ -88,8 +88,8 @@ export default class AbstractRouter {
      *
      * @returns {Promise<import("puppeteer").Browser>} Puppeteer browser
      */
-    async getPuppeteerBrowser() {
-        return await puppeteer.launch({
+    getPuppeteerBrowser() {
+        return puppeteer.launch({
             executablePath: ENV.chromePath,
             headless: "new",
             args: ["--no-sandbox", "--disable-setuid-sandbox"]

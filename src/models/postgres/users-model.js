@@ -35,7 +35,7 @@ export default class UsersModel {
      */
     static async authenticate({ username, password }) {
         return client.oneOrNone(
-            `select ${authenticationColumns.names} from users 
+            `select ${authenticationColumns.names} from users
              where username = $1 and password = crypt($2, password)`,
             [username, password]
         );

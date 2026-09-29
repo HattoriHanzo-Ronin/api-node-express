@@ -12,7 +12,7 @@ export default function createUsersRouter({ usersController }) {
     router.get("/:id", authorizedRoles([admin]), asyncHandler(usersController.getById));
 
     router.post("/", authorizedRoles([admin]), asyncHandler(usersController.create));
-    
+
     router.delete("/:id", authorizedRoles([admin]), asyncHandler(usersController.delete));
 
     router.patch("/password", asyncHandler(usersController.changePassword));
