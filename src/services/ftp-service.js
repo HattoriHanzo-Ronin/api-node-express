@@ -27,12 +27,16 @@ export default class FtpService {
         try {
             client = await getClient(authUser.username);
             const list = await client.list(dir);
-            return list.map(({ name, type, size, modifyTime }) => ({
-                name,
-                type: type === "d" ? dirType : fileType,
-                size,
-                modifyTime
-            }));
+            return list.map(({ name, type, size, modifyTime }) => {
+                const normalizedType = type === "d" ? dirType : fileType;
+                return {
+                    name,
+                    type: normalizedType,
+                    size,
+                    modifyTime,
+                    supportsThumbnail: normalizedType === fileType && MEDIA_EXTENSION.test(path.extname(name))
+                };
+            });
         } catch (err) {
             ftpError("Error al listar la carpeta", ftpDirFailed);
         } finally {
@@ -41,37 +45,28 @@ export default class FtpService {
     }
 
     /**
-     * Returns image and video thumbnails from a FTP directory
+     * Generates image and video thumbnails from a FTP directory
      *
      * @param {string} params.dir FTP directory path
      * @param {string[]} params.names File names
      * @param {Object} params.authUser Authenticated user
-     * @returns {Promise<Map<string, Buffer | null>>} JPEG thumbnails by file name, or null when processing fails
+     * @param {(source: { name: string, thumbnail: Buffer | null }) => Promise<void>} params.callback Thumbnail processor
      */
-    static async getThumbails({ dir, names, authUser }) {
-        const thumbnails = new Map();
-        if (!names.length) {
-            return thumbnails;
-        }
-
+    static async getThumbnails({ dir, names, authUser, callback }) {
         let client;
         try {
             client = await getClient(authUser.username);
             for (const name of names) {
-                if (!MEDIA_EXTENSION.test(path.extname(name))) {
-                    thumbnails.set(name, null);
-                    continue;
-                }
-
+                let thumbnail;
                 try {
                     const remotePath = path.posix.join(dir, name);
                     const { size } = await client.stat(remotePath);
-                    thumbnails.set(name, await createThumbnail({ client, remotePath, size }));
-                } catch (err) {
-                    thumbnails.set(name, null);
+                    thumbnail = await createThumbnail({ client, remotePath, size });
+                } catch {
+                    thumbnail = null;
                 }
+                await callback({ name, thumbnail });
             }
-            return thumbnails;
         } finally {
             await closeClient(client);
         }

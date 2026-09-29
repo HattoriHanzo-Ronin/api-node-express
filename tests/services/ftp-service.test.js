@@ -52,11 +52,13 @@ describe("FtpService", () => {
             const modifyTime = new Date("2026-09-20T10:00:00.000Z");
             mockClient.list.mockResolvedValue([
                 { name: "docs", type: "d", size: 0, modifyTime },
-                { name: "file.txt", type: "-", size: 128, modifyTime }
+                { name: "file.txt", type: "-", size: 128, modifyTime },
+                { name: "photo.jpg", type: "-", size: 256, modifyTime }
             ]);
             await expect(FtpService.dir({ dir: "/files", authUser })).resolves.toEqual([
-                { name: "docs", type: "DIR", size: 0, modifyTime },
-                { name: "file.txt", type: "FILE", size: 128, modifyTime }
+                { name: "docs", type: "DIR", size: 0, modifyTime, supportsThumbnail: false },
+                { name: "file.txt", type: "FILE", size: 128, modifyTime, supportsThumbnail: false },
+                { name: "photo.jpg", type: "FILE", size: 256, modifyTime, supportsThumbnail: true }
             ]);
             expect(FtpConnection.getClient).toHaveBeenCalledWith(authUser.username);
             expect(mockClient.list).toHaveBeenCalledWith("/files");
@@ -74,7 +76,7 @@ describe("FtpService", () => {
         });
     });
 
-    describe("getThumbails", () => {
+    describe("getThumbnails", () => {
         const executeFile = promisify(execFile);
         let fixtureDir;
         beforeAll(async () => {
@@ -95,19 +97,18 @@ describe("FtpService", () => {
             await mediaFs.rm(fixtureDir, { recursive: true, force: true });
         });
 
-        it("returns real JPEG thumbnails and continues after corrupt or unavailable files", async () => {
-            await mediaFs.writeFile(path.join(fixtureDir, "broken.jpg"), "invalid image");
-            const names = ["photo.PNG", "broken.jpg", "missing.mp4", "video.mp4", "notes.txt"];
+        it("returns real JPEG thumbnails for images and videos", async () => {
             const video = await mediaFs.readFile(path.join(fixtureDir, "video.mp4"));
             expect(video.indexOf(Buffer.from("moov"))).toBeGreaterThan(32768);
-            const result = await FtpService.getThumbails({ dir: "/media", names, authUser });
-            expect(result).toBeInstanceOf(Map);
-            expect([...result.keys()]).toEqual(["photo.PNG", "broken.jpg", "missing.mp4", "video.mp4", "notes.txt"]);
-            expect(result.get("notes.txt")).toBeNull();
-            expect(result.get("broken.jpg")).toBeNull();
-            expect(result.get("missing.mp4")).toBeNull();
+            const thumbnails = new Map();
+            await FtpService.getThumbnails({
+                dir: "/media",
+                names: ["photo.PNG", "video.mp4"],
+                authUser,
+                callback: async ({ name, thumbnail }) => thumbnails.set(name, thumbnail)
+            });
             for (const name of ["photo.PNG", "video.mp4"]) {
-                const buffer = result.get(name);
+                const buffer = thumbnails.get(name);
                 expect(Buffer.isBuffer(buffer)).toBe(true);
                 expect(buffer.subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8]));
                 const output = path.join(fixtureDir, `${name}.jpg`);
@@ -124,15 +125,16 @@ describe("FtpService", () => {
                 expect.objectContaining({ start: expect.any(Number), end: expect.any(Number) })
             );
             expect(mockClient.get).not.toHaveBeenCalled();
+            expect(FtpConnection.getClient).toHaveBeenCalledOnce();
             expect(mockCloseClient).toHaveBeenCalledWith(mockClient);
         });
 
-        it("returns an empty map for a directory without media", async () => {
-            await expect(FtpService.getThumbails({ dir: ".", names: [], authUser })).resolves.toEqual(new Map());
-            expect(mockClient.list).not.toHaveBeenCalled();
-            expect(mockClient.stat).not.toHaveBeenCalled();
-            expect(mockClient.createReadStream).not.toHaveBeenCalled();
-            expect(mockCloseClient).not.toHaveBeenCalled();
+        it("returns null when a thumbnail cannot be generated", async () => {
+            const callback = vi.fn();
+            await FtpService.getThumbnails({ dir: "/media", names: ["missing.mp4"], authUser, callback });
+            expect(mockClient.stat).toHaveBeenCalledWith("/media/missing.mp4");
+            expect(callback).toHaveBeenCalledWith({ name: "missing.mp4", thumbnail: null });
+            expect(mockCloseClient).toHaveBeenCalledWith(mockClient);
         });
 
     });

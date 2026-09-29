@@ -57,10 +57,19 @@ describe("FtpController", () => {
             expect(res.send).toHaveBeenCalledWith(thumbnail);
         });
 
-        it("should not set the JPEG content type when the thumbnail does not exist", async () => {
-            req.params.name = "file.txt";
-            ftpFacade.getThumbnail.mockRejectedValue(new Error("La miniatura no existe"));
-            await expect(controller.getThumbnail(req, res)).rejects.toThrow("La miniatura no existe");
+        it("should return no content when the file has no generated thumbnail", async () => {
+            req.params.name = "photo.jpg";
+            ftpFacade.getThumbnail.mockResolvedValue(null);
+            await controller.getThumbnail(req, res);
+            expect(res.status).toHaveBeenCalledWith(204);
+            expect(res.type).not.toHaveBeenCalled();
+            expect(res.send).toHaveBeenCalledWith();
+        });
+
+        it("should propagate pending thumbnail errors", async () => {
+            req.params.name = "photo.jpg";
+            ftpFacade.getThumbnail.mockRejectedValue(new Error("La miniatura se está generando"));
+            await expect(controller.getThumbnail(req, res)).rejects.toThrow("La miniatura se está generando");
             expect(res.type).not.toHaveBeenCalled();
             expect(res.send).not.toHaveBeenCalled();
         });
