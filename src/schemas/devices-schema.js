@@ -1,5 +1,5 @@
 import z from "zod";
-import { DEVICE_TYPE, VALIDATION } from "../config/constants.js";
+import { DEVICE_TYPE } from "../config/constants.js";
 import ValidateUtils from "../utils/validate-utils.js";
 import idSchema from "./common/id-schema.js";
 import macSchema from "./common/mac-schema.js";
@@ -30,10 +30,10 @@ const {
     useRequiredProperties,
     withSuperRefine
 } = ValidateUtils;
-const { errorMessages, regex, allowEnums } = VALIDATION;
-const { typeRequired, typeNotRequired, format, emptyArray, length, invalidEnum } = errorMessages;
-const { passwordRegex, ipRegex, safeTextRegex } = regex;
-const { connectionsCtype, devicesType } = allowEnums;
+const { ERROR_MESSAGES, REGEX, ALLOW_ENUMS } = ValidateUtils;
+const { typeRequired, typeNotRequired, format, emptyArray, length, invalidEnum } = ERROR_MESSAGES;
+const { passwordRegex, ipRegex, safeTextRegex } = REGEX;
+const { connectionsCtype, devicesType } = ALLOW_ENUMS;
 const { router, server } = DEVICE_TYPE;
 const devicesSchema = z.object({
     name: z

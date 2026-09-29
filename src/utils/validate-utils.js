@@ -1,4 +1,6 @@
 import ApiError from "./error/api-error.js";
+import ObjectUtils from "./object-utils.js";
+import { CONNECTION_CTYPE, DATA_VERSION, DEVICE_TYPE, FILE_TYPE, USER_ROLE } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
 
 /**
@@ -7,6 +9,34 @@ import { API_ERROR } from "../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class ValidateUtils {
+    static ALLOW_ENUMS = ObjectUtils.deepFreeze({
+        fileType: Object.values(FILE_TYPE),
+        connectionsCtype: Object.values(CONNECTION_CTYPE),
+        devicesType: Object.values(DEVICE_TYPE),
+        userRoles: Object.values(USER_ROLE),
+        dataVersions: Object.values(DATA_VERSION)
+    });
+
+    static ERROR_MESSAGES = ObjectUtils.deepFreeze({
+        typeRequired: { error: (issue) => (issue.input === undefined ? "Requerido" : "Tipo no válido") },
+        typeNotRequired: { error: "Tipo no válido" },
+        format: "Error de formato",
+        length: (num, mode) =>
+            `Longitud ${mode === "min" ? "mínima" : "máxima"} ${num} ${num > 1 ? "caracteres" : "caracter"}`,
+        invalidEnum: (values) => ({ error: `Valores permitidos: ${values.join(", ")}` }),
+        invalidId: "UUID no válido",
+        emptyArray: "Debe contener al menos un elemento",
+        emptyString: "No puede estar vacío"
+    });
+
+    static REGEX = ObjectUtils.deepFreeze({
+        passwordRegex: /^[A-Za-z0-9!@#$%^&*()_\-+=\[{\]};:'",<.>/?\\|`~]+$/,
+        macRegex: /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/,
+        ipRegex: /^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/,
+        safeTextRegex: /^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 -]+$/,
+        pathRegex: /^[\p{L}\p{N} ./_-]+$/u
+    });
+
     /**
      * Creates a case-insensitive enum schema
      *

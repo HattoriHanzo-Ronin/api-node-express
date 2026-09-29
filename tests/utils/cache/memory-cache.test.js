@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CACHE } from "../../../src/config/constants.js";
 import MemoryCache from "../../../src/utils/cache/memory-cache.js";
 
 const MB = 1024 ** 2;
@@ -49,7 +48,6 @@ describe("MemoryCache", () => {
     });
 
     it("should enforce the 400 MB limit per user", () => {
-        expect(CACHE.maxSizePerUser).toBe(400 * MB);
         cache.set("user-id", "/first", new Map([["first.jpg", sizedBuffer(200 * MB)]]));
         cache.set("user-id", "/second", new Map([["second.jpg", sizedBuffer(200 * MB)]]));
         cache.set("user-id", "/third", new Map([["third.jpg", sizedBuffer(1)]]));
@@ -69,7 +67,6 @@ describe("MemoryCache", () => {
     });
 
     it("should enforce the 2 GB global limit", () => {
-        expect(CACHE.maxSize).toBe(2 * 1024 ** 3);
         for (let index = 1; index <= 5; index++) {
             cache.set(`user-${index}`, "/media", new Map([["media.jpg", sizedBuffer(400 * MB)]]));
         }
@@ -118,7 +115,6 @@ describe("MemoryCache", () => {
     });
 
     it("should delete an owner cache after ten minutes of inactivity", () => {
-        expect(CACHE.inactivityTimeout).toBe(10 * 60 * 1000);
         cache.set("owner-id", "/media", new Map());
         vi.advanceTimersByTime(10 * 60 * 1000 - 1);
         expect(cache.has("owner-id", "/media")).toBe(true);

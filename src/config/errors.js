@@ -1,9 +1,5 @@
 import ObjectUtils from "../utils/object-utils.js";
 
-const POSTGRES_ERROR = Object.freeze({
-    uniqueViolation: "23505",
-    foreignKeyViolation: "23503"
-});
 const API_ERROR = ObjectUtils.deepFreeze({
     internalError: { code: "INTERNAL_ERROR" },
     routeNotFound: { code: "ROUTE_NOT_FOUND" },
@@ -49,4 +45,4 @@ const API_ERROR = ObjectUtils.deepFreeze({
     zipInvalidPath: { code: "ZIP_INVALID_PATH" }
 });
 
-export { POSTGRES_ERROR, API_ERROR };
+export { API_ERROR };

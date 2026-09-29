@@ -1,9 +1,9 @@
 import z from "zod";
-import { VALIDATION } from "../config/constants.js";
+import ValidateUtils from "../utils/validate-utils.js";
 
-const { errorMessages, allowEnums } = VALIDATION;
-const { typeRequired, invalidEnum } = errorMessages;
-const { dataVersions } = allowEnums;
+const { ERROR_MESSAGES, ALLOW_ENUMS } = ValidateUtils;
+const { typeRequired, invalidEnum } = ERROR_MESSAGES;
+const { dataVersions } = ALLOW_ENUMS;
 const entity = z.enum(dataVersions, invalidEnum(dataVersions));
 const id = z
     .string(typeRequired)

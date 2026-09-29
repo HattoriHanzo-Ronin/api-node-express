@@ -1,4 +1,4 @@
-import { API_ERROR, POSTGRES_ERROR } from "../../config/errors.js";
+import { API_ERROR } from "../../config/errors.js";
 import ValidateUtils from "../validate-utils.js";
 
 /**
@@ -7,6 +7,9 @@ import ValidateUtils from "../validate-utils.js";
  * @author HattoriHanzo-Ronin
  */
 export default class PostgresErrors {
+    static #UNIQUE_VIOLATION = "23505";
+    static #FOREIGN_KEY_VIOLATION = "23503";
+
     /**
      * Translates whitelist PostgreSQL errors
      *
@@ -15,7 +18,7 @@ export default class PostgresErrors {
     static whitelist(err) {
         handleApiErrors([
             {
-                condition: err.code === uniqueViolation,
+                condition: err.code === PostgresErrors.#UNIQUE_VIOLATION,
                 execute: () => {
                     handleApiErrors([
                         {
@@ -43,7 +46,7 @@ export default class PostgresErrors {
     static devices(err) {
         handleApiErrors([
             {
-                condition: err.code === uniqueViolation,
+                condition: err.code === PostgresErrors.#UNIQUE_VIOLATION,
                 execute: () => {
                     handleApiErrors([
                         {
@@ -72,7 +75,7 @@ export default class PostgresErrors {
     static connections(err) {
         handleApiErrors([
             {
-                condition: err.code === uniqueViolation,
+                condition: err.code === PostgresErrors.#UNIQUE_VIOLATION,
                 message: "La mac ya está en uso",
                 status: 409,
                 apiError: connectionMacAlreadyExists
@@ -88,7 +91,7 @@ export default class PostgresErrors {
     static users(err) {
         handleApiErrors([
             {
-                condition: err.code === uniqueViolation,
+                condition: err.code === PostgresErrors.#UNIQUE_VIOLATION,
                 message: "El nombre de usuario ya está en uso",
                 status: 409,
                 apiError: userUsernameAlreadyExists
@@ -104,7 +107,7 @@ export default class PostgresErrors {
     static refreshTokens(err) {
         handleApiErrors([
             {
-                condition: err.code === foreignKeyViolation,
+                condition: err.code === PostgresErrors.#FOREIGN_KEY_VIOLATION,
                 message: "El usuario no existe",
                 status: 404,
                 apiError: refreshTokenUserNotFound
@@ -113,7 +116,6 @@ export default class PostgresErrors {
     }
 }
 
-const { uniqueViolation, foreignKeyViolation } = POSTGRES_ERROR;
 const {
     whitelistAlreadyAllowed,
     whitelistKeyGenerationFailed,
