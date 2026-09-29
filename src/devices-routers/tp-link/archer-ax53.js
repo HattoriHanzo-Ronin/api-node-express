@@ -43,8 +43,17 @@ export default class ArcherAX53Router extends AbstractRouter {
                 clickCount: 3
             });
             await nameInput.type(name);
-            await page.waitForSelector("input.su-mac-input__partition");
-            const macInputs = await page.$$("input.su-mac-input__partition");
+            let macInputs = await page.$$("input.su-mac-input__partition");
+            if (macInputs.length < 6) {
+                await delay(3500);
+                macInputs = await page.$$("input.su-mac-input__partition");
+            }
+
+            if (macInputs.length < 6) {
+                await page.waitForSelector("input.su-mac-input__partition");
+                macInputs = await page.$$("input.su-mac-input__partition");
+            }
+
             const macParts = mac.split("-");
             for (let i = 0; i < 6; i++) {
                 await macInputs[i].click();
