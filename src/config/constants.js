@@ -106,7 +106,7 @@ const API_ERROR = deepFreeze({
     ftpMoveFailed: { code: "FTP_MOVE_FAILED" },
     ftpRenameFailed: { code: "FTP_RENAME_FAILED" },
     ftpDeleteFailed: { code: "FTP_DELETE_FAILED" },
-    ftpThumbnailNotFound: { code: "FTP_THUMBNAIL_NOT_FOUND" },
+    ftpThumbnailPending: { code: "FTP_THUMBNAIL_PENDING" },
     ftpFileRequired: { code: "FTP_FILE_REQUIRED" },
     zipInvalidPath: { code: "ZIP_INVALID_PATH" }
 });

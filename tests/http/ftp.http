@@ -23,7 +23,7 @@
 # - dir defaults to "." when it is not provided.
 # - Resource entries must include name and type.
 # - Allowed entry types are DIR and FILE.
-# - FILE responses include hasThumbnail.
+# - FILE responses include supportsThumbnail.
 # - Upload uses query parameter extract=true to extract a ZIP tree; false uploads the ZIP as a regular file.
 
 @baseUrl = http://localhost:60004/ftp
@@ -50,7 +50,7 @@
 #   {
 #       "name": "test.txt",
 #       "type": "FILE",
-#       "hasThumbnail": false
+#       "supportsThumbnail": false
 #   }
 # ]
 ############################################################
@@ -65,7 +65,7 @@ Authorization: Bearer {{token}}
 #
 # Prerequisite:
 # - List the directory first.
-# - Ensure photo.jpg exists and hasThumbnail is true.
+# - Ensure photo.jpg exists and supportsThumbnail is true.
 #
 # Expected:
 # Status: 200
@@ -81,19 +81,34 @@ Authorization: Bearer {{token}}
 ###
 
 ############################################################
-# ApiError - Thumbnail not available
+# ApiError - Thumbnail pending
 #
 # Expected:
 # Status: 404
 #
 # Response:
 # {
-#   "code": "FTP_THUMBNAIL_NOT_FOUND",
-#   "message": "La miniatura no existe"
+#   "code": "FTP_THUMBNAIL_PENDING",
+#   "message": "La miniatura se está generando"
 # }
 ############################################################
 
-GET {{baseUrl}}/thumbnail/{{fileName}}?dir=.
+GET {{baseUrl}}/thumbnail/{{thumbnailName}}?dir=.
+Authorization: Bearer {{token}}
+
+###
+
+############################################################
+# Thumbnail unavailable
+#
+# Expected:
+# Status: 204
+#
+# Response:
+# Empty body
+############################################################
+
+GET {{baseUrl}}/thumbnail/{{thumbnailName}}?dir=.
 Authorization: Bearer {{token}}
 
 ###
@@ -138,7 +153,7 @@ Content-Type: application/json
 #   {
 #       "name": "test.txt",
 #       "type": "FILE",
-#       "hasThumbnail": false
+#       "supportsThumbnail": false
 #   }
 # ]
 ############################################################

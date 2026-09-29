@@ -13,19 +13,18 @@ export default class FtpMapper {
      * @returns {Object} Domain FTP entry
      */
     static entryToDomain(source) {
-        const { name, type, thumbnail } = source;
+        const { name, type, supportsThumbnail } = source;
         const entry = { name, type };
-        return type === FILE_TYPE.file ? { ...entry, hasThumbnail: thumbnail !== null && thumbnail !== undefined } : entry;
+        return type === FILE_TYPE.file ? { ...entry, supportsThumbnail } : entry;
     }
 
     /**
      * Maps FTP entries to the domain model
      *
-     * @param {Object} source FTP entries and thumbnails
+     * @param {Object[]} source FTP entries
      * @returns {Object[]} Domain FTP entries
      */
     static entriesToDomain(source) {
-        const { entries, bufferMap } = source;
-        return entries.map((entry) => this.entryToDomain({ ...entry, thumbnail: bufferMap.get(entry.name) }));
+        return source.map((entry) => this.entryToDomain(entry));
     }
 }

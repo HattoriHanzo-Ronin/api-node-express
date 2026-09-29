@@ -9,6 +9,8 @@ import ValidateUtils from "../utils/validate-utils.js";
  * @author HattoriHanzo-Ronin
  */
 export default class FtpFacade {
+    #thumbnailJobs = new Map();
+
     constructor({ ftpService, ftpMapper, memoryCache, directoryCache }) {
         this.ftpService = ftpService;
         this.ftpMapper = ftpMapper;
@@ -25,10 +27,9 @@ export default class FtpFacade {
     async dir(data) {
         const { dir, authUser } = data;
         const result = await this.ftpService.dir(data);
-        const names = result.filter(({ type }) => type === FILE_TYPE.file).map(({ name }) => name);
-        const bufferMap = await this.#syncThumbnails({ dir, names, authUser });
+        this.#syncThumbnails({ dir, entries: result, authUser });
         const hash = await this.#watchDirectory({ dir, authUser, entries: result });
-        return { hash, data: this.ftpMapper.entriesToDomain({ entries: result, bufferMap }) };
+        return { hash, data: this.ftpMapper.entriesToDomain(result) };
     }
 
     /**
@@ -54,7 +55,7 @@ export default class FtpFacade {
      * @param {string} params.dir FTP directory path
      * @param {string} params.name File name
      * @param {Object} params.authUser Authenticated user
-     * @returns {Promise<Buffer>} JPEG thumbnail
+     * @returns {Promise<Buffer | null>} JPEG thumbnail, or null when unavailable
      */
     async getThumbnail({ dir, name, authUser }) {
         let bufferMap = this.memoryCache.get(authUser.id, dir);
@@ -64,15 +65,16 @@ export default class FtpFacade {
         }
 
         const thumbnail = bufferMap?.get(name);
+        const thumbnailJobs = this.#thumbnailJobs.get(getThumbnailJobKey(authUser.id, dir));
         handleApiErrors([
             {
-                condition: !thumbnail,
-                message: "La miniatura no existe",
+                condition: thumbnail === undefined && thumbnailJobs?.has(name),
+                message: "La miniatura se está generando",
                 status: 404,
-                apiError: ftpThumbnailNotFound
+                apiError: ftpThumbnailPending
             }
         ]);
-        return thumbnail;
+        return thumbnail ?? null;
     }
 
     /**
@@ -107,6 +109,7 @@ export default class FtpFacade {
 
         this.memoryCache.delete(authUser.id, dir);
         this.directoryCache.delete(authUser.id, dir);
+        this.#thumbnailJobs.delete(getThumbnailJobKey(authUser.id, dir));
         return this.dir({ dir: destination, authUser });
     }
 
@@ -174,6 +177,7 @@ export default class FtpFacade {
                 const key = path.posix.join(dir, entry.name);
                 this.memoryCache.delete(authUser.id, key);
                 this.directoryCache.delete(authUser.id, key);
+                this.#thumbnailJobs.delete(getThumbnailJobKey(authUser.id, key));
             }
         }
 
@@ -181,39 +185,101 @@ export default class FtpFacade {
     }
 
     /**
-     * Synchronizes cached thumbnails with current FTP file names
+     * Synchronizes cached thumbnails with current FTP entries
      *
      * @param {string} params.dir FTP directory path
-     * @param {string[]} params.names Current FTP file names
+     * @param {Object[]} params.entries Current FTP entries
      * @param {Object} params.authUser Authenticated user
-     * @returns {Promise<Map<string, Buffer | null>>} Synchronized thumbnails
      */
-    async #syncThumbnails({ dir, names, authUser }) {
+    #syncThumbnails({ dir, entries, authUser }) {
+        const names = entries.filter(({ supportsThumbnail }) => supportsThumbnail).map(({ name }) => name);
         const cachedBufferMap = this.memoryCache.get(authUser.id, dir);
-        if (!cachedBufferMap) {
-            const bufferMap = await this.ftpService.getThumbails({ dir, names, authUser });
-            this.memoryCache.set(authUser.id, dir, bufferMap);
-            return bufferMap;
-        }
-
-        let bufferMap = new Map(cachedBufferMap);
+        const bufferMap = new Map(cachedBufferMap);
         const removedNames = new Set(bufferMap.keys());
         const missingNames = names.filter((name) => !removedNames.delete(name));
         for (const name of removedNames) {
             bufferMap.delete(name);
         }
-        let updateBufferMap = removedNames.size > 0;
-        if (missingNames.length) {
-            const newThumbnails = await this.ftpService.getThumbails({ dir, names: missingNames, authUser });
-            bufferMap = new Map([...bufferMap, ...newThumbnails]);
-            updateBufferMap ||= newThumbnails.size > 0;
-        }
 
-        if (updateBufferMap) {
+        if (!cachedBufferMap || removedNames.size) {
             this.memoryCache.set(authUser.id, dir, bufferMap);
         }
 
-        return bufferMap;
+        const jobKey = getThumbnailJobKey(authUser.id, dir);
+        const thumbnailJobs = this.#thumbnailJobs.get(jobKey) ?? new Set();
+        const nameSet = new Set(names);
+        for (const name of thumbnailJobs) {
+            if (!nameSet.has(name)) {
+                thumbnailJobs.delete(name);
+            }
+        }
+
+        if (!thumbnailJobs.size) {
+            this.#thumbnailJobs.delete(jobKey);
+        }
+
+        this.#queueThumbnails({ dir, names: missingNames, authUser, thumbnailJobs });
+    }
+
+    /**
+     * Queues thumbnails that are not already being generated
+     *
+     * @param {string} params.dir FTP directory path
+     * @param {string[]} params.names File names
+     * @param {Object} params.authUser Authenticated user
+     * @param {Set<string>} params.thumbnailJobs Pending thumbnail names
+     */
+    #queueThumbnails({ dir, names, authUser, thumbnailJobs = new Set() }) {
+        const pendingNames = names.filter((name) => !thumbnailJobs.has(name));
+        if (!pendingNames.length) {
+            return;
+        }
+
+        const jobKey = getThumbnailJobKey(authUser.id, dir);
+        pendingNames.forEach((name) => thumbnailJobs.add(name));
+        this.#thumbnailJobs.set(jobKey, thumbnailJobs);
+        void this.#getThumbnails({ dir, names: pendingNames, authUser, jobKey });
+    }
+
+    /**
+     * Caches thumbnails as the FTP service generates them
+     *
+     * @param {string} params.dir FTP directory path
+     * @param {string[]} params.names File names
+     * @param {Object} params.authUser Authenticated user
+     * @param {string} params.jobKey Thumbnail job identifier
+     */
+    async #getThumbnails({ dir, names, authUser, jobKey }) {
+        try {
+            await this.ftpService.getThumbnails({
+                dir,
+                names,
+                authUser,
+                callback: async ({ name, thumbnail }) => {
+                    const thumbnailJobs = this.#thumbnailJobs.get(jobKey);
+                    if (!thumbnailJobs?.delete(name)) {
+                        return;
+                    }
+
+                    const cachedBufferMap = this.memoryCache.get(authUser.id, dir);
+                    if (cachedBufferMap) {
+                        const bufferMap = new Map(cachedBufferMap);
+                        bufferMap.set(name, thumbnail);
+                        this.memoryCache.set(authUser.id, dir, bufferMap);
+                    }
+
+                    if (!thumbnailJobs.size) {
+                        this.#thumbnailJobs.delete(jobKey);
+                    }
+                }
+            });
+        } catch {
+            const thumbnailJobs = this.#thumbnailJobs.get(jobKey);
+            names.forEach((name) => thumbnailJobs?.delete(name));
+            if (!thumbnailJobs?.size) {
+                this.#thumbnailJobs.delete(jobKey);
+            }
+        }
     }
 
     /**
@@ -258,8 +324,11 @@ export default class FtpFacade {
     async #moveCachedDirectory(ownerId, sourceKey, destinationKey) {
         const bufferMap = this.memoryCache.get(ownerId, sourceKey);
         const directory = this.directoryCache.get(ownerId, sourceKey);
+        const sourceJobKey = getThumbnailJobKey(ownerId, sourceKey);
+        const names = [...(this.#thumbnailJobs.get(sourceJobKey) ?? [])];
         this.memoryCache.delete(ownerId, sourceKey);
         this.directoryCache.delete(ownerId, sourceKey);
+        this.#thumbnailJobs.delete(sourceJobKey);
         if (bufferMap !== undefined) {
             this.memoryCache.set(ownerId, destinationKey, bufferMap);
         }
@@ -270,14 +339,26 @@ export default class FtpFacade {
                 authUser: { id: ownerId, username: directory.username },
                 hash: directory.hash
             });
+
+            if (names.length) {
+                this.#queueThumbnails({
+                    dir: destinationKey,
+                    names,
+                    authUser: { id: ownerId, username: directory.username }
+                });
+            }
         }
     }
 }
 
 const { handleApiErrors } = ValidateUtils;
-const { ftpThumbnailNotFound } = API_ERROR;
+const { ftpThumbnailPending } = API_ERROR;
 const hashAlgorithm = "sha256";
 const directoryCheckTimeout = 5000;
+
+function getThumbnailJobKey(ownerId, dir) {
+    return JSON.stringify([ownerId, dir]);
+}
 
 function hashDirectory(entries) {
     const source = entries

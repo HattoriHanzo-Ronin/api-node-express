@@ -15,7 +15,7 @@ describe("FtpFacade", () => {
         vi.useFakeTimers();
         ftpService = {
             dir: vi.fn(),
-            getThumbails: vi.fn(),
+            getThumbnails: vi.fn(),
             makeDir: vi.fn(),
             move: vi.fn(),
             rename: vi.fn(),
@@ -24,7 +24,7 @@ describe("FtpFacade", () => {
             delete: vi.fn()
         };
         ftpService.dir.mockResolvedValue([]);
-        ftpService.getThumbails.mockResolvedValue(new Map());
+        ftpService.getThumbnails.mockResolvedValue(undefined);
         memoryCache = new MemoryCache();
         directoryCache = new DirectoryCache();
         ftpFacade = new FtpFacade({
@@ -57,25 +57,42 @@ describe("FtpFacade", () => {
             expect(directoryCache.has(authUser.id, "/files")).toBe(true);
         });
 
-        it("should cache thumbnails from normalized file entries while returning directory content", async () => {
+        it("should return thumbnail candidates before caching their generated buffers", async () => {
             const data = { dir: "/files", authUser: { id: "user-id", username: "ronin" } };
             const entries = [
-                { name: "folder", type: "DIR" },
-                { name: "photo.jpg", type: "FILE" },
-                { name: "video.mp4", type: "FILE" }
+                { name: "folder", type: "DIR", supportsThumbnail: false },
+                { name: "photo.jpg", type: "FILE", supportsThumbnail: true },
+                { name: "notes.txt", type: "FILE", supportsThumbnail: false }
             ];
-            const thumbnails = new Map([["photo.jpg", Buffer.from("thumbnail")]]);
+            let resolveThumbnails;
             ftpService.dir.mockResolvedValue(entries);
-            ftpService.getThumbails.mockResolvedValue(thumbnails);
+            ftpService.getThumbnails.mockImplementation(({ callback }) => new Promise((resolve) => {
+                resolveThumbnails = async (thumbnail) => {
+                    await callback({ name: "photo.jpg", thumbnail });
+                    resolve();
+                };
+            }));
             await expect(ftpFacade.dir(data)).resolves.toEqual({
                 hash: expect.any(String),
                 data: [
                     { name: "folder", type: "DIR" },
-                    { name: "photo.jpg", type: "FILE", hasThumbnail: true },
-                    { name: "video.mp4", type: "FILE", hasThumbnail: false }
+                    { name: "photo.jpg", type: "FILE", supportsThumbnail: true },
+                    { name: "notes.txt", type: "FILE", supportsThumbnail: false }
                 ]
             });
-            expect(ftpService.getThumbails).toHaveBeenCalledWith({ ...data, names: ["photo.jpg", "video.mp4"] });
+            expect(memoryCache.get("user-id", "/files")).toEqual(new Map());
+            expect(ftpService.getThumbnails).toHaveBeenCalledWith({
+                ...data,
+                names: ["photo.jpg"],
+                callback: expect.any(Function)
+            });
+            await expect(ftpFacade.getThumbnail({ dir: data.dir, name: "photo.jpg", authUser: data.authUser })).rejects.toMatchObject({
+                code: "FTP_THUMBNAIL_PENDING"
+            });
+            expect(ftpService.getThumbnails).toHaveBeenCalledOnce();
+            await resolveThumbnails(Buffer.from("thumbnail"));
+            await Promise.resolve();
+            await Promise.resolve();
             await expect(ftpFacade.getThumbnail({ dir: data.dir, name: "photo.jpg", authUser: data.authUser })).resolves.toEqual(Buffer.from("thumbnail"));
         });
 
@@ -83,14 +100,14 @@ describe("FtpFacade", () => {
             const data = { dir: "/files", authUser: { id: "user-id", username: "ronin" } };
             ftpService.dir
                 .mockResolvedValueOnce([
-                    { name: "photo.jpg", type: "FILE", size: 100, modifyTime: "2026-09-20T10:00:00.000Z" }
+                    { name: "photo.jpg", type: "FILE", size: 100, modifyTime: "2026-09-20T10:00:00.000Z", supportsThumbnail: true }
                 ])
                 .mockResolvedValueOnce([
-                    { name: "photo.jpg", type: "FILE", size: 200, modifyTime: "2026-09-20T10:01:00.000Z" }
+                    { name: "photo.jpg", type: "FILE", size: 200, modifyTime: "2026-09-20T10:01:00.000Z", supportsThumbnail: true }
                 ]);
             await expect(ftpFacade.dir(data)).resolves.toEqual({
                 hash: expect.any(String),
-                data: [{ name: "photo.jpg", type: "FILE", hasThumbnail: false }]
+                data: [{ name: "photo.jpg", type: "FILE", supportsThumbnail: true }]
             });
             const initialHash = directoryCache.get("user-id", "/files").hash;
             await vi.advanceTimersByTimeAsync(5000);
@@ -104,71 +121,104 @@ describe("FtpFacade", () => {
         it("should synchronize cached thumbnails with external directory changes", async () => {
             const data = { dir: "/files", authUser: { id: "user-id", username: "ronin" } };
             ftpService.dir.mockResolvedValueOnce([
-                { name: "old.jpg", type: "FILE" },
-                { name: "removed.jpg", type: "FILE" },
-                { name: "notes.txt", type: "FILE" }
+                { name: "old.jpg", type: "FILE", supportsThumbnail: true },
+                { name: "removed.jpg", type: "FILE", supportsThumbnail: true },
+                { name: "notes.txt", type: "FILE", supportsThumbnail: false }
             ]);
-            ftpService.getThumbails.mockResolvedValueOnce(new Map([
-                ["old.jpg", Buffer.from("old")],
-                ["removed.jpg", Buffer.from("removed")],
-                ["notes.txt", null]
-            ]));
+            ftpService.getThumbnails.mockImplementation(async ({ names, callback }) => {
+                for (const name of names) {
+                    await callback({ name, thumbnail: Buffer.from(name) });
+                }
+            });
             await ftpFacade.dir(data);
+            await Promise.resolve();
+            await Promise.resolve();
+            await Promise.resolve();
             ftpService.dir.mockResolvedValueOnce([
-                { name: "old.jpg", type: "FILE" },
-                { name: "new.jpg", type: "FILE" },
-                { name: "notes.txt", type: "FILE" }
+                { name: "old.jpg", type: "FILE", supportsThumbnail: true },
+                { name: "new.jpg", type: "FILE", supportsThumbnail: true },
+                { name: "notes.txt", type: "FILE", supportsThumbnail: false }
             ]);
-            ftpService.getThumbails.mockResolvedValueOnce(new Map([["new.jpg", Buffer.from("new")]]));
             await expect(ftpFacade.dir(data)).resolves.toEqual({
                 hash: expect.any(String),
                 data: [
-                    { name: "old.jpg", type: "FILE", hasThumbnail: true },
-                    { name: "new.jpg", type: "FILE", hasThumbnail: true },
-                    { name: "notes.txt", type: "FILE", hasThumbnail: false }
+                    { name: "old.jpg", type: "FILE", supportsThumbnail: true },
+                    { name: "new.jpg", type: "FILE", supportsThumbnail: true },
+                    { name: "notes.txt", type: "FILE", supportsThumbnail: false }
                 ]
             });
-            expect(ftpService.getThumbails).toHaveBeenLastCalledWith({ ...data, names: ["new.jpg"] });
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(ftpService.getThumbnails).toHaveBeenLastCalledWith({
+                ...data,
+                names: ["new.jpg"],
+                callback: expect.any(Function)
+            });
             expect(memoryCache.get("user-id", "/files").has("removed.jpg")).toBe(false);
+            expect(memoryCache.get("user-id", "/files").has("notes.txt")).toBe(false);
         });
 
-        it("should reuse the same directory cache and regenerate it after expiration", async () => {
+        it("should reuse the same thumbnail cache and regenerate it after deletion", async () => {
             const data = { dir: "/files", authUser: { id: "user-id", username: "ronin" } };
-            ftpService.dir.mockResolvedValue([{ name: "photo.jpg", type: "FILE" }]);
-            ftpService.getThumbails.mockResolvedValue(new Map([["photo.jpg", Buffer.from("thumbnail")]]));
+            ftpService.dir.mockResolvedValue([{ name: "photo.jpg", type: "FILE", supportsThumbnail: true }]);
+            ftpService.getThumbnails.mockImplementation(async ({ names, callback }) => {
+                for (const name of names) {
+                    await callback({ name, thumbnail: Buffer.from("thumbnail") });
+                }
+            });
             await ftpFacade.dir(data);
+            await Promise.resolve();
             await vi.advanceTimersByTimeAsync(CACHE.inactivityTimeout - 1);
             await ftpFacade.dir(data);
-            expect(ftpService.getThumbails).toHaveBeenCalledOnce();
-            await vi.advanceTimersByTimeAsync(CACHE.inactivityTimeout - 1);
+            expect(ftpService.getThumbnails).toHaveBeenCalledOnce();
             await expect(ftpFacade.getThumbnail({ dir: data.dir, name: "photo.jpg", authUser: data.authUser })).resolves.toEqual(Buffer.from("thumbnail"));
-            await vi.advanceTimersByTimeAsync(CACHE.inactivityTimeout);
+            memoryCache.delete("user-id", "/files");
+            let resolveThumbnails;
+            ftpService.getThumbnails.mockImplementationOnce(({ callback }) => new Promise((resolve) => {
+                resolveThumbnails = async (thumbnail) => {
+                    await callback({ name: "photo.jpg", thumbnail });
+                    resolve();
+                };
+            }));
+            await expect(ftpFacade.getThumbnail({ dir: data.dir, name: "photo.jpg", authUser: data.authUser })).rejects.toMatchObject({
+                code: "FTP_THUMBNAIL_PENDING"
+            });
+            await resolveThumbnails(Buffer.from("thumbnail"));
+            await Promise.resolve();
+            await Promise.resolve();
             await expect(ftpFacade.getThumbnail({ dir: data.dir, name: "photo.jpg", authUser: data.authUser })).resolves.toEqual(Buffer.from("thumbnail"));
-            expect(ftpService.getThumbails).toHaveBeenCalledTimes(2);
+            expect(ftpService.getThumbnails).toHaveBeenCalledTimes(2);
         });
 
         it("should return thumbnails from the requested cached directory", async () => {
             const authUser = { id: "user-id", username: "ronin" };
-            ftpService.dir.mockResolvedValueOnce([{ name: "first.jpg", type: "FILE" }]);
-            ftpService.getThumbails.mockResolvedValueOnce(new Map([["first.jpg", Buffer.from("first")]]));
+            ftpService.getThumbnails.mockImplementation(async ({ names, callback }) => {
+                for (const name of names) {
+                    await callback({ name, thumbnail: Buffer.from(name.split(".")[0]) });
+                }
+            });
+            ftpService.dir.mockResolvedValueOnce([{ name: "first.jpg", type: "FILE", supportsThumbnail: true }]);
             await ftpFacade.dir({ dir: "/first", authUser });
-            ftpService.dir.mockResolvedValueOnce([{ name: "second.jpg", type: "FILE" }]);
-            ftpService.getThumbails.mockResolvedValueOnce(new Map([["second.jpg", Buffer.from("second")]]));
+            await Promise.resolve();
+            ftpService.dir.mockResolvedValueOnce([{ name: "second.jpg", type: "FILE", supportsThumbnail: true }]);
             await ftpFacade.dir({ dir: "/second", authUser });
+            await Promise.resolve();
             await expect(ftpFacade.getThumbnail({ dir: "/first", name: "first.jpg", authUser })).resolves.toEqual(Buffer.from("first"));
             await expect(ftpFacade.getThumbnail({ dir: "/second", name: "second.jpg", authUser })).resolves.toEqual(Buffer.from("second"));
         });
 
-        it("should fail when the thumbnail does not exist", async () => {
+        it("should return null when the file has no generated thumbnail", async () => {
             const authUser = { id: "user-id", username: "ronin" };
-            ftpService.dir.mockResolvedValue([{ name: "photo.jpg", type: "FILE" }]);
-            ftpService.getThumbails.mockResolvedValue(new Map([["photo.jpg", null]]));
-            await ftpFacade.dir({ dir: "/files", authUser });
-            await expect(ftpFacade.getThumbnail({ dir: "/files", name: "photo.jpg", authUser })).rejects.toMatchObject({
-                status: 404,
-                code: "FTP_THUMBNAIL_NOT_FOUND",
-                message: "La miniatura no existe"
+            ftpService.dir.mockResolvedValue([{ name: "photo.jpg", type: "FILE", supportsThumbnail: true }]);
+            ftpService.getThumbnails.mockImplementation(async ({ names, callback }) => {
+                for (const name of names) {
+                    await callback({ name, thumbnail: null });
+                }
             });
+            await ftpFacade.dir({ dir: "/files", authUser });
+            await Promise.resolve();
+            expect(memoryCache.get("user-id", "/files").get("photo.jpg")).toBeNull();
+            await expect(ftpFacade.getThumbnail({ dir: "/files", name: "photo.jpg", authUser })).resolves.toBeNull();
         });
 
         it("should download resources", async () => {

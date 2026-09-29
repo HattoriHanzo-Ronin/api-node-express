@@ -22,6 +22,11 @@ export default class FtpController {
         const { params, query, user: authUser } = req;
         const { dir, name } = validateData({ ...query, ...params }, getThumbnailSchema());
         const thumbnail = await this.ftpFacade.getThumbnail({ dir, name, authUser });
+        if (thumbnail === null) {
+            res.status(204).send();
+            return;
+        }
+
         res.type("jpeg").send(thumbnail);
     };
 
