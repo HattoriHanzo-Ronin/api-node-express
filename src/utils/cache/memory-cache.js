@@ -1,11 +1,13 @@
-import { CACHE } from "../../config/constants.js";
-
 /**
  * Manages a size-limited two-level memory cache
  *
  * @author HattoriHanzo-Ronin
  */
 export default class MemoryCache {
+    static #MAX_SIZE = 2 * 1024 ** 3;
+    static #MAX_SIZE_PER_OWNER = 400 * 1024 ** 2;
+    static #INACTIVITY_TIMEOUT = 10 * 60 * 1000;
+
     #cache = new Map();
     #clearTimeouts = new Map();
     #size = 0;
@@ -122,11 +124,11 @@ export default class MemoryCache {
 
     #enforceLimits(ownerId) {
         const entry = this.#cache.get(ownerId);
-        if (entry?.size > maxSizePerUser) {
+        if (entry?.size > MemoryCache.#MAX_SIZE_PER_OWNER) {
             this.delete(ownerId, entry.values.keys().next().value);
         }
 
-        while (this.#size > maxSize) {
+        while (this.#size > MemoryCache.#MAX_SIZE) {
             const oldestMultiple = [...this.#cache].find(([, it]) => it.values.size > 1);
             if (oldestMultiple) {
                 const [oldestOwnerId, oldestEntry] = oldestMultiple;
@@ -143,12 +145,10 @@ export default class MemoryCache {
             clearTimeout(previousTimeout);
         }
 
-        const timeout = setTimeout(() => this.#deleteOwner(ownerId), inactivityTimeout);
+        const timeout = setTimeout(() => this.#deleteOwner(ownerId), MemoryCache.#INACTIVITY_TIMEOUT);
         this.#clearTimeouts.set(ownerId, timeout);
     }
 }
-
-const { maxSize, maxSizePerUser, inactivityTimeout } = CACHE;
 
 function getValueSize(value) {
     let size = 0;

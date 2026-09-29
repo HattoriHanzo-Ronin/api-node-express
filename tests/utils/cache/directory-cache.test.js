@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CACHE } from "../../../src/config/constants.js";
 import DirectoryCache from "../../../src/utils/cache/directory-cache.js";
 
 describe("DirectoryCache", () => {
@@ -43,7 +42,7 @@ describe("DirectoryCache", () => {
         cache.set("user-id", "/files", { ...value, hash: "second-hash" });
         vi.advanceTimersByTime(9 * 60 * 1000);
         expect(cache.has("user-id", "/files")).toBe(true);
-        vi.advanceTimersByTime(CACHE.inactivityTimeout - 9 * 60 * 1000);
+        vi.advanceTimersByTime(60 * 1000);
         expect(cache.has("user-id", "/files")).toBe(false);
     });
 

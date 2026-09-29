@@ -1,11 +1,11 @@
-import { CACHE } from "../../config/constants.js";
-
 /**
  * Manages the last directory version cached for each owner
  *
  * @author HattoriHanzo-Ronin
  */
 export default class DirectoryCache {
+    static #INACTIVITY_TIMEOUT = 10 * 60 * 1000;
+
     #cache = new Map();
     #clearTimeouts = new Map();
 
@@ -90,9 +90,7 @@ export default class DirectoryCache {
             clearTimeout(previousTimeout);
         }
 
-        const timeout = setTimeout(() => this.delete(ownerId, key), inactivityTimeout);
+        const timeout = setTimeout(() => this.delete(ownerId, key), DirectoryCache.#INACTIVITY_TIMEOUT);
         clearTimeouts.set(key, timeout);
     }
 }
-
-const { inactivityTimeout } = CACHE;

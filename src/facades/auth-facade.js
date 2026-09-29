@@ -1,4 +1,3 @@
-import { JWT } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
 import JWTUtils from "../utils/jwt-utils.js";
 
@@ -8,6 +7,9 @@ import JWTUtils from "../utils/jwt-utils.js";
  * @author HattoriHanzo-Ronin
  */
 export default class AuthFacade {
+    static #ACCESS_TOKEN_EXPIRES_IN = "30min";
+    static #REFRESH_TOKEN_EXPIRES_IN = "60d";
+
     constructor({ usersFacade, refreshTokensService }) {
         this.usersFacade = usersFacade;
         this.refreshTokensService = refreshTokensService;
@@ -64,15 +66,14 @@ export default class AuthFacade {
      */
     async #createPayload(user) {
         const { id, username, roles, scope } = user;
-        const refreshToken = generateRefreshToken({ id }, refreshTokenExpiresIn);
+        const refreshToken = generateRefreshToken({ id }, AuthFacade.#REFRESH_TOKEN_EXPIRES_IN);
         await this.refreshTokensService.create({ userId: id, token: refreshToken });
         return {
             user: { id, username, roles, scope },
-            accessToken: generateAccessToken({ id, username, roles, scope }, accessTokenExpiresIn),
+            accessToken: generateAccessToken({ id, username, roles, scope }, AuthFacade.#ACCESS_TOKEN_EXPIRES_IN),
             refreshToken
         };
     }
 }
 
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = JWTUtils;
-const { accessTokenExpiresIn, refreshTokenExpiresIn } = JWT;

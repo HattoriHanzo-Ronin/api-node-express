@@ -1,5 +1,4 @@
 import z from "zod";
-import { VALIDATION } from "../config/constants.js";
 import ValidateUtils from "../utils/validate-utils.js";
 import dirSchema from "./common/dir-schema.js";
 
@@ -43,9 +42,9 @@ export default class FtpSchema {
 }
 
 const { handleValidationIssues, zodEnumIgnoreCase, withSuperRefine } = ValidateUtils;
-const { allowEnums, errorMessages } = VALIDATION;
-const { typeRequired, format, emptyArray, emptyString, invalidEnum } = errorMessages;
-const { fileType } = allowEnums;
+const { ALLOW_ENUMS, ERROR_MESSAGES } = ValidateUtils;
+const { typeRequired, format, emptyArray, emptyString, invalidEnum } = ERROR_MESSAGES;
+const { fileType } = ALLOW_ENUMS;
 const { dir } = dirSchema.shape;
 const name = z
     .string(typeRequired)

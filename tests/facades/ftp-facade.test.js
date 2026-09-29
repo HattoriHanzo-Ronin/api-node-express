@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CACHE } from "../../src/config/constants.js";
 import MemoryCache from "../../src/utils/cache/memory-cache.js";
 import DirectoryCache from "../../src/utils/cache/directory-cache.js";
 import FtpFacade from "../../src/facades/ftp-facade.js";
@@ -168,7 +167,7 @@ describe("FtpFacade", () => {
             });
             await ftpFacade.dir(data);
             await Promise.resolve();
-            await vi.advanceTimersByTimeAsync(CACHE.inactivityTimeout - 1);
+            await vi.advanceTimersByTimeAsync(10 * 60 * 1000 - 1);
             await ftpFacade.dir(data);
             expect(ftpService.getThumbnails).toHaveBeenCalledOnce();
             await expect(ftpFacade.getThumbnail({ dir: data.dir, name: "photo.jpg", authUser: data.authUser })).resolves.toEqual(Buffer.from("thumbnail"));
