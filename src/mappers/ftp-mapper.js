@@ -25,6 +25,6 @@ export default class FtpMapper {
      * @returns {Object[]} Domain FTP entries
      */
     static entriesToDomain(source) {
-        return source.map((entry) => this.entryToDomain(entry));
+        return source.map((entry) => FtpMapper.entryToDomain(entry));
     }
 }

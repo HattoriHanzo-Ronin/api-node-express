@@ -88,7 +88,7 @@ export default class UsersFacade {
         const { scope: authScope } = authUser;
         const superAdmin = authScope.includes(admin);
         if (!superAdmin) {
-            forbiddendError(userRoles || userScope);
+            forbiddenError(userRoles || userScope);
             userRoles = authScope;
         }
 
@@ -134,18 +134,18 @@ export default class UsersFacade {
             {
                 condition: !isAdmin,
                 execute: () => {
-                    forbiddendError(updatedUserRoles || updatedUserScope || updatesActive || !isSelf);
+                    forbiddenError(updatedUserRoles || updatedUserScope || updatesActive || !isSelf);
                 }
             },
             {
                 condition: isAdmin,
                 execute: () => {
-                    forbiddendError(isSelf && updatesActive);
+                    forbiddenError(isSelf && updatesActive);
                     handleApiErrors([
                         {
                             condition: !superAdmin,
                             execute: () => {
-                                forbiddendError(
+                                forbiddenError(
                                     updatedUserRoles || updatedUserScope || !allowedManage(authUser, userRoles)
                                 );
                             }
@@ -163,7 +163,7 @@ export default class UsersFacade {
                                     userRoles.includes(admin) &&
                                     updatedUserRoles &&
                                     !updatedUserRoles.includes(admin);
-                                forbiddendError(wouldLoseAdminScope || wouldLoseAdminRole);
+                                forbiddenError(wouldLoseAdminScope || wouldLoseAdminRole);
                             }
                         }
                     ]);
@@ -251,7 +251,7 @@ function filterAcl(authUser, source) {
     return canSeeAcl ? source : result;
 }
 
-function forbiddendError(condition) {
+function forbiddenError(condition) {
     handleApiErrors([
         { condition, message: "No tiene permisos para realizar esa acción", status: 403, apiError: aclPermissionDenied }
     ]);

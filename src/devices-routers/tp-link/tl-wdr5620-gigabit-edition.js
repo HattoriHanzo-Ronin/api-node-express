@@ -87,9 +87,15 @@ export default class TLWDR5620GigabitEditionRouter extends AbstractRouter {
                 let l = 187;
                 let n = 187;
 
-                if (p >= g) n = password.charCodeAt(p);
-                else if (p >= h) l = key.charCodeAt(p);
-                else {
+                if (p >= g) {
+                    n = password.charCodeAt(p);
+                }
+
+                if (p < g && p >= h) {
+                    l = key.charCodeAt(p);
+                }
+
+                if (p < g && p < h) {
                     l = key.charCodeAt(p);
                     n = password.charCodeAt(p);
                 }

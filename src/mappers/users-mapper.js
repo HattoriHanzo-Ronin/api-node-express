@@ -26,7 +26,7 @@ export default class UsersMapper {
      */
     static usersToDomain(source) {
         const { users, roles } = source;
-        return users.map((user) => this.userToDomain({ ...user, roles }));
+        return users.map((user) => UsersMapper.userToDomain({ ...user, roles }));
     }
 }
 

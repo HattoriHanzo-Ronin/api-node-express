@@ -152,13 +152,11 @@ function cases({ type, mac_filter, admin_pass, ip, wifi_pass, model, connections
                         repeatedCtypes.set(ctype, (repeatedCtypes.get(ctype) ?? 0) + 1);
                     }
                     handleValidationIssues(
-                        [...repeatedCtypes.entries()].map(([ctype, occurrences]) => {
-                            return {
-                                condition: occurrences > 1,
-                                path: ["connections.ctype"],
-                                message: `El ctype ${ctype} se encuentra duplicado`
-                            };
-                        }),
+                        [...repeatedCtypes.entries()].map(([ctype, occurrences]) => ({
+                            condition: occurrences > 1,
+                            path: ["connections.ctype"],
+                            message: `El ctype ${ctype} se encuentra duplicado`
+                        })),
                         ctx
                     );
                 }
