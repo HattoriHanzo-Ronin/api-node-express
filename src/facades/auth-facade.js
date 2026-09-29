@@ -1,4 +1,5 @@
-import { API_ERROR, JWT } from "../config/constants.js";
+import { JWT } from "../config/constants.js";
+import { API_ERROR } from "../config/errors.js";
 import JWTUtils from "../utils/jwt-utils.js";
 
 /**

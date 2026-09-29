@@ -7,7 +7,8 @@ import path from "path";
 import ValidateUtils from "../utils/validate-utils.js";
 import CompressionUtils from "../utils/compression-utils.js";
 import FtpClient from "../utils/connection/ftp-client.js";
-import { API_ERROR, FILE_TYPE } from "../config/constants.js";
+import { FILE_TYPE } from "../config/constants.js";
+import { API_ERROR } from "../config/errors.js";
 
 /**
  * FTP service

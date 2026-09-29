@@ -1,5 +1,5 @@
 import ValidateUtils from "../utils/validate-utils.js";
-import { API_ERROR } from "../config/constants.js";
+import { API_ERROR } from "../config/errors.js";
 import ArcherAX53Router from "./tp-link/archer-ax53.js";
 import TLWDR5620GigabitEditionRouter from "./tp-link/tl-wdr5620-gigabit-edition.js";
 

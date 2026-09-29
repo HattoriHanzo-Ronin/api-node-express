@@ -3,7 +3,8 @@ import { PassThrough } from "node:stream";
 import { finished } from "node:stream/promises";
 import { ZipArchive } from "archiver";
 import unzipper from "unzipper";
-import { API_ERROR, FILE_TYPE } from "../config/constants.js";
+import { FILE_TYPE } from "../config/constants.js";
+import { API_ERROR } from "../config/errors.js";
 import ValidateUtils from "./validate-utils.js";
 
 /**

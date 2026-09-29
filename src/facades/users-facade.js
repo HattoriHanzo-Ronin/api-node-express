@@ -1,5 +1,6 @@
 import ValidateUtils from "../utils/validate-utils.js";
-import { API_ERROR, USER_ROLE } from "../config/constants.js";
+import { USER_ROLE } from "../config/constants.js";
+import { API_ERROR } from "../config/errors.js";
 
 const { admin } = USER_ROLE;
 const { userNotFound, aclPermissionDenied } = API_ERROR;

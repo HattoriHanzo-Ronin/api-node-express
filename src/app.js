@@ -7,7 +7,8 @@ import createWhitelistRouter from "./routes/whitelist-router.js";
 import createDevicesRouter from "./routes/devices-router.js";
 import createUsersRouter from "./routes/users-router.js";
 import createAuthRouter from "./routes/auth-router.js";
-import { ENV, USER_ROLE } from "./config/constants.js";
+import { USER_ROLE } from "./config/constants.js";
+import { ENV } from "./config/environment.js";
 
 const { ftp, net } = USER_ROLE;
 

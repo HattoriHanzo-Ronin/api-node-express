@@ -1,4 +1,4 @@
-import { API_ERROR, POSTGRES_ERROR } from "../../config/constants.js";
+import { API_ERROR, POSTGRES_ERROR } from "../../config/errors.js";
 import ValidateUtils from "../validate-utils.js";
 
 /**

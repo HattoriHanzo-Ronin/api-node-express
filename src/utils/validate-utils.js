@@ -1,5 +1,5 @@
 import ApiError from "./error/api-error.js";
-import { API_ERROR } from "../config/constants.js";
+import { API_ERROR } from "../config/errors.js";
 
 /**
  * Validation utilities

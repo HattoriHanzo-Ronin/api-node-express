@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import ValidateUtils from "./validate-utils.js";
-import { API_ERROR, SECRETS } from "../config/constants.js";
+import { API_ERROR } from "../config/errors.js";
+import { SECRETS } from "../config/secrets.js";
 
 /**
  * Centralizes JWT operations used by the authentication system

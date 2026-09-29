@@ -3,7 +3,7 @@ import cors from "cors";
 import busboy from "busboy";
 import ApiError from "../utils/error/api-error.js";
 import JWTUtils from "../utils/jwt-utils.js";
-import { API_ERROR } from "../config/constants.js";
+import { API_ERROR } from "../config/errors.js";
 
 /**
  * Application middleware factory

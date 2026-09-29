@@ -2,7 +2,7 @@ import { wrapper } from "axios-cookiejar-support";
 import { CookieJar } from "tough-cookie";
 import axios from "axios";
 import puppeteer from "puppeteer-core";
-import { ENV } from "../config/constants.js";
+import { ENV } from "../config/environment.js";
 
 /**
  * Base router implementation

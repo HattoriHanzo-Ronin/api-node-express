@@ -1,0 +1,52 @@
+import ObjectUtils from "../utils/object-utils.js";
+
+const POSTGRES_ERROR = Object.freeze({
+    uniqueViolation: "23505",
+    foreignKeyViolation: "23503"
+});
+const API_ERROR = ObjectUtils.deepFreeze({
+    internalError: { code: "INTERNAL_ERROR" },
+    routeNotFound: { code: "ROUTE_NOT_FOUND" },
+    validationFailed: { code: "VALIDATION_FAILED" },
+    deviceNameAlreadyExists: { code: "DEVICE_NAME_ALREADY_EXISTS" },
+    deviceIpAlreadyInUse: { code: "DEVICE_IP_ALREADY_IN_USE" },
+    deviceNotFound: { code: "DEVICE_NOT_FOUND" },
+    deviceEmptyUpdate: { code: "DEVICE_EMPTY_UPDATE" },
+    connectionRequired: { code: "CONNECTION_REQUIRED" },
+    connectionMacAlreadyExists: { code: "CONNECTION_MAC_ALREADY_EXISTS" },
+    connectionCreateFailed: { code: "CONNECTION_CREATE_FAILED" },
+    connectionUpdateFailed: { code: "CONNECTION_UPDATE_FAILED" },
+    connectionMacMismatch: { code: "CONNECTION_MAC_MISMATCH" },
+    whitelistAlreadyAllowed: { code: "WHITELIST_ALREADY_ALLOWED" },
+    whitelistNotAllowed: { code: "WHITELIST_NOT_ALLOWED" },
+    whitelistKeyGenerationFailed: { code: "WHITELIST_KEY_GENERATION_FAILED" },
+    whitelistRouterNotFound: { code: "WHITELIST_ROUTER_NOT_FOUND" },
+    routerImplementationNotFound: { code: "ROUTER_IMPLEMENTATION_NOT_FOUND" },
+    routerAddFailed: { code: "ROUTER_ADD_FAILED" },
+    routerDeleteFailed: { code: "ROUTER_DELETE_FAILED" },
+    routerRollbackFailed: { code: "ROUTER_ROLLBACK_FAILED" },
+    authenticationRequired: { code: "AUTHENTICATION_REQUIRED" },
+    refreshTokenUserNotFound: { code: "REFRESH_TOKEN_USER_NOT_FOUND" },
+    invalidToken: { code: "INVALID_TOKEN" },
+    userUsernameAlreadyExists: { code: "USER_USERNAME_ALREADY_EXISTS" },
+    userNotFound: { code: "USER_NOT_FOUND" },
+    userInvalidCredentials: { code: "USER_INVALID_CREDENTIALS" },
+    userIncorrectPassword: { code: "USER_INCORRECT_PASSWORD" },
+    userEmptyUpdate: { code: "USER_EMPTY_UPDATE" },
+    aclRoleRequired: { code: "ACL_ROLE_REQUIRED" },
+    aclPermissionDenied: { code: "ACL_PERMISSION_DENIED" },
+    aclRoleCreateFailed: { code: "ACL_ROLE_CREATE_FAILED" },
+    aclRoleUpdateFailed: { code: "ACL_ROLE_UPDATE_FAILED" },
+    ftpUploadFailed: { code: "FTP_UPLOAD_FAILED" },
+    ftpDownloadFailed: { code: "FTP_DOWNLOAD_FAILED" },
+    ftpDirFailed: { code: "FTP_DIR_FAILED" },
+    ftpMkdirFailed: { code: "FTP_MKDIR_FAILED" },
+    ftpMoveFailed: { code: "FTP_MOVE_FAILED" },
+    ftpRenameFailed: { code: "FTP_RENAME_FAILED" },
+    ftpDeleteFailed: { code: "FTP_DELETE_FAILED" },
+    ftpThumbnailPending: { code: "FTP_THUMBNAIL_PENDING" },
+    ftpFileRequired: { code: "FTP_FILE_REQUIRED" },
+    zipInvalidPath: { code: "ZIP_INVALID_PATH" }
+});
+
+export { POSTGRES_ERROR, API_ERROR };
