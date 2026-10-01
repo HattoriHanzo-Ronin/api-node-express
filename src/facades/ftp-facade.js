@@ -51,6 +51,18 @@ export default class FtpFacade {
     }
 
     /**
+     * Streams a temporary FTP media resource
+     *
+     * @param {string} data.id Media session identifier
+     * @param {string | undefined} data.range Requested byte range
+     * @param {string} data.method HTTP method
+     * @param {import("node:http").ServerResponse} data.stream HTTP response
+     */
+    async streamMedia(data) {
+        await this.ftpService.streamMedia(data);
+    }
+
+    /**
      * Returns a cached FTP thumbnail
      *
      * @param {string} params.dir FTP directory path

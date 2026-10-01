@@ -61,6 +61,17 @@ Authorization: Bearer {{token}}
 ###
 
 ############################################################
+# Internal media range
+#
+# Only available while the thumbnail generator owns a temporary UUID.
+# The Origin must match THUMBNAIL_GENERATOR_URL.
+#
+# GET {{baseUrl}}/media/<temporary-uuid>
+# Origin: http://thumbnail-generator:3000
+# Range: bytes=0-1023
+#
+############################################################
+
 # Get thumbnail
 #
 # Prerequisite:

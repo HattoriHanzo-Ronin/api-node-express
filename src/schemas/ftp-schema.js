@@ -1,6 +1,7 @@
 import z from "zod";
 import ValidateUtils from "../utils/validate-utils.js";
 import dirSchema from "./common/dir-schema.js";
+import idSchema from "./common/id-schema.js";
 
 /**
  * Factory for FTP validation schemas
@@ -10,6 +11,10 @@ import dirSchema from "./common/dir-schema.js";
 export default class FtpSchema {
     static getDirSchema() {
         return z.object({ dir });
+    }
+
+    static getMediaSchema() {
+        return idSchema;
     }
 
     static getThumbnailSchema() {
