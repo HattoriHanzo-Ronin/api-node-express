@@ -16,6 +16,10 @@ import { API_ERROR } from "../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class FtpService {
+    static #MEDIA_SESSION_TIMEOUT = 60_000;
+    static #MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024;
+    static #mediaSessions = new Map();
+
     /**
      * Returns FTP directory content
      *
@@ -71,6 +75,44 @@ export default class FtpService {
         } finally {
             await closeClient(client);
         }
+    }
+
+    /**
+     * Streams a temporary media session range
+     *
+     * @param {string} params.id Media session identifier
+     * @param {string | undefined} params.range Requested byte range
+     * @param {string} params.method HTTP method
+     * @param {import("node:http").ServerResponse} params.stream HTTP response
+     */
+    static async streamMedia({ id, range, method, stream }) {
+        const session = FtpService.#mediaSessions.get(id);
+        if (!session) {
+            stream.statusCode = 204;
+            stream.end();
+            return;
+        }
+
+        const { size, createReadStream } = session;
+        const { start, end, partial } = getRange(range, size);
+        if (start > end || start >= size) {
+            stream.writeHead(416, { "Content-Range": `bytes */${size}` });
+            stream.end();
+            return;
+        }
+
+        const headers = { "Accept-Ranges": "bytes", "Content-Length": end - start + 1 };
+        if (partial) {
+            headers["Content-Range"] = `bytes ${start}-${end}/${size}`;
+        }
+
+        stream.writeHead(partial ? 206 : 200, headers);
+        if (method === "HEAD") {
+            stream.end();
+            return;
+        }
+
+        await pipeline(createReadStream({ start, end }), stream);
     }
 
     /**

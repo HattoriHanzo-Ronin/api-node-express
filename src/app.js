@@ -7,10 +7,10 @@ import createWhitelistRouter from "./routes/whitelist-router.js";
 import createDevicesRouter from "./routes/devices-router.js";
 import createUsersRouter from "./routes/users-router.js";
 import createAuthRouter from "./routes/auth-router.js";
-import { USER_ROLE } from "./config/constants.js";
 import { ENV } from "./config/environment.js";
+import { USER_ROLE } from "./config/constants.js";
 
-const { ftp, net } = USER_ROLE;
+const { net } = USER_ROLE;
 
 export function createApp({
     dataVersionsController,
@@ -28,11 +28,11 @@ export function createApp({
     app.use(cors(), json());
 
     app.use("/auth", createAuthRouter({ authController }));
+    app.use("/ftp", createFtpRouter({ ftpController }));
 
     app.use(requireAuth);
 
     app.use("/data-versions", createDataVersionsRouter({ dataVersionsController }));
-    app.use("/ftp", authorizedRoles([ftp]), createFtpRouter({ ftpController }));
     app.use("/whitelist", authorizedRoles([net]), createWhitelistRouter({ whitelistController }));
     app.use("/devices", authorizedRoles([net]), createDevicesRouter({ devicesController }));
     app.use("/users", createUsersRouter({ usersController }));

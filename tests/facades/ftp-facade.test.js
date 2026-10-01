@@ -1,3 +1,4 @@
+import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MemoryCache from "../../src/utils/cache/memory-cache.js";
 import DirectoryCache from "../../src/utils/cache/directory-cache.js";
@@ -15,6 +16,7 @@ describe("FtpFacade", () => {
         ftpService = {
             dir: vi.fn(),
             getThumbnails: vi.fn(),
+            streamMedia: vi.fn(),
             makeDir: vi.fn(),
             move: vi.fn(),
             rename: vi.fn(),
@@ -39,6 +41,12 @@ describe("FtpFacade", () => {
     });
 
     describe("read operations", () => {
+        it("should delegate temporary media streams", async () => {
+            const data = { id: "media-id", range: "bytes=0-99", method: "GET", stream: new PassThrough() };
+            await ftpFacade.streamMedia(data);
+            expect(ftpService.streamMedia).toHaveBeenCalledWith(data);
+        });
+
         it("should return a cached directory hash", async () => {
             const authUser = { id: "user-id", username: "ronin" };
             directoryCache.set(authUser.id, "/files", { username: authUser.username, hash: "directory-hash" });

@@ -11,6 +11,7 @@ describe("FtpController", () => {
         ftpFacade = {
             dir: vi.fn(),
             getThumbnail: vi.fn(),
+            streamMedia: vi.fn(),
             makeDir: vi.fn(),
             move: vi.fn(),
             rename: vi.fn(),
@@ -42,6 +43,27 @@ describe("FtpController", () => {
         it("should fail when dir contains traversal", async () => {
             req.query.dir = "../secret";
             await expect(controller.dir(req, res)).rejects.toThrow("Error al validar los datos");
+        });
+    });
+
+    describe("streamMedia", () => {
+        it("should stream a temporary media range", async () => {
+            req.params.id = "550e8400-e29b-41d4-a716-446655440000";
+            req.headers = { range: "bytes=0-99" };
+            req.method = "GET";
+            await controller.streamMedia(req, res);
+            expect(ftpFacade.streamMedia).toHaveBeenCalledWith({
+                id: req.params.id,
+                range: req.headers.range,
+                method: req.method,
+                stream: res
+            });
+        });
+
+        it("should reject invalid media identifiers", async () => {
+            req.params.id = "invalid";
+            req.headers = {};
+            await expect(controller.streamMedia(req, res)).rejects.toThrow("Error al validar los datos");
         });
     });
 
