@@ -1,11 +1,5 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import path from "path";
-import { tmpdir } from "node:os";
-import { execFile } from "node:child_process";
-import { createReadStream } from "node:fs";
-import { promisify } from "node:util";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PassThrough, Readable } from "node:stream";
-import ffmpegPath from "ffmpeg-static";
 
 const authUser = { username: "ronin" };
 const { mockClient, mockCloseClient, mockCompressionUtils } = vi.hoisted(() => ({
@@ -32,10 +26,12 @@ vi.mock("../../src/utils/connection/ftp-client.js", () => ({
 
 vi.mock("../../src/utils/compression-utils.js", () => ({ default: mockCompressionUtils }));
 
+vi.mock("../../src/config/environment.js", () => ({
+    ENV: { apiUrl: "http://api-node-express:60004", thumbnailGeneratorUrl: "http://thumbnail-generator:3000" }
+}));
+
 import FtpClient from "../../src/utils/connection/ftp-client.js";
 import FtpService from "../../src/services/ftp-service.js";
-
-const mediaFs = await vi.importActual("node:fs/promises");
 
 describe("FtpService", () => {
     beforeEach(() => {
@@ -45,6 +41,7 @@ describe("FtpService", () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+        vi.unstubAllGlobals();
     });
 
     describe("dir", () => {
@@ -77,59 +74,81 @@ describe("FtpService", () => {
     });
 
     describe("getThumbnails", () => {
-        const executeFile = promisify(execFile);
-        let fixtureDir;
-        beforeAll(async () => {
-            fixtureDir = await mediaFs.mkdtemp(path.join(tmpdir(), "ftp-media-test-"));
-            await executeFile(ffmpegPath, ["-f", "lavfi", "-i", "color=c=red:s=640x360", "-frames:v", "1", path.join(fixtureDir, "photo.PNG")]);
-            await executeFile(ffmpegPath, ["-f", "lavfi", "-i", "testsrc2=s=360x640", "-t", "1", "-c:v", "mpeg4", path.join(fixtureDir, "video.mp4")]);
-        });
+        const media = Buffer.from("0123456789".repeat(10));
 
         beforeEach(() => {
             vi.clearAllMocks();
-            mockClient.stat.mockImplementation((remote) => mediaFs.stat(path.join(fixtureDir, path.posix.basename(remote))));
-            mockClient.createReadStream.mockImplementation((remote, options) =>
-                createReadStream(path.join(fixtureDir, path.posix.basename(remote)), options)
+            mockClient.stat.mockResolvedValue({ size: media.length });
+            mockClient.createReadStream.mockImplementation((remote, { start, end }) =>
+                Readable.from(media.subarray(start, end + 1))
             );
         });
 
-        afterAll(async () => {
-            await mediaFs.rm(fixtureDir, { recursive: true, force: true });
-        });
-
-        it("returns real JPEG thumbnails for images and videos", async () => {
-            const video = await mediaFs.readFile(path.join(fixtureDir, "video.mp4"));
-            expect(video.indexOf(Buffer.from("moov"))).toBeGreaterThan(32768);
+        it("delegates thumbnail generation to the isolated service", async () => {
+            const thumbnail = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+            vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(thumbnail))));
             const thumbnails = new Map();
             await FtpService.getThumbnails({
                 dir: "/media",
                 names: ["photo.PNG", "video.mp4"],
                 authUser,
-                callback: async ({ name, thumbnail }) => thumbnails.set(name, thumbnail)
+                callback: async ({ name, thumbnail: result }) => thumbnails.set(name, result)
             });
-            for (const name of ["photo.PNG", "video.mp4"]) {
-                const buffer = thumbnails.get(name);
-                expect(Buffer.isBuffer(buffer)).toBe(true);
-                expect(buffer.subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8]));
-                const output = path.join(fixtureDir, `${name}.jpg`);
-                await mediaFs.writeFile(output, buffer);
-                const { stderr } = await executeFile(ffmpegPath, ["-i", output, "-f", "null", "-"]);
-                expect(stderr).toContain(name === "photo.PNG" ? "320x180" : "180x320");
+            expect(thumbnails).toEqual(new Map([
+                ["photo.PNG", thumbnail],
+                ["video.mp4", thumbnail]
+            ]));
+            expect(fetch).toHaveBeenCalledTimes(2);
+            for (const [url, options] of fetch.mock.calls) {
+                expect(url).toMatch(/^http:\/\/thumbnail-generator:3000\/thumbnail\/[\da-f-]{36}$/);
+                expect(options).toEqual({
+                    method: "POST",
+                    headers: { Origin: "http://api-node-express:60004" },
+                    signal: expect.any(AbortSignal)
+                });
             }
-            expect(mockClient.createReadStream).toHaveBeenCalledWith(
-                "/media/photo.PNG",
-                expect.objectContaining({ start: expect.any(Number), end: expect.any(Number) })
-            );
-            expect(mockClient.createReadStream).toHaveBeenCalledWith(
-                "/media/video.mp4",
-                expect.objectContaining({ start: expect.any(Number), end: expect.any(Number) })
-            );
-            expect(mockClient.get).not.toHaveBeenCalled();
+            const id = fetch.mock.calls[0][0].split("/").at(-1);
+            const expiredStream = new PassThrough();
+            await FtpService.streamMedia({ id, method: "GET", stream: expiredStream });
+            expect(expiredStream.statusCode).toBe(204);
+            expect(expiredStream.writableEnded).toBe(true);
             expect(FtpClient.getClient).toHaveBeenCalledOnce();
             expect(mockCloseClient).toHaveBeenCalledWith(mockClient);
         });
 
+        it("streams registered media ranges while thumbnail generation is active", async () => {
+            const thumbnail = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+            vi.stubGlobal("fetch", vi.fn(async (url) => {
+                const id = url.split("/").at(-1);
+                const output = new PassThrough();
+                const chunks = [];
+                output.writeHead = vi.fn();
+                output.on("data", (chunk) => chunks.push(chunk));
+                await FtpService.streamMedia({ id, range: "bytes=0-9", method: "GET", stream: output });
+                expect(Buffer.concat(chunks)).toEqual(media.subarray(0, 10));
+                expect(output.writeHead).toHaveBeenCalledWith(206, {
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": 10,
+                    "Content-Range": expect.stringMatching(/^bytes 0-9\/\d+$/)
+                });
+                return new Response(thumbnail);
+            }));
+            const callback = vi.fn();
+            await FtpService.getThumbnails({ dir: "/media", names: ["photo.PNG"], authUser, callback });
+            expect(callback).toHaveBeenCalledWith({ name: "photo.PNG", thumbnail });
+            expect(mockClient.createReadStream).toHaveBeenCalledWith("/media/photo.PNG", { start: 0, end: 9 });
+        });
+
+        it("returns null when the generator response exceeds the allowed size", async () => {
+            vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(Buffer.alloc(5 * 1024 * 1024 + 1)))));
+            const callback = vi.fn();
+            await FtpService.getThumbnails({ dir: "/media", names: ["oversized.mp4"], authUser, callback });
+            expect(callback).toHaveBeenCalledWith({ name: "oversized.mp4", thumbnail: null });
+            expect(mockCloseClient).toHaveBeenCalledWith(mockClient);
+        });
+
         it("returns null when a thumbnail cannot be generated", async () => {
+            mockClient.stat.mockRejectedValue(new Error("missing"));
             const callback = vi.fn();
             await FtpService.getThumbnails({ dir: "/media", names: ["missing.mp4"], authUser, callback });
             expect(mockClient.stat).toHaveBeenCalledWith("/media/missing.mp4");

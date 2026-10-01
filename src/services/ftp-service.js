@@ -1,14 +1,12 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import { createServer } from "node:http";
+import { randomUUID } from "node:crypto";
 import { finished, pipeline } from "node:stream/promises";
-import ffmpegPath from "ffmpeg-static";
 import path from "path";
 import ValidateUtils from "../utils/validate-utils.js";
 import CompressionUtils from "../utils/compression-utils.js";
 import FtpClient from "../utils/connection/ftp-client.js";
 import { FILE_TYPE } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
+import { ENV } from "../config/environment.js";
 
 /**
  * FTP service
@@ -66,7 +64,7 @@ export default class FtpService {
                 try {
                     const remotePath = path.posix.join(dir, name);
                     const { size } = await client.stat(remotePath);
-                    thumbnail = await createThumbnail({ client, remotePath, size });
+                    thumbnail = await FtpService.#createThumbnail({ client, remotePath, size });
                 } catch {
                     thumbnail = null;
                 }
@@ -284,9 +282,77 @@ export default class FtpService {
             await closeClient(client);
         }
     }
+
+    /**
+     * Creates a thumbnail through a temporary seekable media session
+     *
+     * @param {import("ssh2-sftp-client")} params.client SFTP client
+     * @param {string} params.remotePath Remote media path
+     * @param {number} params.size Media size in bytes
+     * @returns {Promise<Buffer | null>} JPEG thumbnail
+     */
+    static async #createThumbnail({ client, remotePath, size }) {
+        if (!size) {
+            return null;
+        }
+
+        const id = randomUUID();
+        const timeout = setTimeout(() => FtpService.#mediaSessions.delete(id), FtpService.#MEDIA_SESSION_TIMEOUT);
+        FtpService.#mediaSessions.set(id, {
+            size,
+            createReadStream: ({ start, end }) => client.createReadStream(remotePath, { start, end })
+        });
+        try {
+            const response = await fetch(`${ENV.thumbnailGeneratorUrl}/thumbnail/${id}`, {
+                method: "POST",
+                headers: { Origin: ENV.apiUrl },
+                signal: AbortSignal.timeout(FtpService.#MEDIA_SESSION_TIMEOUT)
+            });
+            if (!response.ok) {
+                return null;
+            }
+
+            return FtpService.#readResponseBuffer(response, FtpService.#MAX_THUMBNAIL_SIZE);
+        } finally {
+            clearTimeout(timeout);
+            FtpService.#mediaSessions.delete(id);
+        }
+    }
+
+    /**
+     * Reads a response without exceeding the allowed buffer size
+     *
+     * @param {Response} response HTTP response
+     * @param {number} maxSize Maximum response size in bytes
+     * @returns {Promise<Buffer>} Response buffer
+     */
+    static async #readResponseBuffer(response, maxSize) {
+        const contentLength = Number(response.headers.get("content-length"));
+        handleApiErrors([{
+            condition: contentLength > maxSize,
+            message: "La miniatura supera el tamaño permitido",
+            status: 413,
+            apiError: ftpThumbnailTooLarge
+        }]);
+
+        const chunks = [];
+        let size = 0;
+        for await (const chunk of response.body) {
+            size += chunk.length;
+            handleApiErrors([{
+                condition: size > maxSize,
+                message: "La miniatura supera el tamaño permitido",
+                status: 413,
+                apiError: ftpThumbnailTooLarge
+            }]);
+
+            chunks.push(chunk);
+        }
+
+        return Buffer.concat(chunks, size);
+    }
 }
 
-const executeFile = promisify(execFile);
 const MEDIA_EXTENSION = /\.(jpe?g|png|webp|gif|bmp|tiff?|avif|heic|heif|mp4|m4v|mov|mkv|webm|avi|mpeg|mpg|wmv|flv|3gp|mts|m2ts|ogv)$/i;
 const { dir: dirType, file: fileType } = FILE_TYPE;
 const { getClient, closeClient } = FtpClient;
@@ -299,6 +365,7 @@ const {
     ftpMoveFailed,
     ftpRenameFailed,
     ftpDeleteFailed,
+    ftpThumbnailTooLarge,
     ftpFileRequired,
     zipInvalidPath
 } = API_ERROR;
@@ -350,65 +417,6 @@ async function uploadZipEntry({ client, dir, entry, directories, list }) {
 
     if (isRoot) {
         list.push({ name });
-    }
-}
-
-/**
- * Creates a JPEG thumbnail using seekable access to a SFTP file
- *
- * @param {import("ssh2-sftp-client")} params.client SFTP client
- * @param {string} params.remotePath Remote media path
- * @param {number} params.size Media size in bytes
- * @returns {Promise<Buffer | null>} JPEG thumbnail
- */
-async function createThumbnail({ client, remotePath, size }) {
-    if (!size) {
-        return null;
-    }
-
-    const server = createServer(async (request, response) => {
-        const { start, end, partial } = getRange(request.headers.range, size);
-        if (start > end || start >= size) {
-            response.writeHead(416, { "Content-Range": `bytes */${size}` });
-            response.end();
-            return;
-        }
-
-        const headers = { "Accept-Ranges": "bytes", "Content-Length": end - start + 1 };
-        if (partial) {
-            headers["Content-Range"] = `bytes ${start}-${end}/${size}`;
-        }
-
-        response.writeHead(partial ? 206 : 200, headers);
-        if (request.method === "HEAD") {
-            response.end();
-            return;
-        }
-
-        try {
-            await pipeline(client.createReadStream(remotePath, { start, end }), response);
-        } catch (error) {
-            response.destroy(error);
-        }
-    });
-    try {
-        await new Promise((resolve, reject) => {
-            server.once("error", reject);
-            server.listen(0, "127.0.0.1", resolve);
-        });
-        const { stdout } = await executeFile(ffmpegPath, [
-            "-nostdin", "-loglevel", "error", "-http_proxy", "",
-            "-i", `http://127.0.0.1:${server.address().port}/media`,
-            "-map", "0:v:0", "-frames:v", "1",
-            "-vf", "scale=320:320:force_original_aspect_ratio=decrease",
-            "-c:v", "mjpeg", "-f", "image2pipe", "pipe:1"
-        ], { encoding: "buffer", timeout: 30000, maxBuffer: 5 * 1024 * 1024 });
-        return stdout.length ? stdout : null;
-    } finally {
-        await new Promise((resolve) => {
-            server.close(resolve);
-            server.closeAllConnections();
-        });
     }
 }
 
