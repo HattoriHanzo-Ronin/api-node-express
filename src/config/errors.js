@@ -41,6 +41,7 @@ const API_ERROR = ObjectUtils.deepFreeze({
     ftpRenameFailed: { code: "FTP_RENAME_FAILED" },
     ftpDeleteFailed: { code: "FTP_DELETE_FAILED" },
     ftpThumbnailPending: { code: "FTP_THUMBNAIL_PENDING" },
+    ftpThumbnailTooLarge: { code: "FTP_THUMBNAIL_TOO_LARGE" },
     ftpFileRequired: { code: "FTP_FILE_REQUIRED" },
     zipInvalidPath: { code: "ZIP_INVALID_PATH" }
 });
