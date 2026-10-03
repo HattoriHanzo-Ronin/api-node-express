@@ -10,6 +10,9 @@ import ValidateUtils from "../utils/validate-utils.js";
  * @author HattoriHanzo-Ronin
  */
 export default class FtpFacade {
+    static #HASH_ALGORITHM = "sha256";
+    static #DIRECTORY_CHECK_TIMEOUT = 5000;
+
     #thumbnailJobs = new Map();
 
     constructor({ ftpService, ftpMapper, memoryCache, directoryCache }) {
@@ -78,7 +81,7 @@ export default class FtpFacade {
         }
 
         const thumbnail = bufferMap?.get(name);
-        const thumbnailJobs = this.#thumbnailJobs.get(getThumbnailJobKey(authUser.id, dir));
+        const thumbnailJobs = this.#thumbnailJobs.get(FtpFacade.#getThumbnailJobKey(authUser.id, dir));
         handleApiErrors([
             {
                 condition: thumbnail === undefined && thumbnailJobs?.has(name),
@@ -122,7 +125,7 @@ export default class FtpFacade {
 
         this.memoryCache.delete(authUser.id, dir);
         this.directoryCache.delete(authUser.id, dir);
-        this.#thumbnailJobs.delete(getThumbnailJobKey(authUser.id, dir));
+        this.#thumbnailJobs.delete(FtpFacade.#getThumbnailJobKey(authUser.id, dir));
         return this.dir({ dir: destination, authUser });
     }
 
@@ -190,7 +193,7 @@ export default class FtpFacade {
                 const key = path.posix.join(dir, entry.name);
                 this.memoryCache.delete(authUser.id, key);
                 this.directoryCache.delete(authUser.id, key);
-                this.#thumbnailJobs.delete(getThumbnailJobKey(authUser.id, key));
+                this.#thumbnailJobs.delete(FtpFacade.#getThumbnailJobKey(authUser.id, key));
             }
         }
 
@@ -218,7 +221,7 @@ export default class FtpFacade {
             this.memoryCache.set(authUser.id, dir, bufferMap);
         }
 
-        const jobKey = getThumbnailJobKey(authUser.id, dir);
+        const jobKey = FtpFacade.#getThumbnailJobKey(authUser.id, dir);
         const thumbnailJobs = this.#thumbnailJobs.get(jobKey) ?? new Set();
         const nameSet = new Set(names);
         for (const name of thumbnailJobs) {
@@ -248,7 +251,7 @@ export default class FtpFacade {
             return;
         }
 
-        const jobKey = getThumbnailJobKey(authUser.id, dir);
+        const jobKey = FtpFacade.#getThumbnailJobKey(authUser.id, dir);
         pendingNames.forEach((name) => thumbnailJobs.add(name));
         this.#thumbnailJobs.set(jobKey, thumbnailJobs);
         void this.#getThumbnails({ dir, names: pendingNames, authUser, jobKey });
@@ -306,10 +309,10 @@ export default class FtpFacade {
     async #watchDirectory({ dir, authUser, entries, hash }) {
         const ownerId = authUser.id;
         const watching = this.directoryCache.has(ownerId, dir);
-        const directoryHash = hash ?? hashDirectory(entries);
+        const directoryHash = hash ?? FtpFacade.#hashDirectory(entries);
         this.directoryCache.set(ownerId, dir, { username: authUser.username, hash: directoryHash });
         if (!watching) {
-            setTimeout(() => this.#checkDirectory(ownerId, dir), directoryCheckTimeout);
+            setTimeout(() => this.#checkDirectory(ownerId, dir), FtpFacade.#DIRECTORY_CHECK_TIMEOUT);
         }
 
         return directoryHash;
@@ -323,21 +326,21 @@ export default class FtpFacade {
 
         try {
             const entries = await this.ftpService.dir({ dir, authUser: { username: cachedDirectory.username } });
-            const hash = hashDirectory(entries);
+            const hash = FtpFacade.#hashDirectory(entries);
             if (hash !== cachedDirectory.hash) {
                 this.directoryCache.set(ownerId, dir, { ...cachedDirectory, hash });
             }
         } catch {}
 
         if (this.directoryCache.has(ownerId, dir)) {
-            setTimeout(() => this.#checkDirectory(ownerId, dir), directoryCheckTimeout);
+            setTimeout(() => this.#checkDirectory(ownerId, dir), FtpFacade.#DIRECTORY_CHECK_TIMEOUT);
         }
     }
 
     async #moveCachedDirectory(ownerId, sourceKey, destinationKey) {
         const bufferMap = this.memoryCache.get(ownerId, sourceKey);
         const directory = this.directoryCache.get(ownerId, sourceKey);
-        const sourceJobKey = getThumbnailJobKey(ownerId, sourceKey);
+        const sourceJobKey = FtpFacade.#getThumbnailJobKey(ownerId, sourceKey);
         const names = [...(this.#thumbnailJobs.get(sourceJobKey) ?? [])];
         this.memoryCache.delete(ownerId, sourceKey);
         this.directoryCache.delete(ownerId, sourceKey);
@@ -362,21 +365,19 @@ export default class FtpFacade {
             }
         }
     }
+
+    static #getThumbnailJobKey(ownerId, dir) {
+        return JSON.stringify([ownerId, dir]);
+    }
+
+    static #hashDirectory(entries) {
+        const source = entries
+            .map(({ name, size, modifyTime, type }) => `${name}:${size}:${modifyTime}:${type}`)
+            .sort()
+            .join("|");
+        return createHash(FtpFacade.#HASH_ALGORITHM).update(source).digest("hex");
+    }
 }
 
 const { handleApiErrors } = ValidateUtils;
 const { ftpThumbnailPending } = API_ERROR;
-const hashAlgorithm = "sha256";
-const directoryCheckTimeout = 5000;
-
-function getThumbnailJobKey(ownerId, dir) {
-    return JSON.stringify([ownerId, dir]);
-}
-
-function hashDirectory(entries) {
-    const source = entries
-        .map(({ name, size, modifyTime, type }) => `${name}:${size}:${modifyTime}:${type}`)
-        .sort()
-        .join("|");
-    return createHash(hashAlgorithm).update(source).digest("hex");
-}

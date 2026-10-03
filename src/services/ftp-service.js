@@ -16,6 +16,7 @@ import { ENV } from "../config/environment.js";
 export default class FtpService {
     static #MEDIA_SESSION_TIMEOUT = 60_000;
     static #MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024;
+    static #MEDIA_EXTENSION = /\.(jpe?g|png|webp|gif|bmp|tiff?|avif|heic|heif|mp4|m4v|mov|mkv|webm|avi|mpeg|mpg|wmv|flv|3gp|mts|m2ts|ogv)$/i;
     static #mediaSessions = new Map();
 
     /**
@@ -37,7 +38,7 @@ export default class FtpService {
                     type: normalizedType,
                     size,
                     modifyTime,
-                    supportsThumbnail: normalizedType === fileType && MEDIA_EXTENSION.test(path.extname(name))
+                    supportsThumbnail: normalizedType === fileType && FtpService.#MEDIA_EXTENSION.test(path.extname(name))
                 };
             });
         } catch (err) {
@@ -353,7 +354,6 @@ export default class FtpService {
     }
 }
 
-const MEDIA_EXTENSION = /\.(jpe?g|png|webp|gif|bmp|tiff?|avif|heic|heif|mp4|m4v|mov|mkv|webm|avi|mpeg|mpg|wmv|flv|3gp|mts|m2ts|ogv)$/i;
 const { dir: dirType, file: fileType } = FILE_TYPE;
 const { getClient, closeClient } = FtpClient;
 const { handleApiErrors } = ValidateUtils;
