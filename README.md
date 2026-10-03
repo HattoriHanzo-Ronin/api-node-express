@@ -4,7 +4,7 @@
 ![Express](https://img.shields.io/badge/Express-5-black?logo=express)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%2B-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 ![Vitest](https://img.shields.io/badge/Vitest-Tested-6E9F18?logo=vitest)
-[![pnpm](https://img.shields.io/badge/pnpm-11.x-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
+[![pnpm](https://img.shields.io/badge/pnpm-12.x-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > **A portfolio-grade REST API inspired by Spring architecture, built to manage home network resources through clean, maintainable software engineering principles.**
@@ -16,12 +16,15 @@ flowchart LR
     API["ApiNodeExpress"]
     DB[(PostgreSQL)]
     SFTP[(SFTP)]
+    Thumbnails["Thumbnail Generator"]
     Routers["Compatible Routers"]
 
     Android --> API
     Portfolio --> API
     API --> DB
     API --> SFTP
+    API --> Thumbnails
+    Thumbnails --> API
     API --> Routers
 ```
 
@@ -45,8 +48,8 @@ Its goal is to provide a maintainable backend capable of managing authentication
 | Users | Delegated user administration |
 | Devices | Multiple connections per device |
 | Router Sync | MAC whitelist synchronization |
-| Storage | User-specific SFTP operations |
-| Resource Sync | Incremental versions exposed through HTTP headers |
+| Storage | Streaming SFTP operations, ZIP trees and lazy thumbnails generated in an isolated service |
+| Resource Sync | Database versions and SHA-256 hashes for FTP directories |
 | Validation | Centralized Zod schemas |
 | Error Handling | Unified ApiError pipeline |
 | Testing | Vitest + executable HTTP documentation |
@@ -99,22 +102,25 @@ Follow these steps to run the project locally
 
 ```bash
 pnpm install
+pnpm --dir thumbnail-generator install
 ```
 
 ### Configuration
 
-Copy `.env.example` to `.env` and configure the required secrets.
+Copy `.env.example` to `.env` and configure the required secrets and internal service URLs. The API and thumbnail generator communicate through `API_URL` and `THUMBNAIL_GENERATOR_URL`; the generator listens on `THUMBNAIL_GENERATOR_PORT`.
 
 ### Running
 
 ```bash
 pnpm run postgres
+pnpm --dir thumbnail-generator start
 ```
 
 ### Testing
 
 ```bash
 pnpm test
+pnpm --dir thumbnail-generator test
 ```
 
 Manual API documentation is available under `tests/http`.
@@ -125,8 +131,9 @@ Manual API documentation is available under `tests/http`.
 - **Users** — User administration and Role + Scope ACL.
 - **Devices** — Network inventory and connection management.
 - **Whitelist** — Router synchronization.
-- **FTP/SFTP** — Remote file management.
-- **Data Versions** — Lightweight change detection for synchronized resources.
+- **FTP/SFTP** — Streaming file management, ZIP transfers and lazy thumbnails.
+- **Thumbnail Generator** — Isolated FFmpeg processing over temporary range-enabled media streams.
+- **Data Versions** — Database versions and per-directory FTP hashes for synchronized resources.
 
 ## API Usage
 
@@ -147,20 +154,39 @@ Collection endpoints keep their original response bodies and expose synchronizat
 - `Data-Version` for users, devices and FTP directory listings.
 - `Devices-Version` and `Whitelist-Version` for allowed and not allowed device listings.
 
-SFTP write operations increment their resource version after a successful change, allowing clients to detect updates without downloading the complete directory listing.
+FTP directory listings and write operations expose a SHA-256 directory hash through `Data-Version`. Write operations return the refreshed destination listing, allowing clients to replace their local state immediately.
 
-Data versions can be requested together using the `id` query parameter. Supported entities are `ftp`, `devices`, `whitelist` and `users`:
+Database-backed versions can be requested together using the `id` query parameter. Supported entities are `devices`, `whitelist` and `users`:
 
 ```http
-GET /data-versions?id=ftp,devices
+GET /data-versions?id=devices,whitelist,users
 ```
 
 ```json
 {
-    "ftp": "1",
-    "devices": "2"
+    "devices": "1",
+    "whitelist": "2",
+    "users": "3"
 }
 ```
+
+FTP versions are directory-specific and use a separate endpoint:
+
+```http
+GET /data-versions/ftp?dir=.
+```
+
+```json
+{
+    "version": "<SHA-256 directory hash>"
+}
+```
+
+Uploads are parsed as multipart streams. ZIP files can be uploaded unchanged or extracted as a streamed directory tree using the `extract` query parameter. Single-file downloads stream the original resource, while multiple files and directories are generated as a streamed ZIP response.
+
+Directory listings mark compatible media with `supportsThumbnail`. Thumbnail generation runs lazily in the background and adds each result to the bounded cache as soon as it is available. The thumbnail endpoint reports generated, pending and unavailable states with HTTP `200`, `404` and `204` respectively.
+
+Media processing is delegated to the standalone thumbnail generator. The API exposes short-lived, range-enabled media sessions so FFmpeg can seek through SFTP files without sharing FTP credentials or buffering complete media files. Both internal endpoints restrict their accepted origin, and generated JPEG responses are limited to 5 MB.
 
 ## Key Architectural Decisions
 
@@ -169,13 +195,20 @@ GET /data-versions?id=ftp,devices
 - Migrated from FTP to SFTP.
 - Implemented a Role + Scope ACL model.
 - Centralized validation and error handling.
-- Added database-backed resource versions for lightweight client synchronization.
+- Added database-backed resource versions and per-directory FTP hashes for lightweight client synchronization.
+- Streamed multipart uploads, direct downloads and ZIP trees without buffering complete files.
+- Added bounded in-memory thumbnail caching with lazy background generation.
+- Isolated FFmpeg in a dedicated thumbnail service with fixed protocols, demuxers, resource limits and temporary range-enabled access to SFTP media.
 
 ## Project Structure
 
 ```text
 src/
     config/
+        constants.js
+        environment.js
+        errors.js
+        secrets.js
     controllers/
     devices-routers/
     facades/
@@ -186,10 +219,21 @@ src/
     schemas/
     services/
     utils/
+        cache/
+        connection/
+        error/
     app.js
     server-postgres.js
 tests/
-docs/
+thumbnail-generator/
+    src/
+        config/
+        controllers/
+        routes/
+        services/
+        app.js
+        server.js
+    tests/
 ```
 
 ## Design Principles
