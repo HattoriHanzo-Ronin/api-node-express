@@ -134,9 +134,10 @@ describe("FtpController", () => {
             await expect(controller.makeDir(req, res)).rejects.toThrow("Error al validar los datos");
         });
 
-        it("should fail when name contains invalid characters", async () => {
+        it("should allow usual filename characters", async () => {
             req.body.name = "carpeta<>";
-            await expect(controller.makeDir(req, res)).rejects.toThrow("Error al validar los datos");
+            ftpFacade.makeDir.mockResolvedValue({ hash: "directory-hash", data: [] });
+            await expect(controller.makeDir(req, res)).resolves.toBeUndefined();
         });
     });
 

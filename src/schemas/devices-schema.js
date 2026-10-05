@@ -32,7 +32,8 @@ const {
 } = ValidateUtils;
 const { ERROR_MESSAGES, REGEX, ALLOW_ENUMS } = ValidateUtils;
 const { typeRequired, typeNotRequired, format, emptyArray, length, invalidEnum } = ERROR_MESSAGES;
-const { passwordRegex, ipRegex, safeTextRegex } = REGEX;
+const { passwordRegex, safeTextRegex } = REGEX;
+const ipRegex = /^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
 const { connectionsCtype, devicesType } = ALLOW_ENUMS;
 const { router, server } = DEVICE_TYPE;
 const devicesSchema = z.object({

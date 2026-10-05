@@ -55,7 +55,7 @@ const name = z
     .string(typeRequired)
     .trim()
     .min(1, emptyString)
-    .regex(/^[\p{L}\p{N} ._-]+$/u, format);
+    .regex(/^[^\p{Cc}/\\]+$/u, format);
 const entry = z.object({ type: zodEnumIgnoreCase(z, z.enum(fileType, invalidEnum(fileType)), typeRequired), name });
 const entries = z.array(entry, typeRequired).min(1, emptyArray);
 

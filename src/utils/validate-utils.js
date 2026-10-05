@@ -31,10 +31,8 @@ export default class ValidateUtils {
 
     static REGEX = ObjectUtils.deepFreeze({
         passwordRegex: /^[A-Za-z0-9!@#$%^&*()_\-+=\[{\]};:'",<.>/?\\|`~]+$/,
-        macRegex: /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/,
-        ipRegex: /^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/,
         safeTextRegex: /^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 -]+$/,
-        pathRegex: /^[\p{L}\p{N} ./_-]+$/u
+        pathRegex: /^[^\p{Cc}\\]+$/u
     });
 
     /**
