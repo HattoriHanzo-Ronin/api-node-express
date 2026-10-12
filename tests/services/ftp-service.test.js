@@ -190,11 +190,13 @@ describe("FtpService", () => {
         it("should move entries and avoid destination name collisions", async () => {
             mockClient.list.mockResolvedValue([{ name: "file.txt" }]);
             const entries = [{ name: "file.txt", type: "FILE" }];
+            const onEntry = vi.fn();
             await expect(
-                FtpService.move({ dir: "files", destination: "backup", entries, authUser })
-            ).resolves.toEqual({ lastContent: ["file.txt"], movedContent: [{ name: "file (1).txt", type: "FILE" }] });
+                FtpService.move({ dir: "files", destination: "backup", entries, authUser, onEntry })
+            ).resolves.toBeUndefined();
             expect(mockClient.list).toHaveBeenCalledWith("backup");
             expect(mockClient.rename).toHaveBeenCalledWith("files/file.txt", "backup/file (1).txt");
+            expect(onEntry).toHaveBeenCalledWith(entries[0], "file (1).txt");
         });
 
         it("should move multiple entries using incremental collision names", async () => {
@@ -203,15 +205,12 @@ describe("FtpService", () => {
                 { name: "image.png", type: "FILE" },
                 { name: "image.png", type: "FILE" }
             ];
+            const onEntry = vi.fn();
             await expect(
-                FtpService.move({ dir: "files", destination: "backup", entries, authUser })
-            ).resolves.toEqual({
-                lastContent: ["image.png", "image.png"],
-                movedContent: [
-                    { name: "image (1).png", type: "FILE" },
-                    { name: "image (2).png", type: "FILE" }
-                ]
-            });
+                FtpService.move({ dir: "files", destination: "backup", entries, authUser, onEntry })
+            ).resolves.toBeUndefined();
+            expect(onEntry).toHaveBeenNthCalledWith(1, entries[0], "image (1).png");
+            expect(onEntry).toHaveBeenNthCalledWith(2, entries[1], "image (2).png");
         });
     });
 
@@ -423,14 +422,18 @@ describe("FtpService", () => {
     describe("delete", () => {
         it("should delete files", async () => {
             const entries = [{ name: "test.txt", type: "FILE" }];
-            await expect(FtpService.delete({ dir: "files", entries, authUser })).resolves.toBeUndefined();
+            const onEntry = vi.fn();
+            await expect(FtpService.delete({ dir: "files", entries, authUser, onEntry })).resolves.toBeUndefined();
             expect(mockClient.delete).toHaveBeenCalledWith("files/test.txt");
+            expect(onEntry).toHaveBeenCalledWith(entries[0]);
         });
 
         it("should delete directories", async () => {
             const entries = [{ name: "images", type: "DIR" }];
-            await expect(FtpService.delete({ dir: "files", entries, authUser })).resolves.toBeUndefined();
+            const onEntry = vi.fn();
+            await expect(FtpService.delete({ dir: "files", entries, authUser, onEntry })).resolves.toBeUndefined();
             expect(mockClient.rmdir).toHaveBeenCalledWith("files/images", true);
+            expect(onEntry).toHaveBeenCalledWith(entries[0]);
         });
     });
 

@@ -26,7 +26,7 @@ export default class FtpSchema {
     }
 
     static getMoveSchema() {
-        return z.object({ dir, entries, destination: dir });
+        return withSuperRefine(z.object({ dir, entries, destination: dir }), moveCases);
     }
 
     static getRenameSchema() {
@@ -81,6 +81,13 @@ const transferEntries = z.array(transferEntry, typeRequired).min(1, emptyArray);
 function renameCases({ entry, newName }, ctx) {
     return handleValidationIssues(
         [{ condition: entry.name === newName, path: ["newName"], message: "El nuevo nombre debe ser diferente" }],
+        ctx
+    );
+}
+
+function moveCases({ dir, destination }, ctx) {
+    return handleValidationIssues(
+        [{ condition: dir === destination, path: ["destination"], message: "El destino debe ser diferente al origen" }],
         ctx
     );
 }

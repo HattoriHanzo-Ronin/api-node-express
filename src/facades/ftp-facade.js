@@ -107,26 +107,47 @@ export default class FtpFacade {
     /**
      * Moves FTP resources
      *
-     * @param {Object} data FTP move data
-     * @returns {Promise<{ hash: string, data: Object[] }>} Destination directory resources
+     * @param {string} params.dir Source FTP directory
+     * @param {Object[]} params.entries Resources to move
+     * @param {string} params.destination Destination FTP directory
+     * @param {Object} params.authUser Authenticated user
+     * @param {import("node:stream").Writable} params.stream Progress destination
      */
-    async move(data) {
-        const result = await this.ftpService.move(data);
-        const { dir, destination, entries, authUser } = data;
-        for (const [index, entry] of entries.entries()) {
-            if (entry.type === FILE_TYPE.dir) {
-                await this.#moveCachedDirectory(
-                    authUser.id,
-                    path.posix.join(dir, entry.name),
-                    path.posix.join(destination, result.movedContent[index].name)
-                );
-            }
-        }
+    async move({ dir, entries, destination, authUser, stream }) {
+        let completed = 0;
+        try {
+            await this.ftpService.move({
+                dir,
+                entries,
+                destination,
+                authUser,
+                onEntry: async (entry, newName) => {
+                    completed += 1;
+                    if (entry.type === FILE_TYPE.dir) {
+                        await this.#moveCachedDirectory(
+                            authUser.id,
+                            path.posix.join(dir, entry.name),
+                            path.posix.join(destination, newName)
+                        );
+                    }
 
-        this.memoryCache.delete(authUser.id, dir);
-        this.directoryCache.delete(authUser.id, dir);
-        this.#thumbnailJobs.delete(FtpFacade.#getThumbnailJobKey(authUser.id, dir));
-        return this.dir({ dir: destination, authUser });
+                    await writeProgress(stream, {
+                        event: "entry",
+                        path: entry.name,
+                        targetPath: newName,
+                        type: entry.type,
+                        completed,
+                        total: entries.length
+                    });
+                }
+            });
+        } finally {
+            this.#clearDirectoryCache(authUser.id, dir);
+            this.#clearDirectoryCache(authUser.id, destination);
+        }
+        const { hash } = await this.dir({ dir: destination, authUser });
+        await writeProgress(stream, { event: "complete", version: hash });
+        stream.end();
     }
 
     /**
@@ -224,22 +245,45 @@ export default class FtpFacade {
     /**
      * Deletes FTP resources
      *
-     * @param {Object} data FTP delete data
-     * @returns {Promise<{ hash: string, data: Object[] }>} Updated directory resources
+     * @param {string} params.dir FTP directory
+     * @param {Object[]} params.entries Resources to delete
+     * @param {Object} params.authUser Authenticated user
+     * @param {import("node:stream").Writable} params.stream Progress destination
      */
-    async delete(data) {
-        await this.ftpService.delete(data);
-        const { dir, entries, authUser } = data;
-        for (const entry of entries) {
-            if (entry.type === FILE_TYPE.dir) {
-                const key = path.posix.join(dir, entry.name);
-                this.memoryCache.delete(authUser.id, key);
-                this.directoryCache.delete(authUser.id, key);
-                this.#thumbnailJobs.delete(FtpFacade.#getThumbnailJobKey(authUser.id, key));
-            }
-        }
+    async delete({ dir, entries, authUser, stream }) {
+        let completed = 0;
+        try {
+            await this.ftpService.delete({
+                dir,
+                entries,
+                authUser,
+                onEntry: async (entry) => {
+                    completed += 1;
+                    if (entry.type === FILE_TYPE.dir) {
+                        this.#clearDirectoryCache(authUser.id, path.posix.join(dir, entry.name));
+                    }
 
-        return this.dir({ dir, authUser });
+                    await writeProgress(stream, {
+                        event: "entry",
+                        path: entry.name,
+                        type: entry.type,
+                        completed,
+                        total: entries.length
+                    });
+                }
+            });
+        } finally {
+            this.#clearDirectoryCache(authUser.id, dir);
+        }
+        const { hash } = await this.dir({ dir, authUser });
+        await writeProgress(stream, { event: "complete", version: hash });
+        stream.end();
+    }
+
+    #clearDirectoryCache(ownerId, dir) {
+        this.memoryCache.delete(ownerId, dir);
+        this.directoryCache.delete(ownerId, dir);
+        this.#thumbnailJobs.delete(FtpFacade.#getThumbnailJobKey(ownerId, dir));
     }
 
     /**
@@ -423,3 +467,17 @@ export default class FtpFacade {
 
 const { handleApiErrors } = ValidateUtils;
 const { ftpThumbnailPending } = API_ERROR;
+
+function writeProgress(stream, progress) {
+    if (!stream.headersSent) {
+        stream.set?.({
+            "Cache-Control": "no-cache, no-transform",
+            "Content-Type": "application/x-ndjson",
+            "X-Accel-Buffering": "no"
+        });
+    }
+
+    return new Promise((resolve, reject) => {
+        stream.write(`${JSON.stringify(progress)}\n`, (error) => error ? reject(error) : resolve());
+    });
+}
