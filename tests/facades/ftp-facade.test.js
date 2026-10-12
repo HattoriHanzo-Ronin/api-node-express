@@ -248,20 +248,19 @@ describe("FtpFacade", () => {
 
     describe("write operations", () => {
         it.each([
-            ["makeDir", { name: "docs", type: "DIR" }, "files"],
-            ["rename", { name: "file.txt", type: "FILE" }, "files"]
-        ])("should execute %s and return its synchronized directory", async (method, result, expectedDir) => {
-            const data = {
+            ["makeDir", { name: "docs", type: "DIR" }, { dir: "files", name: "docs" }],
+            ["rename", { name: "renamed.txt", type: "FILE" }, {
                 dir: "files",
-                destination: "destination",
                 entry: { name: "file.txt", type: "FILE" },
-                entries: [],
-                authUser: { id: "user-id", username: "ronin" }
-            };
+                newName: "renamed.txt"
+            }]
+        ])("should execute %s and return its synchronized directory", async (method, result, methodData) => {
+            const authUser = { id: "user-id", username: "ronin" };
+            const data = { ...methodData, authUser };
             ftpService[method].mockResolvedValue(result);
             await expect(ftpFacade[method](data)).resolves.toEqual({ hash: expect.any(String), data: [] });
             expect(ftpService[method]).toHaveBeenCalledWith(data);
-            expect(ftpService.dir).toHaveBeenCalledWith({ dir: expectedDir, authUser: data.authUser });
+            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "files", authUser });
         });
 
         it("should synchronize the directory when an upload completes", async () => {

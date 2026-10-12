@@ -25,12 +25,12 @@ export default class FtpFacade {
     /**
      * Returns FTP directory content
      *
-     * @param {Object} data FTP directory data
+     * @param {string} params.dir FTP directory path
+     * @param {Object} params.authUser Authenticated user
      * @returns {Promise<{ hash: string, data: Object[] }>} Directory resources
      */
-    async dir(data) {
-        const { dir, authUser } = data;
-        const result = await this.ftpService.dir(data);
+    async dir({ dir, authUser }) {
+        const result = await this.ftpService.dir({ dir, authUser });
         this.#syncThumbnails({ dir, entries: result, authUser });
         const hash = await this.#watchDirectory({ dir, authUser, entries: result });
         return { hash, data: this.ftpMapper.entriesToDomain(result) };
@@ -56,13 +56,13 @@ export default class FtpFacade {
     /**
      * Streams a temporary FTP media resource
      *
-     * @param {string} data.id Media session identifier
-     * @param {string | undefined} data.range Requested byte range
-     * @param {string} data.method HTTP method
-     * @param {import("node:http").ServerResponse} data.stream HTTP response
+     * @param {string} params.id Media session identifier
+     * @param {string | undefined} params.range Requested byte range
+     * @param {string} params.method HTTP method
+     * @param {import("node:http").ServerResponse} params.stream HTTP response
      */
-    async streamMedia(data) {
-        await this.ftpService.streamMedia(data);
+    async streamMedia({ id, range, method, stream }) {
+        await this.ftpService.streamMedia({ id, range, method, stream });
     }
 
     /**
@@ -96,12 +96,14 @@ export default class FtpFacade {
     /**
      * Creates a FTP directory
      *
-     * @param {Object} data FTP directory data
+     * @param {string} params.dir FTP directory path
+     * @param {string} params.name Directory name
+     * @param {Object} params.authUser Authenticated user
      * @returns {Promise<{ hash: string, data: Object[] }>} Updated directory resources
      */
-    async makeDir(data) {
-        await this.ftpService.makeDir(data);
-        return this.dir({ dir: data.dir, authUser: data.authUser });
+    async makeDir({ dir, name, authUser }) {
+        await this.ftpService.makeDir({ dir, name, authUser });
+        return this.dir({ dir, authUser });
     }
 
     /**
@@ -153,12 +155,14 @@ export default class FtpFacade {
     /**
      * Renames a FTP resource
      *
-     * @param {Object} data FTP rename data
+     * @param {string} params.dir FTP directory path
+     * @param {Object} params.entry Resource to rename
+     * @param {string} params.newName New resource name
+     * @param {Object} params.authUser Authenticated user
      * @returns {Promise<{ hash: string, data: Object[] }>} Updated directory resources
      */
-    async rename(data) {
-        const result = await this.ftpService.rename(data);
-        const { dir, entry, authUser } = data;
+    async rename({ dir, entry, newName, authUser }) {
+        const result = await this.ftpService.rename({ dir, entry, newName, authUser });
         if (entry.type === FILE_TYPE.dir) {
             await this.#moveCachedDirectory(
                 authUser.id,
@@ -178,8 +182,8 @@ export default class FtpFacade {
      * @param {Object} params.authUser Authenticated user
      * @returns {Promise<{ id: string, entries: { path: string, type: string }[] }>} Upload session
      */
-    async createUpload(params) {
-        return this.ftpService.createUpload(params);
+    async createUpload({ dir, entries, authUser }) {
+        return this.ftpService.createUpload({ dir, entries, authUser });
     }
 
     /**
@@ -191,8 +195,8 @@ export default class FtpFacade {
      * @param {{ originalname: string, mimetype: string, stream: import("node:stream").Readable }} params.file Uploaded file
      * @param {Object} params.authUser Authenticated user
      */
-    async uploadEntry(params) {
-        return this.ftpService.upload(params);
+    async uploadEntry({ id, entryPath, offset, file, authUser }) {
+        return this.ftpService.upload({ id, entryPath, offset, file, authUser });
     }
 
     /**
@@ -202,9 +206,9 @@ export default class FtpFacade {
      * @param {Object} params.authUser Authenticated user
      * @returns {Promise<{ hash: string, data: Object[] }>} Updated directory resources
      */
-    async completeUpload(params) {
-        const { dir } = await this.ftpService.completeUpload(params);
-        return this.dir({ dir, authUser: params.authUser });
+    async completeUpload({ id, authUser }) {
+        const { dir } = await this.ftpService.completeUpload({ id, authUser });
+        return this.dir({ dir, authUser });
     }
 
     /**
@@ -213,8 +217,8 @@ export default class FtpFacade {
      * @param {string} params.id Transfer session identifier
      * @param {Object} params.authUser Authenticated user
      */
-    async cancelTransfer(params) {
-        await this.ftpService.cancelTransfer(params);
+    async cancelTransfer({ id, authUser }) {
+        await this.ftpService.cancelTransfer({ id, authUser });
     }
 
     /**
@@ -225,8 +229,8 @@ export default class FtpFacade {
      * @param {Object} params.authUser Authenticated user
      * @returns {Promise<{ id: string, totalBytes: number, entries: { path: string, type: string, size?: number }[] }>} Download session
      */
-    async createDownload(params) {
-        return this.ftpService.createDownload(params);
+    async createDownload({ dir, entries, authUser }) {
+        return this.ftpService.createDownload({ dir, entries, authUser });
     }
 
     /**
@@ -238,8 +242,8 @@ export default class FtpFacade {
      * @param {Object} params.authUser Authenticated user
      * @param {import("node:stream").Writable} params.stream Download destination
      */
-    async downloadEntry(params) {
-        await this.ftpService.download(params);
+    async downloadEntry({ id, entryPath, offset, authUser, stream }) {
+        await this.ftpService.download({ id, entryPath, offset, authUser, stream });
     }
 
     /**
