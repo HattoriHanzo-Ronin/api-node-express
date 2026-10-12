@@ -45,10 +45,11 @@ Its goal is to provide a maintainable backend capable of managing authentication
 |------|-------------|
 | Authentication | JWT authentication with refresh token rotation |
 | Authorization | Role + Scope ACL |
+| Routing | Route-level authentication that preserves `404` responses for unknown endpoints |
 | Users | Delegated user administration |
 | Devices | Multiple connections per device |
 | Router Sync | MAC whitelist synchronization |
-| Storage | Streaming SFTP operations, ZIP trees and lazy thumbnails generated in an isolated service |
+| Storage | Transactional streaming SFTP transfers, progressive write operations, ZIP trees and lazy thumbnails generated in an isolated service |
 | Resource Sync | Database versions and SHA-256 hashes for FTP directories |
 | Validation | Centralized Zod schemas |
 | Error Handling | Unified ApiError pipeline |
@@ -109,6 +110,8 @@ pnpm --dir thumbnail-generator install
 
 Copy `.env.example` to `.env` and configure the required secrets and internal service URLs. The API and thumbnail generator communicate through `API_URL` and `THUMBNAIL_GENERATOR_URL`; the generator listens on `THUMBNAIL_GENERATOR_PORT`.
 
+Runtime limits, cache lifetimes, SFTP pool sizes and JWT expirations are configured exclusively through the environment variables documented in `.env.example`; they have no application defaults. Numeric values are expressed as bytes, counts or milliseconds as indicated by their names. Protected SFTP reservations use `username:connections` entries separated by commas; use an empty value when no user needs a reservation. Missing or inconsistent configuration prevents the API from starting.
+
 ### Running
 
 ```bash
@@ -156,6 +159,8 @@ Collection endpoints keep their original response bodies and expose synchronizat
 
 FTP directory listings and write operations expose a SHA-256 directory hash through `Data-Version`. Write operations return the refreshed destination listing, allowing clients to replace their local state immediately.
 
+Authentication is attached to each protected endpoint instead of being applied globally. Requests to existing protected routes without a valid bearer token return `AUTHENTICATION_REQUIRED`, while unknown paths reach the standard `ROUTE_NOT_FOUND` response.
+
 Database-backed versions can be requested together using the `id` query parameter. Supported entities are `devices`, `whitelist` and `users`:
 
 ```http
@@ -182,11 +187,15 @@ GET /data-versions/ftp?dir=.
 }
 ```
 
-Uploads are parsed as multipart streams. ZIP files can be uploaded unchanged or extracted as a streamed directory tree using the `extract` query parameter. Single-file downloads stream the original resource, while multiple files and directories are generated as a streamed ZIP response.
+Uploads are parsed as multipart streams and large files may be sent through ordered, offset-based requests without writing intermediate data to local storage. A failed or abandoned upload is cleaned as one transaction. ZIP files can be uploaded unchanged or extracted as a streamed directory tree using the `extract` query parameter. Single-file downloads stream the original resource, while multiple files and directories are generated as a streamed ZIP response; failed download sessions are invalidated instead of returning a partial result.
+
+Delete and move operations stream progress events as entries complete. The API invalidates affected directory state on failure, while the client only applies a completed operation as a whole.
+
+SFTP clients are reused through isolated per-user pools for internal work, reads and writes. Each active user starts with one reserved connection per pool; reads can scale to two connections and writes to three, subject to the global connection and transfer limits. Idle sessions close after the configured timeout, active work is never interrupted, and protected users retain their base reservation.
 
 Directory listings mark compatible media with `supportsThumbnail`. Thumbnail generation runs lazily in the background and adds each result to the bounded cache as soon as it is available. The thumbnail endpoint reports generated, pending and unavailable states with HTTP `200`, `404` and `204` respectively.
 
-Media processing is delegated to the standalone thumbnail generator. The API exposes short-lived, range-enabled media sessions so FFmpeg can seek through SFTP files without sharing FTP credentials or buffering complete media files. Both internal endpoints restrict their accepted origin, and generated JPEG responses are limited to 5 MB.
+Media processing is delegated to the standalone thumbnail generator. The API exposes short-lived, range-enabled media sessions so FFmpeg can seek through SFTP files without sharing FTP credentials or buffering complete media files. Internal media access restricts its accepted origin and is intended to remain unavailable through the external reverse proxy; generated JPEG responses are limited by environment configuration.
 
 ## Key Architectural Decisions
 
@@ -195,8 +204,11 @@ Media processing is delegated to the standalone thumbnail generator. The API exp
 - Migrated from FTP to SFTP.
 - Implemented a Role + Scope ACL model.
 - Centralized validation and error handling.
+- Applied authentication and role checks directly to protected routes so unknown resources remain distinguishable from unauthenticated requests.
 - Added database-backed resource versions and per-directory FTP hashes for lightweight client synchronization.
 - Streamed multipart uploads, direct downloads and ZIP trees without buffering complete files.
+- Added resumable offset-based uploads, all-or-nothing transfer cleanup and streamed move/delete progress.
+- Reused SFTP sessions through bounded per-user internal, read and write pools with idle eviction and protected reservations.
 - Added bounded in-memory thumbnail caching with lazy background generation.
 - Isolated FFmpeg in a dedicated thumbnail service with fixed protocols, demuxers, resource limits and temporary range-enabled access to SFTP media.
 
