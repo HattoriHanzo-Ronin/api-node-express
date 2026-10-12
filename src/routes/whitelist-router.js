@@ -1,14 +1,16 @@
 import { Router } from "express";
 import Middlewares from "../middlewares/middlewares.js";
+import { USER_ROLE } from "../config/constants.js";
 
 export default function createWhitelistRouter({ whitelistController }) {
     const whitelistRouter = Router();
 
-    whitelistRouter.post("/:id", asyncHandler(whitelistController.create));
+    whitelistRouter.post("/:id", requireAuth, authorizedRoles([net]), asyncHandler(whitelistController.create));
 
-    whitelistRouter.delete("/:id", asyncHandler(whitelistController.delete));
+    whitelistRouter.delete("/:id", requireAuth, authorizedRoles([net]), asyncHandler(whitelistController.delete));
 
     return whitelistRouter;
 }
 
-const { asyncHandler } = Middlewares;
+const { net } = USER_ROLE;
+const { asyncHandler, authorizedRoles, requireAuth } = Middlewares;
