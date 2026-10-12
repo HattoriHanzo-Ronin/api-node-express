@@ -126,7 +126,7 @@ export default class FtpService {
         try {
             client = await getClient(authUser.username);
             const list = await client.list(dir);
-            const newName = getFileName(name, list);
+            const newName = getAvailableName(name, list);
             await client.mkdir(`${dir}/${newName}`);
         } catch (err) {
             ftpError("Error al crear la carpeta", ftpMkdirFailed);
@@ -151,7 +151,7 @@ export default class FtpService {
             const list = await client.list(destination);
             const movedContent = [];
             for (const item of entries) {
-                const newName = getFileName(item.name, list);
+                const newName = getAvailableName(item.name, list);
                 await client.rename(`${dir}/${item.name}`, `${destination}/${newName}`);
                 list.push({ name: newName });
                 movedContent.push({ ...item, name: newName });
@@ -178,7 +178,7 @@ export default class FtpService {
         try {
             client = await getClient(authUser.username);
             const list = await client.list(dir);
-            newName = getFileName(newName, list);
+            newName = getAvailableName(newName, list);
             await client.rename(`${dir}/${entry.name}`, `${dir}/${newName}`);
             return { ...entry, name: newName };
         } catch (err) {
@@ -205,7 +205,7 @@ export default class FtpService {
         try {
             client = await getClient(authUser.username);
             if (!extract) {
-                const fileName = getFileName(originalname, await client.list(dir));
+                const fileName = getAvailableName(originalname, await client.list(dir));
                 await client.put(stream, path.posix.join(dir, fileName));
                 return;
             }
@@ -406,7 +406,7 @@ async function uploadZipEntry({ client, dir, entry, directories, list }) {
     const remoteDir = destinationDir === "." ? dir : path.posix.join(dir, destinationDir);
     const isRoot = sourceDir === ".";
     const sourceName = path.posix.basename(entry.name);
-    const name = isRoot ? getFileName(sourceName, list) : sourceName;
+    const name = isRoot ? getAvailableName(sourceName, list) : sourceName;
     const remotePath = path.posix.join(remoteDir, name);
     if (entry.isDirectory) {
         await client.mkdir(remotePath);
@@ -450,19 +450,19 @@ function getRange(source, size) {
  * @param {{ name: string }[]} list Existing FTP resources
  * @returns {string} the generated unique resource name
  */
-function getFileName(name, list) {
-    const exist = list.some((it) => it.name === name);
-    if (exist && !name.split(`_`).shift()?.includes("copia")) {
-        return getFileName(`copia_${name}`, list);
+function getAvailableName(name, list) {
+    if (!list.some((it) => it.name === name)) {
+        return name;
     }
 
-    if (exist) {
-        const newName = name.slice(name.indexOf("_") + 1, name.length);
-        const lastCopy = name.split("_").shift()?.replace("copia", "");
-        return getFileName(`copia${Number(lastCopy) + 1 || "1"}_${newName}`, list);
+    const extension = path.posix.extname(name);
+    const baseName = path.posix.basename(name, extension).replace(/ \(\d+\)$/, "");
+    let copy = 1;
+    while (list.some((it) => it.name === `${baseName} (${copy})${extension}`)) {
+        copy += 1;
     }
 
-    return name;
+    return `${baseName} (${copy})${extension}`;
 }
 
 function ftpError(message, apiError) {

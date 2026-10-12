@@ -168,17 +168,17 @@ describe("FtpService", () => {
         it("should generate a copy name when directory already exists", async () => {
             mockClient.list.mockResolvedValue([{ name: "images" }]);
             await expect(FtpService.makeDir({ dir: "/files", name: "images", authUser })).resolves.toBeUndefined();
-            expect(mockClient.mkdir).toHaveBeenCalledWith("/files/copia_images");
+            expect(mockClient.mkdir).toHaveBeenCalledWith("/files/images (1)");
         });
 
         it("should generate incremental copy names", async () => {
             mockClient.list.mockResolvedValue([
                 { name: "images" },
-                { name: "copia_images" },
-                { name: "copia1_images" }
+                { name: "images (1)" },
+                { name: "images (2)" }
             ]);
             await FtpService.makeDir({ dir: "/files", name: "images", authUser });
-            expect(mockClient.mkdir).toHaveBeenCalledWith("/files/copia2_images");
+            expect(mockClient.mkdir).toHaveBeenCalledWith("/files/images (3)");
         });
     });
 
@@ -188,9 +188,9 @@ describe("FtpService", () => {
             const entries = [{ name: "file.txt", type: "FILE" }];
             await expect(
                 FtpService.move({ dir: "/files", destination: "/backup", entries, authUser })
-            ).resolves.toEqual({ lastContent: ["file.txt"], movedContent: [{ name: "copia_file.txt", type: "FILE" }] });
+            ).resolves.toEqual({ lastContent: ["file.txt"], movedContent: [{ name: "file (1).txt", type: "FILE" }] });
             expect(mockClient.list).toHaveBeenCalledWith("/backup");
-            expect(mockClient.rename).toHaveBeenCalledWith("/files/file.txt", "/backup/copia_file.txt");
+            expect(mockClient.rename).toHaveBeenCalledWith("/files/file.txt", "/backup/file (1).txt");
         });
 
         it("should move multiple entries using incremental collision names", async () => {
@@ -204,8 +204,8 @@ describe("FtpService", () => {
             ).resolves.toEqual({
                 lastContent: ["image.png", "image.png"],
                 movedContent: [
-                    { name: "copia_image.png", type: "FILE" },
-                    { name: "copia1_image.png", type: "FILE" }
+                    { name: "image (1).png", type: "FILE" },
+                    { name: "image (2).png", type: "FILE" }
                 ]
             });
         });
@@ -229,7 +229,7 @@ describe("FtpService", () => {
                 newName: "renamed.txt",
                 authUser
             });
-            expect(mockClient.rename).toHaveBeenCalledWith("/files/file.txt", "/files/copia_renamed.txt");
+            expect(mockClient.rename).toHaveBeenCalledWith("/files/file.txt", "/files/renamed (1).txt");
         });
     });
 
@@ -271,8 +271,8 @@ describe("FtpService", () => {
                 callback: expect.any(Function)
             });
             expect(mockClient.list).toHaveBeenCalledOnce();
-            expect(mockClient.mkdir).toHaveBeenCalledWith("/upload/copia_images");
-            expect(mockClient.put).toHaveBeenCalledWith(nested, "/upload/copia_images/nested.jpg");
+            expect(mockClient.mkdir).toHaveBeenCalledWith("/upload/images (1)");
+            expect(mockClient.put).toHaveBeenCalledWith(nested, "/upload/images (1)/nested.jpg");
             expect(mockClient.put).toHaveBeenCalledWith(logo, "/upload/logo.png");
         });
 
