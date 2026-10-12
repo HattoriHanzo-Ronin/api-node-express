@@ -15,6 +15,8 @@ describe("FtpFacade", () => {
         vi.useFakeTimers();
         ftpService = {
             dir: vi.fn(),
+            isSessionActive: vi.fn(() => true),
+            touchSession: vi.fn(),
             getThumbnails: vi.fn(),
             streamMedia: vi.fn(),
             makeDir: vi.fn(),
@@ -55,6 +57,7 @@ describe("FtpFacade", () => {
             const authUser = { id: "user-id", username: "ronin" };
             directoryCache.set(authUser.id, "files", { username: authUser.username, hash: "directory-hash" });
             await expect(ftpFacade.getHash({ dir: "files", authUser })).resolves.toBe("directory-hash");
+            expect(ftpService.touchSession).toHaveBeenCalledWith({ authUser });
             expect(ftpService.dir).not.toHaveBeenCalled();
         });
 
@@ -329,6 +332,7 @@ describe("FtpFacade", () => {
             expect(memoryCache.get("user-id", "files/renamed")).toBe(bufferMap);
             expect(directoryCache.has("user-id", "files/photos")).toBe(false);
             expect(directoryCache.get("user-id", "files/renamed")).toEqual(directory);
+            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "files", authUser });
         });
 
         it("should stream deleted entries and clear folder caches", async () => {

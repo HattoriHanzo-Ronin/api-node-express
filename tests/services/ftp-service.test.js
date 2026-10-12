@@ -29,7 +29,15 @@ vi.mock("../../src/utils/connection/ftp-client.js", () => ({
 vi.mock("../../src/utils/compression-utils.js", () => ({ default: mockCompressionUtils }));
 
 vi.mock("../../src/config/environment.js", () => ({
-    ENV: { apiUrl: "http://api-node-express:60004", thumbnailGeneratorUrl: "http://thumbnail-generator:3000" }
+    ENV: {
+        apiUrl: "http://api-node-express:60004",
+        thumbnailGeneratorUrl: "http://thumbnail-generator:3000",
+        ftpMaxConnections: 100,
+        ftpMaxTransfers: 16,
+        ftpIdleTimeout: 15 * 60 * 1000,
+        ftpScaleWait: 5000,
+        ftpProtectedUsers: ""
+    }
 }));
 
 import FtpClient from "../../src/utils/connection/ftp-client.js";
@@ -63,7 +71,6 @@ describe("FtpService", () => {
             ]);
             expect(FtpClient.getClient).toHaveBeenCalledWith(authUser.username);
             expect(mockClient.list).toHaveBeenCalledWith("files");
-            expect(mockCloseClient).toHaveBeenCalledWith(mockClient);
         });
 
         it("should use the directory normalized by the schema", async () => {
@@ -116,8 +123,6 @@ describe("FtpService", () => {
             await FtpService.streamMedia({ id, method: "GET", stream: expiredStream });
             expect(expiredStream.statusCode).toBe(204);
             expect(expiredStream.writableEnded).toBe(true);
-            expect(FtpClient.getClient).toHaveBeenCalledOnce();
-            expect(mockCloseClient).toHaveBeenCalledWith(mockClient);
         });
 
         it("streams registered media ranges while thumbnail generation is active", async () => {
@@ -148,7 +153,6 @@ describe("FtpService", () => {
             const callback = vi.fn();
             await FtpService.getThumbnails({ dir: "media", names: ["oversized.mp4"], authUser, callback });
             expect(callback).toHaveBeenCalledWith({ name: "oversized.mp4", thumbnail: null });
-            expect(mockCloseClient).toHaveBeenCalledWith(mockClient);
         });
 
         it("returns null when a thumbnail cannot be generated", async () => {
@@ -157,7 +161,6 @@ describe("FtpService", () => {
             await FtpService.getThumbnails({ dir: "media", names: ["missing.mp4"], authUser, callback });
             expect(mockClient.stat).toHaveBeenCalledWith("media/missing.mp4");
             expect(callback).toHaveBeenCalledWith({ name: "missing.mp4", thumbnail: null });
-            expect(mockCloseClient).toHaveBeenCalledWith(mockClient);
         });
 
     });
