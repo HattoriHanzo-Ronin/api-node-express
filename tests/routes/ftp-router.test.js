@@ -56,7 +56,8 @@ describe("FtpRouter", () => {
         const response = await fetch(`${origin}/ftp/media/550e8400-e29b-41d4-a716-446655440000`, {
             headers: { Origin: "http://other-service:3000" }
         });
-        expect(response.status).toBe(500);
+        expect(response.status).toBe(403);
+        await expect(response.json()).resolves.toMatchObject({ code: "CORS_ORIGIN_NOT_ALLOWED" });
         expect(ftpController.streamMedia).not.toHaveBeenCalled();
     });
 

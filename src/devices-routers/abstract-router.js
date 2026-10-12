@@ -3,6 +3,8 @@ import { CookieJar } from "tough-cookie";
 import axios from "axios";
 import puppeteer from "puppeteer-core";
 import { ENV } from "../config/environment.js";
+import { API_ERROR } from "../config/errors.js";
+import ApiError from "../utils/error/api-error.js";
 
 /**
  * Base router implementation
@@ -45,7 +47,10 @@ export default class AbstractRouter {
      * @returns {Promise<boolean>} Returns true when the operation succeeds, otherwise false
      */
     async addAllow({ key, mac, name }) {
-        throw new Error("Not implemented");
+        throw new ApiError({
+            message: "La inserción en el router no está implementada",
+            apiError: API_ERROR.routerImplementationNotFound
+        });
     }
 
     /**
@@ -56,7 +61,10 @@ export default class AbstractRouter {
      * @returns {Promise<boolean>} Returns true when the operation succeeds, otherwise false
      */
     async deleteAllow({ key, mac }) {
-        throw new Error("Not implemented");
+        throw new ApiError({
+            message: "El borrado en el router no está implementado",
+            apiError: API_ERROR.routerImplementationNotFound
+        });
     }
 
     /**
