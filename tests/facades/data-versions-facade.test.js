@@ -22,7 +22,7 @@ describe("DataVersionsFacade", () => {
     });
 
     it("should return a FTP directory version", async () => {
-        const data = { dir: "/files", authUser: { id: "user-id", username: "ronin" } };
+        const data = { dir: "files", authUser: { id: "user-id", username: "ronin" } };
         ftpFacade.getHash.mockResolvedValue("directory-hash");
         await expect(dataVersionsFacade.getFtp(data)).resolves.toEqual({ version: "directory-hash" });
         expect(ftpFacade.getHash).toHaveBeenCalledWith(data);

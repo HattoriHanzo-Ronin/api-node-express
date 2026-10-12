@@ -150,33 +150,75 @@ export default class FtpFacade {
     }
 
     /**
-     * Uploads FTP resources
+     * Creates a FTP upload session
      *
-     * @param {Object} data FTP upload data
-     * @returns {Promise<{ hash: string, data: Object[] }>} Updated directory resources
+     * @param {string} params.dir Destination FTP directory
+     * @param {{ path: string, type: string }[]} params.entries Upload entries
+     * @param {Object} params.authUser Authenticated user
+     * @returns {Promise<{ id: string, entries: { path: string, type: string }[] }>} Upload session
      */
-    async upload(data) {
-        await this.ftpService.upload(data);
-        return this.dir({ dir: data.dir, authUser: data.authUser });
+    async createUpload(params) {
+        return this.ftpService.createUpload(params);
     }
 
     /**
-     * Downloads FTP resources
+     * Uploads one file from a FTP upload session
      *
-     * @param {Object} data FTP download data
+     * @param {string} params.id Upload session identifier
+     * @param {string} params.entryPath Relative file path
+     * @param {number | undefined} params.offset Chunk byte offset
+     * @param {{ originalname: string, mimetype: string, stream: import("node:stream").Readable }} params.file Uploaded file
+     * @param {Object} params.authUser Authenticated user
      */
-    async download(data) {
-        const { entries, stream } = data;
-        const [entry] = entries;
-        let name = entry.name;
-        let type = name;
-        if (entries.length > 1 || entry.type === FILE_TYPE.dir) {
-            name = `download-${Date.now()}.zip`;
-            type = "application/zip";
-        }
+    async uploadEntry(params) {
+        return this.ftpService.upload(params);
+    }
 
-        stream.type(type).attachment(name);
-        await this.ftpService.download(data);
+    /**
+     * Completes a FTP upload session
+     *
+     * @param {string} params.id Upload session identifier
+     * @param {Object} params.authUser Authenticated user
+     * @returns {Promise<{ hash: string, data: Object[] }>} Updated directory resources
+     */
+    async completeUpload(params) {
+        const { dir } = await this.ftpService.completeUpload(params);
+        return this.dir({ dir, authUser: params.authUser });
+    }
+
+    /**
+     * Cancels a FTP transfer session
+     *
+     * @param {string} params.id Transfer session identifier
+     * @param {Object} params.authUser Authenticated user
+     */
+    async cancelTransfer(params) {
+        await this.ftpService.cancelTransfer(params);
+    }
+
+    /**
+     * Creates a FTP download session
+     *
+     * @param {string} params.dir Source FTP directory
+     * @param {{ name: string, type: string }[]} params.entries FTP entries
+     * @param {Object} params.authUser Authenticated user
+     * @returns {Promise<{ id: string, totalBytes: number, entries: { path: string, type: string, size?: number }[] }>} Download session
+     */
+    async createDownload(params) {
+        return this.ftpService.createDownload(params);
+    }
+
+    /**
+     * Downloads one file from a FTP download session
+     *
+     * @param {string} params.id Download session identifier
+     * @param {string} params.entryPath Relative file path
+     * @param {number | undefined} params.offset Requested byte offset
+     * @param {Object} params.authUser Authenticated user
+     * @param {import("node:stream").Writable} params.stream Download destination
+     */
+    async downloadEntry(params) {
+        await this.ftpService.download(params);
     }
 
     /**

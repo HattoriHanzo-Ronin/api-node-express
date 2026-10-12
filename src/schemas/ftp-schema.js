@@ -1,6 +1,6 @@
 import z from "zod";
 import ValidateUtils from "../utils/validate-utils.js";
-import dirSchema from "./common/dir-schema.js";
+import dirSchema, { pathSchema } from "./common/dir-schema.js";
 import idSchema from "./common/id-schema.js";
 
 /**
@@ -33,12 +33,24 @@ export default class FtpSchema {
         return withSuperRefine(z.object({ dir, entry, newName: name }), renameCases);
     }
 
-    static getUploadSchema() {
-        return z.object({ dir, extract: z.enum(["true", "false"]).default("false").transform((it) => it === "true") });
+    static getCreateUploadSchema() {
+        return z.object({ dir, entries: transferEntries });
     }
 
-    static getDownloadSchema() {
+    static getUploadEntrySchema() {
+        return z.object({ id: idSchema.shape.id, path: pathSchema, offset });
+    }
+
+    static getTransferSchema() {
+        return idSchema;
+    }
+
+    static getCreateDownloadSchema() {
         return z.object({ dir, entries });
+    }
+
+    static getDownloadEntrySchema() {
+        return z.object({ id: idSchema.shape.id, path: pathSchema, offset });
     }
 
     static getDeleteSchema() {
@@ -58,6 +70,13 @@ const name = z
     .regex(/^[^\p{Cc}/\\]+$/u, format);
 const entry = z.object({ type: zodEnumIgnoreCase(z, z.enum(fileType, invalidEnum(fileType)), typeRequired), name });
 const entries = z.array(entry, typeRequired).min(1, emptyArray);
+const offset = z.coerce.number().int().nonnegative().optional();
+const transferEntry = z.object({
+    type: zodEnumIgnoreCase(z, z.enum(fileType, invalidEnum(fileType)), typeRequired),
+    path: pathSchema,
+    size: z.number().int().nonnegative().optional()
+});
+const transferEntries = z.array(transferEntry, typeRequired).min(1, emptyArray);
 
 function renameCases({ entry, newName }, ctx) {
     return handleValidationIssues(

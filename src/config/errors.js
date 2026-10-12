@@ -35,6 +35,7 @@ const API_ERROR = ObjectUtils.deepFreeze({
     aclRoleUpdateFailed: { code: "ACL_ROLE_UPDATE_FAILED" },
     ftpUploadFailed: { code: "FTP_UPLOAD_FAILED" },
     ftpDownloadFailed: { code: "FTP_DOWNLOAD_FAILED" },
+    ftpDownloadStale: { code: "FTP_DOWNLOAD_STALE" },
     ftpDirFailed: { code: "FTP_DIR_FAILED" },
     ftpMkdirFailed: { code: "FTP_MKDIR_FAILED" },
     ftpMoveFailed: { code: "FTP_MOVE_FAILED" },

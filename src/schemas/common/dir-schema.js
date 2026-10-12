@@ -20,3 +20,4 @@ function pathCases(source, ctx) {
 }
 
 export default dirSchema;
+export { pathSchema };

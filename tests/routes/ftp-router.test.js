@@ -16,8 +16,12 @@ describe("FtpRouter", () => {
         makeDir: vi.fn(),
         move: vi.fn(),
         rename: vi.fn(),
-        upload: vi.fn(),
-        download: vi.fn(),
+        createUpload: vi.fn(),
+        uploadEntry: vi.fn(),
+        completeUpload: vi.fn(),
+        cancelTransfer: vi.fn(),
+        createDownload: vi.fn(),
+        downloadEntry: vi.fn(),
         delete: vi.fn()
     };
     let origin;

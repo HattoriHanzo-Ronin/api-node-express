@@ -53,9 +53,9 @@ describe("DataVersionsController", () => {
     describe("getFtp", () => {
         it("should get a FTP directory version", async () => {
             dataVersionsFacade.getFtp.mockResolvedValue({ version: "directory-hash" });
-            req.query = { dir: "   /files   " };
+            req.query = { dir: "   files   " };
             await controller.getFtp(req, res);
-            expect(dataVersionsFacade.getFtp).toHaveBeenCalledWith({ dir: "/files", authUser: req.user });
+            expect(dataVersionsFacade.getFtp).toHaveBeenCalledWith({ dir: "files", authUser: req.user });
             expect(res.json).toHaveBeenCalledWith({ version: "directory-hash" });
         });
 
