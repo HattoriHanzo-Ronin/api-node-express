@@ -85,6 +85,20 @@ describe("FtpConnectionManager", () => {
         await firstOperation;
     });
 
+    it("should identify failures while scaling a pool", async () => {
+        const first = deferred();
+        const firstOperation = manager.execute({ authUser, pool: "read", callback: () => first.promise });
+        await vi.waitFor(() => expect(createClient).toHaveBeenCalledTimes(3));
+        createClient.mockRejectedValueOnce(new Error("connection failed"));
+        await expect(manager.execute({
+            authUser,
+            pool: "read",
+            callback: async () => undefined
+        })).rejects.toMatchObject({ code: "FTP_POOL_SCALE_FAILED" });
+        first.resolve();
+        await firstOperation;
+    });
+
     it("should scale writes after the configured queue wait up to three connections", async () => {
         const pending = [deferred(), deferred(), deferred()];
         const operations = pending.map((item) => manager.execute({
@@ -292,6 +306,27 @@ describe("FtpConnectionManager", () => {
             pool: "internal",
             callback: async ({ client }) => client.id
         })).resolves.toBe(3);
+    });
+
+    it("should identify failures while restoring a pool", async () => {
+        await manager.touch({ authUser });
+        createClient.mockRejectedValueOnce(new Error("connection failed"));
+        await expect(manager.execute({
+            authUser,
+            pool: "internal",
+            callback: async () => {
+                const error = new Error("connection lost");
+                error.code = "ECONNRESET";
+                throw error;
+            }
+        })).rejects.toMatchObject({ code: "FTP_POOL_RESTORE_FAILED" });
+    });
+
+    it("should identify failures while closing a connection", async () => {
+        await manager.touch({ authUser });
+        closeClient.mockRejectedValue(new Error("close failed"));
+        await expect(manager.closeAll()).rejects.toMatchObject({ code: "FTP_CONNECTION_CLOSE_FAILED" });
+        closeClient.mockResolvedValue(undefined);
     });
 
     it("should reject invalid protected user reservations with an API error", async () => {
