@@ -1,22 +1,22 @@
 import z from "zod";
+import path from "node:path";
 import ValidateUtils from "../../utils/validate-utils.js";
 
 const { handleValidationIssues, withSuperRefine } = ValidateUtils;
 const { ERROR_MESSAGES, REGEX } = ValidateUtils;
-const { typeNotRequired, format, emptyString } = ERROR_MESSAGES;
+const { typeRequired, format, emptyString } = ERROR_MESSAGES;
 const { pathRegex } = REGEX;
-const dirSchema = z.object({
-    dir: withSuperRefine(
-        z.string(typeNotRequired).trim().min(1, emptyString).regex(pathRegex, format).default("."),
-        pathCases
-    )
-});
+const pathSchema = withSuperRefine(
+    z.string(typeRequired).trim().min(1, emptyString).regex(pathRegex, format),
+    pathCases
+);
+const dirSchema = z.object({ dir: pathSchema.default(".") });
 
-function pathCases(path, ctx) {
-    return handleValidationIssues(
-        [{ condition: path && path.split("/").some((it) => it.trim() === ".."), message: "Ruta no válida" }],
-        ctx
-    );
+function pathCases(source, ctx) {
+    return handleValidationIssues([{
+        condition: path.posix.isAbsolute(source) || source.split("/").some((it) => ["", ".", ".."].includes(it)),
+        message: "Ruta no válida"
+    }], ctx);
 }
 
 export default dirSchema;
