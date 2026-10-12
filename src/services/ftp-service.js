@@ -629,6 +629,8 @@ const { handleApiErrors } = ValidateUtils;
 const transferSessions = new Map();
 const {
     ftpUploadFailed,
+    ftpUploadChunkTooLarge,
+    ftpUploadSizeExceeded,
     ftpDownloadFailed,
     ftpDownloadStale,
     ftpDirFailed,
@@ -724,12 +726,20 @@ function createChunkCounter({ entry, offset, maxSize }) {
             chunkSize += chunk.length;
             const receivedBytes = offset + chunkSize;
             if (maxSize > 0 && chunkSize > maxSize) {
-                callback(new Error("El fragmento supera el tamaño permitido"));
+                callback(new ApiError({
+                    message: "El fragmento supera el tamaño permitido",
+                    status: 413,
+                    apiError: ftpUploadChunkTooLarge
+                }));
                 return;
             }
 
             if (entry.size !== undefined && receivedBytes > entry.size) {
-                callback(new Error("El archivo supera el tamaño declarado"));
+                callback(new ApiError({
+                    message: "El archivo supera el tamaño declarado",
+                    status: 413,
+                    apiError: ftpUploadSizeExceeded
+                }));
                 return;
             }
 

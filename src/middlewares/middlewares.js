@@ -26,7 +26,11 @@ export default class Middlewares {
                         return callback(null, true);
                     }
 
-                    return callback(new Error("No permitido"));
+                    return callback(new ApiError({
+                        message: "Origen no permitido",
+                        status: 403,
+                        apiError: API_ERROR.corsOriginNotAllowed
+                    }));
                 }
                 return callback(null, true);
             }
