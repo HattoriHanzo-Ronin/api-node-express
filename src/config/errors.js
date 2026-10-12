@@ -4,6 +4,7 @@ const API_ERROR = ObjectUtils.deepFreeze({
     internalError: { code: "INTERNAL_ERROR" },
     routeNotFound: { code: "ROUTE_NOT_FOUND" },
     validationFailed: { code: "VALIDATION_FAILED" },
+    configurationInvalid: { code: "CONFIGURATION_INVALID" },
     corsOriginNotAllowed: { code: "CORS_ORIGIN_NOT_ALLOWED" },
     deviceNameAlreadyExists: { code: "DEVICE_NAME_ALREADY_EXISTS" },
     deviceIpAlreadyInUse: { code: "DEVICE_IP_ALREADY_IN_USE" },

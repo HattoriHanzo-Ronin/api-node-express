@@ -15,10 +15,6 @@ import { ENV } from "../config/environment.js";
  * @author HattoriHanzo-Ronin
  */
 export default class FtpService {
-    static #MEDIA_SESSION_TIMEOUT = 60_000;
-    static #TRANSFER_SESSION_TIMEOUT = 30 * 60_000;
-    static #MAX_UPLOAD_CHUNK_SIZE = 0;
-    static #MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024;
     static #MEDIA_EXTENSION = /\.(jpe?g|png|webp|gif|bmp|tiff?|avif|heic|heif|mp4|m4v|mov|mkv|webm|avi|mpeg|mpg|wmv|flv|3gp|mts|m2ts|ogv)$/i;
     static #mediaSessions = new Map();
 
@@ -284,7 +280,7 @@ export default class FtpService {
 
                         return [entry.path, { ...entry, receivedBytes: 0, uploaded: false, uploading: false }];
                     });
-                    const timeout = setTimeout(() => void expireTransfer(id), FtpService.#TRANSFER_SESSION_TIMEOUT);
+                    const timeout = setTimeout(() => void expireTransfer(id), TRANSFER_SESSION_TIMEOUT);
                     timeout.unref();
                     session.timeout = timeout;
                     session.entries = new Map(sessionEntries);
@@ -353,7 +349,7 @@ export default class FtpService {
                         start: offset
                     });
                     session.activeStreams.add(destination);
-                    const counter = createChunkCounter({ entry, offset, maxSize: FtpService.#MAX_UPLOAD_CHUNK_SIZE });
+                    const counter = createChunkCounter({ entry, offset, maxSize: MAX_UPLOAD_CHUNK_SIZE });
                     await pipeline(file.stream, counter, destination);
                     entry.receivedBytes = counter.size;
                     entry.uploaded = entry.size === undefined || entry.receivedBytes === entry.size;
@@ -435,7 +431,7 @@ export default class FtpService {
                         }]);
                         resolvedEntries.push(resolvedEntry);
                     }
-                    const timeout = setTimeout(() => void expireTransfer(id), FtpService.#TRANSFER_SESSION_TIMEOUT);
+                    const timeout = setTimeout(() => void expireTransfer(id), TRANSFER_SESSION_TIMEOUT);
                     timeout.unref();
                     transferSessions.set(id, {
                         type: "DOWNLOAD",
@@ -568,7 +564,7 @@ export default class FtpService {
         }
 
         const id = randomUUID();
-        const timeout = setTimeout(() => FtpService.#mediaSessions.delete(id), FtpService.#MEDIA_SESSION_TIMEOUT);
+        const timeout = setTimeout(() => FtpService.#mediaSessions.delete(id), MEDIA_SESSION_TIMEOUT);
         FtpService.#mediaSessions.set(id, {
             size,
             createReadStream: ({ start, end }) => client.createReadStream(remotePath, { start, end })
@@ -577,13 +573,13 @@ export default class FtpService {
             const response = await fetch(`${ENV.thumbnailGeneratorUrl}/thumbnail/${id}`, {
                 method: "POST",
                 headers: { Origin: ENV.apiUrl },
-                signal: AbortSignal.timeout(FtpService.#MEDIA_SESSION_TIMEOUT)
+                signal: AbortSignal.timeout(MEDIA_SESSION_TIMEOUT)
             });
             if (!response.ok) {
                 return null;
             }
 
-            return FtpService.#readResponseBuffer(response, FtpService.#MAX_THUMBNAIL_SIZE);
+            return FtpService.#readResponseBuffer(response, MAX_THUMBNAIL_SIZE);
         } finally {
             clearTimeout(timeout);
             FtpService.#mediaSessions.delete(id);
@@ -623,6 +619,13 @@ export default class FtpService {
         return Buffer.concat(chunks, size);
     }
 }
+
+const {
+    ftpMediaSessionTimeout: MEDIA_SESSION_TIMEOUT,
+    ftpTransferSessionTimeout: TRANSFER_SESSION_TIMEOUT,
+    ftpMaxUploadChunkSize: MAX_UPLOAD_CHUNK_SIZE,
+    ftpMaxThumbnailSize: MAX_THUMBNAIL_SIZE
+} = ENV;
 
 const { dir: dirType, file: fileType } = FILE_TYPE;
 const { handleApiErrors } = ValidateUtils;

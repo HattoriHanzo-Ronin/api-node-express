@@ -7,9 +7,6 @@ import JWTUtils from "../utils/jwt-utils.js";
  * @author HattoriHanzo-Ronin
  */
 export default class AuthFacade {
-    static #ACCESS_TOKEN_EXPIRES_IN = "30min";
-    static #REFRESH_TOKEN_EXPIRES_IN = "60d";
-
     constructor({ usersFacade, refreshTokensService }) {
         this.usersFacade = usersFacade;
         this.refreshTokensService = refreshTokensService;
@@ -66,11 +63,11 @@ export default class AuthFacade {
      */
     async #createPayload(user) {
         const { id, username, roles, scope } = user;
-        const refreshToken = generateRefreshToken({ id }, AuthFacade.#REFRESH_TOKEN_EXPIRES_IN);
+        const refreshToken = generateRefreshToken({ id });
         await this.refreshTokensService.create({ userId: id, token: refreshToken });
         return {
             user: { id, username, roles, scope },
-            accessToken: generateAccessToken({ id, username, roles, scope }, AuthFacade.#ACCESS_TOKEN_EXPIRES_IN),
+            accessToken: generateAccessToken({ id, username, roles, scope }),
             refreshToken
         };
     }

@@ -6,7 +6,13 @@ const testEnvironment = vi.hoisted(() => ({
     ftpMaxTransfers: 16,
     ftpIdleTimeout: 15 * 60 * 1000,
     ftpScaleWait: 5000,
-    ftpProtectedUsers: ""
+    ftpProtectedUsers: "",
+    ftpInternalPoolMin: 1,
+    ftpInternalPoolMax: 1,
+    ftpReadPoolMin: 1,
+    ftpReadPoolMax: 2,
+    ftpWritePoolMin: 1,
+    ftpWritePoolMax: 3
 }));
 
 vi.mock("../../../src/config/environment.js", () => ({ ENV: testEnvironment }));
@@ -25,7 +31,13 @@ describe("FtpConnectionManager", () => {
             ftpMaxTransfers: 16,
             ftpIdleTimeout: 15 * 60 * 1000,
             ftpScaleWait: 5000,
-            ftpProtectedUsers: ""
+            ftpProtectedUsers: "",
+            ftpInternalPoolMin: 1,
+            ftpInternalPoolMax: 1,
+            ftpReadPoolMin: 1,
+            ftpReadPoolMax: 2,
+            ftpWritePoolMin: 1,
+            ftpWritePoolMax: 3
         });
         vi.useFakeTimers();
         clients = [];
@@ -332,6 +344,16 @@ describe("FtpConnectionManager", () => {
     it("should reject invalid protected user reservations with an API error", async () => {
         await manager.closeAll();
         testEnvironment.ftpProtectedUsers = "ronin";
+        vi.resetModules();
+        await expect(import("../../../src/utils/connection/ftp-connection-manager.js")).rejects.toMatchObject({
+            name: "ApiError",
+            code: "FTP_CONFIGURATION_INVALID"
+        });
+    });
+
+    it("should reject invalid pool limits with an API error", async () => {
+        await manager.closeAll();
+        testEnvironment.ftpMaxConnections = 2;
         vi.resetModules();
         await expect(import("../../../src/utils/connection/ftp-connection-manager.js")).rejects.toMatchObject({
             name: "ApiError",

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { FILE_TYPE } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
 import ValidateUtils from "../utils/validate-utils.js";
+import { ENV } from "../config/environment.js";
 
 /**
  * FTP facade
@@ -11,7 +12,6 @@ import ValidateUtils from "../utils/validate-utils.js";
  */
 export default class FtpFacade {
     static #HASH_ALGORITHM = "sha256";
-    static #DIRECTORY_CHECK_TIMEOUT = 5000;
 
     #thumbnailJobs = new Map();
 
@@ -403,7 +403,7 @@ export default class FtpFacade {
         const directoryHash = hash ?? FtpFacade.#hashDirectory(entries);
         this.directoryCache.set(ownerId, dir, { username: authUser.username, hash: directoryHash });
         if (!watching) {
-            setTimeout(() => this.#checkDirectory(ownerId, dir), FtpFacade.#DIRECTORY_CHECK_TIMEOUT);
+            setTimeout(() => this.#checkDirectory(ownerId, dir), DIRECTORY_CHECK_TIMEOUT);
         }
 
         return directoryHash;
@@ -423,7 +423,7 @@ export default class FtpFacade {
             });
             if (!entries) {
                 if (this.ftpService.isSessionActive({ ownerId })) {
-                    setTimeout(() => this.#checkDirectory(ownerId, dir), FtpFacade.#DIRECTORY_CHECK_TIMEOUT);
+                    setTimeout(() => this.#checkDirectory(ownerId, dir), DIRECTORY_CHECK_TIMEOUT);
                 } else {
                     this.directoryCache.delete(ownerId, dir);
                 }
@@ -436,7 +436,7 @@ export default class FtpFacade {
         } catch {}
 
         if (this.directoryCache.has(ownerId, dir)) {
-            setTimeout(() => this.#checkDirectory(ownerId, dir), FtpFacade.#DIRECTORY_CHECK_TIMEOUT);
+            setTimeout(() => this.#checkDirectory(ownerId, dir), DIRECTORY_CHECK_TIMEOUT);
         }
     }
 
@@ -484,6 +484,7 @@ export default class FtpFacade {
 
 const { handleApiErrors } = ValidateUtils;
 const { ftpThumbnailPending } = API_ERROR;
+const { ftpDirectoryCheckTimeout: DIRECTORY_CHECK_TIMEOUT } = ENV;
 
 function writeProgress(stream, progress) {
     if (!stream.headersSent) {

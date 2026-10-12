@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DirectoryCache from "../../../src/utils/cache/directory-cache.js";
 
+vi.mock("../../../src/config/environment.js", () => ({
+    ENV: { directoryCacheInactivityTimeout: 10 * 60 * 1000 }
+}));
+
 describe("DirectoryCache", () => {
     let cache;
 
