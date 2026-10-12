@@ -36,7 +36,17 @@ vi.mock("../../src/config/environment.js", () => ({
         ftpMaxTransfers: 16,
         ftpIdleTimeout: 15 * 60 * 1000,
         ftpScaleWait: 5000,
-        ftpProtectedUsers: ""
+        ftpProtectedUsers: "",
+        ftpInternalPoolMin: 1,
+        ftpInternalPoolMax: 1,
+        ftpReadPoolMin: 1,
+        ftpReadPoolMax: 2,
+        ftpWritePoolMin: 1,
+        ftpWritePoolMax: 3,
+        ftpMediaSessionTimeout: 60_000,
+        ftpTransferSessionTimeout: 30 * 60_000,
+        ftpMaxUploadChunkSize: 0,
+        ftpMaxThumbnailSize: 5 * 1024 * 1024
     }
 }));
 

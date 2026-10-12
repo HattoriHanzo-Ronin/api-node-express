@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MemoryCache from "../../../src/utils/cache/memory-cache.js";
 
+vi.mock("../../../src/config/environment.js", () => ({
+    ENV: {
+        memoryCacheMaxSize: 2 * 1024 ** 3,
+        memoryCacheMaxSizePerOwner: 400 * 1024 ** 2,
+        memoryCacheInactivityTimeout: 10 * 60 * 1000
+    }
+}));
+
 const MB = 1024 ** 2;
 const sizedBuffer = (size) => ({ length: size });
 

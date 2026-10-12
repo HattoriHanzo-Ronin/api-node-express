@@ -9,12 +9,6 @@ import ApiError from "../error/api-error.js";
  * @author HattoriHanzo-Ronin
  */
 export class FtpConnectionManager {
-    static #POOL_CONFIG = Object.freeze({
-        internal: { min: 1, max: 1 },
-        read: { min: 1, max: 2 },
-        write: { min: 1, max: 3 }
-    });
-
     #sessions = new Map();
     #totalConnections = 0;
     #activeTransfers = 0;
@@ -152,14 +146,14 @@ export class FtpConnectionManager {
             ownerId: authUser.id,
             username: authUser.username,
             lastActivity: Date.now(),
-            pools: Object.fromEntries(Object.keys(FtpConnectionManager.#POOL_CONFIG)
+            pools: Object.fromEntries(Object.keys(POOL_CONFIG)
                 .map((type) => [type, { connections: [], queue: [] }])),
             lockedPaths: new Set(),
             lockQueue: [],
             closing: false
         };
         this.#sessions.set(authUser.id, session);
-        session.initializing = Promise.allSettled(Object.keys(FtpConnectionManager.#POOL_CONFIG)
+        session.initializing = Promise.allSettled(Object.keys(POOL_CONFIG)
             .map((pool) => this.#addConnection(session, pool)))
             .then((results) => {
                 const rejected = results.find((result) => result.status === "rejected");
@@ -185,7 +179,7 @@ export class FtpConnectionManager {
             return connection;
         }
 
-        if (pool.connections.length < FtpConnectionManager.#POOL_CONFIG[type].min) {
+        if (pool.connections.length < POOL_CONFIG[type].min) {
             const newConnection = await this.#addConnection(session, type);
             newConnection.busy = true;
             return newConnection;
@@ -194,9 +188,9 @@ export class FtpConnectionManager {
         return new Promise((resolve, reject) => {
             const pending = { resolve, reject };
             pool.queue.push(pending);
-            if (type === "read" && pool.connections.length < FtpConnectionManager.#POOL_CONFIG.read.max) {
+            if (type === "read" && pool.connections.length < POOL_CONFIG.read.max) {
                 void this.#scale(session, type, pending);
-            } else if (type === "write" && pool.connections.length < FtpConnectionManager.#POOL_CONFIG.write.max) {
+            } else if (type === "write" && pool.connections.length < POOL_CONFIG.write.max) {
                 pending.scaleTimeout = setTimeout(() => void this.#scale(session, type, pending), SCALE_WAIT);
                 pending.scaleTimeout.unref();
             }
@@ -206,7 +200,7 @@ export class FtpConnectionManager {
     async #scale(session, type, pending) {
         const pool = session.pools[type];
         if (!pool.queue.includes(pending)
-            || pool.connections.length >= FtpConnectionManager.#POOL_CONFIG[type].max) {
+            || pool.connections.length >= POOL_CONFIG[type].max) {
             return;
         }
         try {
@@ -314,7 +308,7 @@ export class FtpConnectionManager {
         for (const session of sessions.sort((a, b) => a.lastActivity - b.lastActivity)) {
             for (const type of ["write", "read"]) {
                 const pool = session.pools[type];
-                const minimum = FtpConnectionManager.#POOL_CONFIG[type].min;
+                const minimum = POOL_CONFIG[type].min;
                 const connection = pool.connections.find((item, index) => index >= minimum && !item.busy);
                 if (connection) {
                     return { session, type, connection };
@@ -356,7 +350,7 @@ export class FtpConnectionManager {
             return;
         }
         const pool = session.pools[type];
-        if (pool.connections.length >= FtpConnectionManager.#POOL_CONFIG[type].min && !pool.queue.length) {
+        if (pool.connections.length >= POOL_CONFIG[type].min && !pool.queue.length) {
             return;
         }
         try {
@@ -393,7 +387,7 @@ export class FtpConnectionManager {
     async #trimProtectedSession(session) {
         for (const type of ["read", "write"]) {
             const pool = session.pools[type];
-            while (pool.connections.length > FtpConnectionManager.#POOL_CONFIG[type].min) {
+            while (pool.connections.length > POOL_CONFIG[type].min) {
                 await this.#removeConnection(session, type, pool.connections.at(-1));
             }
         }
@@ -462,7 +456,8 @@ function parseProtectedUsers(source) {
     return new Map(source.split(",").filter(Boolean).map((entry) => {
         const [username, reservedSource] = entry.trim().split(":");
         const reserved = Number(reservedSource);
-        if (!username || !Number.isInteger(reserved) || reserved < 3 || reserved > 6) {
+        if (!username || !Number.isInteger(reserved)
+            || reserved < MIN_CONNECTIONS_PER_USER || reserved > MAX_CONNECTIONS_PER_USER) {
             throw new ApiError({
                 message: `Reserva SFTP no válida: ${entry}`,
                 apiError: ftpConfigurationInvalid
@@ -471,6 +466,16 @@ function parseProtectedUsers(source) {
 
         return [username, reserved];
     }));
+}
+
+function validateConfiguration() {
+    const validPools = Object.values(POOL_CONFIG).every(({ min, max }) => min <= max);
+    if (!validPools || MIN_CONNECTIONS_PER_USER > MAX_CONNECTIONS) {
+        throw new ApiError({
+            message: "La configuración de los pools SFTP no es válida",
+            apiError: ftpConfigurationInvalid
+        });
+    }
 }
 
 function countConnections(session) {
@@ -497,7 +502,13 @@ const {
     ftpMaxTransfers: MAX_TRANSFERS,
     ftpIdleTimeout: IDLE_TIMEOUT,
     ftpScaleWait: SCALE_WAIT,
-    ftpProtectedUsers: PROTECTED_USERS_SOURCE
+    ftpProtectedUsers: PROTECTED_USERS_SOURCE,
+    ftpInternalPoolMin: INTERNAL_POOL_MIN,
+    ftpInternalPoolMax: INTERNAL_POOL_MAX,
+    ftpReadPoolMin: READ_POOL_MIN,
+    ftpReadPoolMax: READ_POOL_MAX,
+    ftpWritePoolMin: WRITE_POOL_MIN,
+    ftpWritePoolMax: WRITE_POOL_MAX
 } = ENV;
 const {
     ftpConfigurationInvalid,
@@ -507,6 +518,14 @@ const {
     ftpPoolScaleFailed,
     ftpSessionClosed
 } = API_ERROR;
+const POOL_CONFIG = Object.freeze({
+    internal: { min: INTERNAL_POOL_MIN, max: INTERNAL_POOL_MAX },
+    read: { min: READ_POOL_MIN, max: READ_POOL_MAX },
+    write: { min: WRITE_POOL_MIN, max: WRITE_POOL_MAX }
+});
+const MIN_CONNECTIONS_PER_USER = Object.values(POOL_CONFIG).reduce((total, { min }) => total + min, 0);
+const MAX_CONNECTIONS_PER_USER = Object.values(POOL_CONFIG).reduce((total, { max }) => total + max, 0);
+validateConfiguration();
 const PROTECTED_USERS = parseProtectedUsers(PROTECTED_USERS_SOURCE);
 const RESERVED_CONNECTIONS = [...PROTECTED_USERS.values()].reduce((total, reserved) => total + reserved, 0);
 

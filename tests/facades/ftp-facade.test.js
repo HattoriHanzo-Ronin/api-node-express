@@ -5,6 +5,16 @@ import DirectoryCache from "../../src/utils/cache/directory-cache.js";
 import FtpFacade from "../../src/facades/ftp-facade.js";
 import FtpMapper from "../../src/mappers/ftp-mapper.js";
 
+vi.mock("../../src/config/environment.js", () => ({
+    ENV: {
+        memoryCacheMaxSize: 2 * 1024 ** 3,
+        memoryCacheMaxSizePerOwner: 400 * 1024 ** 2,
+        memoryCacheInactivityTimeout: 10 * 60 * 1000,
+        directoryCacheInactivityTimeout: 10 * 60 * 1000,
+        ftpDirectoryCheckTimeout: 5000
+    }
+}));
+
 describe("FtpFacade", () => {
     let ftpService;
     let memoryCache;

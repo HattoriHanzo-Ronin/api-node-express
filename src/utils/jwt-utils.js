@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import ValidateUtils from "./validate-utils.js";
 import { API_ERROR } from "../config/errors.js";
 import { SECRETS } from "../config/secrets.js";
+import { ENV } from "../config/environment.js";
 
 /**
  * Centralizes JWT operations used by the authentication system
@@ -13,22 +14,20 @@ export default class JWTUtils {
      * Generates an access token containing user identity and roles
      *
      * @param {Object} payload JWT payload
-     * @param {string | number} expiresIn Token expiration time
      * @returns {string} JWT token
      */
-    static generateAccessToken(payload, expiresIn) {
-        return jwt.sign(payload, SECRETS.jwtSecret, { expiresIn });
+    static generateAccessToken(payload) {
+        return jwt.sign(payload, SECRETS.jwtSecret, { expiresIn: ACCESS_TOKEN_EXPIRES_IN });
     }
 
     /**
      * Generates a refresh token associated with a user session
      *
      * @param {Object} payload JWT payload
-     * @param {string | number} expiresIn Token expiration time
      * @returns {string} JWT refresh token
      */
-    static generateRefreshToken(payload, expiresIn) {
-        return jwt.sign(payload, SECRETS.refreshJwtSecret, { expiresIn });
+    static generateRefreshToken(payload) {
+        return jwt.sign(payload, SECRETS.refreshJwtSecret, { expiresIn: REFRESH_TOKEN_EXPIRES_IN });
     }
 
     /**
@@ -51,6 +50,11 @@ export default class JWTUtils {
         return verifyToken(token, SECRETS.refreshJwtSecret);
     }
 }
+
+const {
+    jwtAccessTokenExpiresIn: ACCESS_TOKEN_EXPIRES_IN,
+    jwtRefreshTokenExpiresIn: REFRESH_TOKEN_EXPIRES_IN
+} = ENV;
 
 function verifyToken(token, secret) {
     try {

@@ -36,6 +36,13 @@ describe("AuthFacade", () => {
             });
             expect(refreshTokensService.create).toHaveBeenCalledWith({ userId: "1", token: "refresh-token" });
             expect(usersFacade.authenticate).toHaveBeenCalledWith({ username: "admin", password: "password" });
+            expect(JWTUtils.generateAccessToken).toHaveBeenCalledWith({
+                id: "1",
+                username: "admin",
+                roles: ["ADMIN"],
+                scope: ["ADMIN"]
+            });
+            expect(JWTUtils.generateRefreshToken).toHaveBeenCalledWith({ id: "1" });
         });
     });
 
