@@ -214,7 +214,18 @@ export class FtpConnectionManager {
             if (connection) {
                 this.#dispatch(pool, connection);
             }
-        } catch {}
+        } catch {
+            const index = pool.queue.indexOf(pending);
+            if (index === -1) {
+                return;
+            }
+            pool.queue.splice(index, 1);
+            clearTimeout(pending.scaleTimeout);
+            pending.reject(new ApiError({
+                message: "No se ha podido ampliar el pool SFTP",
+                apiError: ftpPoolScaleFailed
+            }));
+        }
     }
 
     #release(session, type, connection) {
@@ -326,9 +337,18 @@ export class FtpConnectionManager {
         pool.connections.splice(index, 1);
         this.#totalConnections -= 1;
         this.#capacityQueue.shift()?.resolve();
+        const result = await Promise.allSettled([connection.clientPromise]);
+        if (result[0].status === "rejected") {
+            return;
+        }
         try {
-            await this.closeClient(await connection.clientPromise);
-        } catch {}
+            await this.closeClient(result[0].value);
+        } catch {
+            throw new ApiError({
+                message: "No se ha podido cerrar la conexión SFTP",
+                apiError: ftpConnectionCloseFailed
+            });
+        }
     }
 
     async #restorePool(session, type) {
@@ -342,7 +362,12 @@ export class FtpConnectionManager {
         try {
             const connection = await this.#addConnection(session, type);
             this.#dispatch(pool, connection);
-        } catch {}
+        } catch {
+            throw new ApiError({
+                message: "No se ha podido restaurar el pool SFTP",
+                apiError: ftpPoolRestoreFailed
+            });
+        }
     }
 
     #touch(session) {
@@ -474,7 +499,14 @@ const {
     ftpScaleWait: SCALE_WAIT,
     ftpProtectedUsers: PROTECTED_USERS_SOURCE
 } = ENV;
-const { ftpConfigurationInvalid, ftpManagerClosed, ftpSessionClosed } = API_ERROR;
+const {
+    ftpConfigurationInvalid,
+    ftpConnectionCloseFailed,
+    ftpManagerClosed,
+    ftpPoolRestoreFailed,
+    ftpPoolScaleFailed,
+    ftpSessionClosed
+} = API_ERROR;
 const PROTECTED_USERS = parseProtectedUsers(PROTECTED_USERS_SOURCE);
 const RESERVED_CONNECTIONS = [...PROTECTED_USERS.values()].reduce((total, reserved) => total + reserved, 0);
 
