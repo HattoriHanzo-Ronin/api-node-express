@@ -6,19 +6,19 @@ import Middlewares from "../middlewares/middlewares.js";
 
 export default function createUsersRouter({ usersController }) {
     const router = Router();
-    const { asyncHandler, authorizedRoles } = Middlewares;
+    const { asyncHandler, authorizedRoles, requireAuth } = Middlewares;
 
-    router.get("/", authorizedRoles([admin]), asyncHandler(usersController.getAll));
-    router.get("/:id", authorizedRoles([admin]), asyncHandler(usersController.getById));
+    router.get("/", requireAuth, authorizedRoles([admin]), asyncHandler(usersController.getAll));
+    router.get("/:id", requireAuth, authorizedRoles([admin]), asyncHandler(usersController.getById));
 
-    router.post("/", authorizedRoles([admin]), asyncHandler(usersController.create));
+    router.post("/", requireAuth, authorizedRoles([admin]), asyncHandler(usersController.create));
 
-    router.delete("/:id", authorizedRoles([admin]), asyncHandler(usersController.delete));
+    router.delete("/:id", requireAuth, authorizedRoles([admin]), asyncHandler(usersController.delete));
 
-    router.patch("/password", asyncHandler(usersController.changePassword));
+    router.patch("/password", requireAuth, asyncHandler(usersController.changePassword));
 
-    router.put("/", asyncHandler(usersController.update));
-    router.patch("/", asyncHandler(usersController.update));
+    router.put("/", requireAuth, asyncHandler(usersController.update));
+    router.patch("/", requireAuth, asyncHandler(usersController.update));
 
     return router;
 }

@@ -30,7 +30,7 @@ describe("FtpRouter", () => {
     beforeAll(async () => {
         const app = express();
         app.use("/ftp", createFtpRouter({ ftpController }));
-        app.use(Middlewares.errorHandler);
+        app.use(Middlewares.routeNotFound, Middlewares.errorHandler);
         server = app.listen(0, "127.0.0.1");
         await new Promise((resolve) => server.once("listening", resolve));
         origin = `http://127.0.0.1:${server.address().port}`;
@@ -65,5 +65,11 @@ describe("FtpRouter", () => {
         const response = await fetch(`${origin}/ftp`);
         expect(response.status).toBe(401);
         expect(ftpController.dir).not.toHaveBeenCalled();
+    });
+
+    it("should report unknown FTP endpoints before requiring authentication", async () => {
+        const response = await fetch(`${origin}/ftp/not-found`);
+        expect(response.status).toBe(404);
+        await expect(response.json()).resolves.toMatchObject({ code: "ROUTE_NOT_FOUND" });
     });
 });
