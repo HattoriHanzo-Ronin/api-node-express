@@ -4,7 +4,7 @@ import { pipeline } from "node:stream/promises";
 import path from "node:path";
 import ValidateUtils from "../utils/validate-utils.js";
 import ApiError from "../utils/error/api-error.js";
-import FtpClient from "../utils/connection/ftp-client.js";
+import ftpConnectionManager from "../utils/connection/ftp-connection-manager.js";
 import { FILE_TYPE } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
 import { ENV } from "../config/environment.js";
@@ -23,17 +23,39 @@ export default class FtpService {
     static #mediaSessions = new Map();
 
     /**
+     * Returns whether a user's pooled session accepts internal work
+     *
+     * @param {string} params.ownerId User identifier
+     * @returns {boolean} Whether internal work may continue
+     */
+    static isSessionActive({ ownerId }) {
+        return ftpConnectionManager.isActive({ ownerId });
+    }
+
+    /**
+     * Registers user activity served without an FTP operation
+     *
+     * @param {Object} params.authUser Authenticated user
+     */
+    static async touchSession({ authUser }) {
+        try {
+            await ftpConnectionManager.touch({ authUser });
+        } catch {
+            ftpError("Error al preparar la sesión FTP", ftpDirFailed);
+        }
+    }
+
+    /**
      * Returns FTP directory content
      *
      * @param {string} params.dir FTP directory path
-     * @param {{ username: string }} params.authUser Authenticated user
-     * @returns {Promise<Object[]>} Directory resources
+     * @param {Object} params.authUser Authenticated user
+     * @param {boolean} [params.internal] Whether this is an internal hash check
+     * @returns {Promise<Object[] | undefined>} Directory resources, or undefined when an internal check is omitted
      */
-    static async dir({ dir, authUser }) {
-        let client;
-        try {
-            client = await getClient(authUser.username);
-            const list = await client.list(dir);
+    static async dir({ dir, authUser, internal = false }) {
+        const listDirectory = async (ftpClient) => {
+            const list = await ftpClient.list(dir);
             return list.map(({ name, type, size, modifyTime }) => {
                 const normalizedType = type === "d" ? dirType : fileType;
                 return {
@@ -44,10 +66,17 @@ export default class FtpService {
                     supportsThumbnail: normalizedType === fileType && FtpService.#MEDIA_EXTENSION.test(path.extname(name))
                 };
             });
+        };
+        try {
+            return await ftpConnectionManager.execute({
+                authUser,
+                pool: internal ? "internal" : "read",
+                paths: [dir],
+                skipLocked: internal,
+                callback: ({ client: ftpClient }) => listDirectory(ftpClient)
+            });
         } catch (err) {
             ftpError("Error al listar la carpeta", ftpDirFailed);
-        } finally {
-            await closeClient(client);
         }
     }
 
@@ -60,22 +89,27 @@ export default class FtpService {
      * @param {(source: { name: string, thumbnail: Buffer | null }) => Promise<void>} params.callback Thumbnail processor
      */
     static async getThumbnails({ dir, names, authUser, callback }) {
-        let client;
         try {
-            client = await getClient(authUser.username);
-            for (const name of names) {
-                let thumbnail;
-                try {
-                    const remotePath = path.posix.join(dir, name);
-                    const { size } = await client.stat(remotePath);
-                    thumbnail = await FtpService.#createThumbnail({ client, remotePath, size });
-                } catch {
-                    thumbnail = null;
+            return await ftpConnectionManager.execute({
+                authUser,
+                pool: "read",
+                transfer: true,
+                callback: async ({ client }) => {
+                    for (const name of names) {
+                        let thumbnail;
+                        try {
+                            const remotePath = path.posix.join(dir, name);
+                            const { size } = await client.stat(remotePath);
+                            thumbnail = await FtpService.#createThumbnail({ client, remotePath, size });
+                        } catch {
+                            thumbnail = null;
+                        }
+                        await callback({ name, thumbnail });
+                    }
                 }
-                await callback({ name, thumbnail });
-            }
-        } finally {
-            await closeClient(client);
+            });
+        } catch {
+            return ftpError("Error al generar las miniaturas", ftpThumbnailFailed);
         }
     }
 
@@ -122,19 +156,22 @@ export default class FtpService {
      *
      * @param {string} params.dir FTP directory path
      * @param {string} params.name Directory name
-     * @param {{ username: string }} params.authUser Authenticated user
+     * @param {Object} params.authUser Authenticated user
      */
     static async makeDir({ dir, name, authUser }) {
-        let client;
         try {
-            client = await getClient(authUser.username);
-            const list = await client.list(dir);
-            const newName = getAvailableName(name, list);
-            await client.mkdir(`${dir}/${newName}`);
+            return await ftpConnectionManager.execute({
+                authUser,
+                pool: "write",
+                paths: [dir],
+                callback: async ({ client }) => {
+                    const list = await client.list(dir);
+                    const newName = getAvailableName(name, list);
+                    await client.mkdir(`${dir}/${newName}`);
+                }
+            });
         } catch (err) {
             ftpError("Error al crear la carpeta", ftpMkdirFailed);
-        } finally {
-            await closeClient(client);
         }
     }
 
@@ -144,24 +181,27 @@ export default class FtpService {
      * @param {string} params.dir Source FTP directory path
      * @param {Object[]} params.entries Resources to move
      * @param {string} params.destination Destination FTP directory path
-     * @param {{ username: string }} params.authUser Authenticated user
+     * @param {Object} params.authUser Authenticated user
      * @param {(entry: Object, newName: string) => Promise<void>} params.onEntry Handles each moved resource
      */
     static async move({ dir, entries, destination, authUser, onEntry }) {
-        let client;
         try {
-            client = await getClient(authUser.username);
-            const list = await client.list(destination);
-            for (const item of entries) {
-                const newName = getAvailableName(item.name, list);
-                await client.rename(`${dir}/${item.name}`, `${destination}/${newName}`);
-                list.push({ name: newName });
-                await onEntry(item, newName);
-            }
+            return await ftpConnectionManager.execute({
+                authUser,
+                pool: "write",
+                paths: [dir, destination],
+                callback: async ({ client }) => {
+                    const list = await client.list(destination);
+                    for (const item of entries) {
+                        const newName = getAvailableName(item.name, list);
+                        await client.rename(`${dir}/${item.name}`, `${destination}/${newName}`);
+                        list.push({ name: newName });
+                        await onEntry(item, newName);
+                    }
+                }
+            });
         } catch (err) {
             ftpError("Error al mover los archivos", ftpMoveFailed);
-        } finally {
-            await closeClient(client);
         }
     }
 
@@ -171,21 +211,24 @@ export default class FtpService {
      * @param {string} params.dir FTP directory path
      * @param {Object} params.entry Resource to rename
      * @param {string} params.newName New resource name
-     * @param {{ username: string }} params.authUser Authenticated user
+     * @param {Object} params.authUser Authenticated user
      * @returns {Promise<Object>} Renamed resource
      */
     static async rename({ dir, entry, newName, authUser }) {
-        let client;
         try {
-            client = await getClient(authUser.username);
-            const list = await client.list(dir);
-            newName = getAvailableName(newName, list);
-            await client.rename(`${dir}/${entry.name}`, `${dir}/${newName}`);
-            return { ...entry, name: newName };
+            return await ftpConnectionManager.execute({
+                authUser,
+                pool: "write",
+                paths: [dir],
+                callback: async ({ client }) => {
+                    const list = await client.list(dir);
+                    newName = getAvailableName(newName, list);
+                    await client.rename(`${dir}/${entry.name}`, `${dir}/${newName}`);
+                    return { ...entry, name: newName };
+                }
+            });
         } catch (err) {
             ftpError("Error al renombrar", ftpRenameFailed);
-        } finally {
-            await closeClient(client);
         }
     }
 
@@ -208,47 +251,50 @@ export default class FtpService {
             createdDirs: new Set(),
             activeStreams: new Set()
         };
-        let client;
         try {
-            client = await getClient(authUser.username);
-            await trackMissingDirectories(client, dir, session.createdDirs);
-            await client.mkdir(dir, true);
-            const list = await client.list(dir);
-            const roots = new Map();
-            const resolvedEntries = entries.map((entry) => {
-                const [root, ...rest] = entry.path.split("/");
-                if (!roots.has(root)) {
-                    const name = getAvailableName(root, list);
-                    roots.set(root, name);
-                    list.push({ name });
+            return await ftpConnectionManager.execute({
+                authUser,
+                pool: "write",
+                paths: [dir],
+                callback: async ({ client }) => {
+                    await trackMissingDirectories(client, dir, session.createdDirs);
+                    await client.mkdir(dir, true);
+                    const list = await client.list(dir);
+                    const roots = new Map();
+                    const resolvedEntries = entries.map((entry) => {
+                        const [root, ...rest] = entry.path.split("/");
+                        if (!roots.has(root)) {
+                            const name = getAvailableName(root, list);
+                            roots.set(root, name);
+                            list.push({ name });
+                        }
+
+                        return { ...entry, path: path.posix.join(roots.get(root), ...rest) };
+                    });
+                    for (const entry of resolvedEntries.filter((it) => it.type === dirType)) {
+                        const remoteDir = path.posix.join(dir, entry.path);
+                        await trackMissingDirectories(client, remoteDir, session.createdDirs);
+                        await client.mkdir(remoteDir, true);
+                    }
+
+                    const sessionEntries = resolvedEntries.map((entry) => {
+                        if (entry.type === dirType) {
+                            return [entry.path, { ...entry, uploaded: true }];
+                        }
+
+                        return [entry.path, { ...entry, receivedBytes: 0, uploaded: false, uploading: false }];
+                    });
+                    const timeout = setTimeout(() => void expireTransfer(id), FtpService.#TRANSFER_SESSION_TIMEOUT);
+                    timeout.unref();
+                    session.timeout = timeout;
+                    session.entries = new Map(sessionEntries);
+                    transferSessions.set(id, session);
+                    return { id, entries: resolvedEntries };
                 }
-
-                return { ...entry, path: path.posix.join(roots.get(root), ...rest) };
             });
-            for (const entry of resolvedEntries.filter((it) => it.type === dirType)) {
-                const remoteDir = path.posix.join(dir, entry.path);
-                await trackMissingDirectories(client, remoteDir, session.createdDirs);
-                await client.mkdir(remoteDir, true);
-            }
-
-            const sessionEntries = resolvedEntries.map((entry) => {
-                if (entry.type === dirType) {
-                    return [entry.path, { ...entry, uploaded: true }];
-                }
-
-                return [entry.path, { ...entry, receivedBytes: 0, uploaded: false, uploading: false }];
-            });
-            const timeout = setTimeout(() => void expireTransfer(id), FtpService.#TRANSFER_SESSION_TIMEOUT);
-            timeout.unref();
-            session.timeout = timeout;
-            session.entries = new Map(sessionEntries);
-            transferSessions.set(id, session);
-            return { id, entries: resolvedEntries };
         } catch (err) {
             await cleanupTransfer(session);
             ftpError("Error al preparar la subida", ftpUploadFailed);
-        } finally {
-            await closeClient(client);
         }
     }
 
@@ -284,30 +330,36 @@ export default class FtpService {
             status: 409,
             apiError: ftpUploadFailed
         }]);
-        let client;
         let destination;
         entry.uploading = true;
         session.activeStreams.add(file.stream);
         try {
-            client = await getClient(authUser.username);
-            if (!entry.remotePath) {
-                const remotePath = path.posix.join(session.dir, entryPath);
-                const remoteDir = path.posix.dirname(remotePath);
-                const name = getAvailableName(path.posix.basename(remotePath), await client.list(remoteDir));
-                entry.remotePath = path.posix.join(remoteDir, name);
-            }
+            return await ftpConnectionManager.execute({
+                authUser,
+                pool: "write",
+                transfer: true,
+                paths: [path.posix.join(session.dir, path.posix.dirname(entryPath))],
+                callback: async ({ client }) => {
+                    if (!entry.remotePath) {
+                        const remotePath = path.posix.join(session.dir, entryPath);
+                        const remoteDir = path.posix.dirname(remotePath);
+                        const name = getAvailableName(path.posix.basename(remotePath), await client.list(remoteDir));
+                        entry.remotePath = path.posix.join(remoteDir, name);
+                    }
 
-            await client.mkdir(path.posix.dirname(entry.remotePath), true);
-            destination = client.createWriteStream(entry.remotePath, {
-                flags: offset === 0 ? "w" : "r+",
-                start: offset
+                    await client.mkdir(path.posix.dirname(entry.remotePath), true);
+                    destination = client.createWriteStream(entry.remotePath, {
+                        flags: offset === 0 ? "w" : "r+",
+                        start: offset
+                    });
+                    session.activeStreams.add(destination);
+                    const counter = createChunkCounter({ entry, offset, maxSize: FtpService.#MAX_UPLOAD_CHUNK_SIZE });
+                    await pipeline(file.stream, counter, destination);
+                    entry.receivedBytes = counter.size;
+                    entry.uploaded = entry.size === undefined || entry.receivedBytes === entry.size;
+                    return { nextOffset: entry.receivedBytes };
+                }
             });
-            session.activeStreams.add(destination);
-            const counter = createChunkCounter({ entry, offset, maxSize: FtpService.#MAX_UPLOAD_CHUNK_SIZE });
-            await pipeline(file.stream, counter, destination);
-            entry.receivedBytes = counter.size;
-            entry.uploaded = entry.size === undefined || entry.receivedBytes === entry.size;
-            return { nextOffset: entry.receivedBytes };
         } catch (err) {
             clearTimeout(session.timeout);
             transferSessions.delete(id);
@@ -317,7 +369,6 @@ export default class FtpService {
             entry.uploading = false;
             session.activeStreams.delete(file.stream);
             session.activeStreams.delete(destination);
-            await closeClient(client);
         }
     }
 
@@ -364,40 +415,42 @@ export default class FtpService {
      */
     static async createDownload({ dir, entries, authUser }) {
         const id = randomUUID();
-        let client;
         try {
-            client = await getClient(authUser.username);
-            const resolvedEntries = [];
-            let totalBytes = 0;
-            for await (const entry of createDownloadEntries(client, dir, entries)) {
-                const resolvedEntry = entry.type === fileType
-                    ? { path: entry.name, type: entry.type, size: entry.size }
-                    : { path: entry.name, type: entry.type };
-                totalBytes += entry.size ?? 0;
-                handleApiErrors([{
-                    condition: !Number.isSafeInteger(totalBytes),
-                    message: "El tamaño total de la descarga supera el máximo permitido",
-                    status: 400,
-                    apiError: ftpDownloadFailed
-                }]);
-                resolvedEntries.push(resolvedEntry);
-            }
-            const timeout = setTimeout(() => void expireTransfer(id), FtpService.#TRANSFER_SESSION_TIMEOUT);
-            timeout.unref();
-            transferSessions.set(id, {
-                type: "DOWNLOAD",
-                dir,
-                ownerId: authUser.id,
-                username: authUser.username,
-                timeout,
-                entries: resolvedEntries,
-                activeStreams: new Set()
+            return await ftpConnectionManager.execute({
+                authUser,
+                pool: "read",
+                callback: async ({ client }) => {
+                    const resolvedEntries = [];
+                    let totalBytes = 0;
+                    for await (const entry of createDownloadEntries(client, dir, entries)) {
+                        const resolvedEntry = entry.type === fileType
+                            ? { path: entry.name, type: entry.type, size: entry.size }
+                            : { path: entry.name, type: entry.type };
+                        totalBytes += entry.size ?? 0;
+                        handleApiErrors([{
+                            condition: !Number.isSafeInteger(totalBytes),
+                            message: "El tamaño total de la descarga supera el máximo permitido",
+                            status: 400,
+                            apiError: ftpDownloadFailed
+                        }]);
+                        resolvedEntries.push(resolvedEntry);
+                    }
+                    const timeout = setTimeout(() => void expireTransfer(id), FtpService.#TRANSFER_SESSION_TIMEOUT);
+                    timeout.unref();
+                    transferSessions.set(id, {
+                        type: "DOWNLOAD",
+                        dir,
+                        ownerId: authUser.id,
+                        username: authUser.username,
+                        timeout,
+                        entries: resolvedEntries,
+                        activeStreams: new Set()
+                    });
+                    return { id, totalBytes, entries: resolvedEntries };
+                }
             });
-            return { id, totalBytes, entries: resolvedEntries };
         } catch (err) {
             ftpError("Error al preparar la descarga", ftpDownloadFailed);
-        } finally {
-            await closeClient(client);
         }
     }
 
@@ -424,31 +477,36 @@ export default class FtpService {
             status: 416,
             apiError: ftpDownloadFailed
         }]);
-        let client;
         let source;
         try {
-            client = await getClient(authUser.username);
-            const remotePath = path.posix.join(session.dir, entryPath);
-            let size;
-            try {
-                ({ size } = await client.stat(remotePath));
-            } catch {
-                throw createStaleDownloadError();
-            }
-            if (size !== entry.size) {
-                throw createStaleDownloadError();
-            }
-            const remainingSize = entry.size - offset;
-            stream.setHeader?.("Content-Length", remainingSize);
-            if (!remainingSize) {
-                stream.end();
-                return;
-            }
+            await ftpConnectionManager.execute({
+                authUser,
+                pool: "read",
+                transfer: true,
+                callback: async ({ client }) => {
+                    const remotePath = path.posix.join(session.dir, entryPath);
+                    let size;
+                    try {
+                        ({ size } = await client.stat(remotePath));
+                    } catch {
+                        throw createStaleDownloadError();
+                    }
+                    if (size !== entry.size) {
+                        throw createStaleDownloadError();
+                    }
+                    const remainingSize = entry.size - offset;
+                    stream.setHeader?.("Content-Length", remainingSize);
+                    if (!remainingSize) {
+                        stream.end();
+                        return;
+                    }
 
-            source = client.createReadStream(remotePath, { start: offset });
-            session.activeStreams.add(source);
-            session.activeStreams.add(stream);
-            await pipeline(source, createSizeValidator(remainingSize), stream);
+                    source = client.createReadStream(remotePath, { start: offset });
+                    session.activeStreams.add(source);
+                    session.activeStreams.add(stream);
+                    await pipeline(source, createSizeValidator(remainingSize), stream);
+                }
+            });
         } catch (err) {
             clearTimeout(session.timeout);
             transferSessions.delete(id);
@@ -461,7 +519,6 @@ export default class FtpService {
         } finally {
             session.activeStreams.delete(source);
             session.activeStreams.delete(stream);
-            await closeClient(client);
         }
     }
 
@@ -470,27 +527,30 @@ export default class FtpService {
      *
      * @param {string} params.dir FTP directory path
      * @param {Object[]} params.entries Resources to delete
-     * @param {{ username: string }} params.authUser Authenticated user
+     * @param {Object} params.authUser Authenticated user
      * @param {(entry: Object) => Promise<void>} params.onEntry Handles each deleted resource
      */
     static async delete({ dir, entries, authUser, onEntry }) {
-        let client;
         try {
-            client = await getClient(authUser.username);
-            for (const entry of entries) {
-                const { name, type } = entry;
-                const remotePath = `${dir}/${name}`;
-                if (type === dirType) {
-                    await client.rmdir(remotePath, true);
-                } else {
-                    await client.delete(remotePath);
+            return await ftpConnectionManager.execute({
+                authUser,
+                pool: "write",
+                paths: [dir],
+                callback: async ({ client }) => {
+                    for (const entry of entries) {
+                        const { name, type } = entry;
+                        const remotePath = `${dir}/${name}`;
+                        if (type === dirType) {
+                            await client.rmdir(remotePath, true);
+                        } else {
+                            await client.delete(remotePath);
+                        }
+                        await onEntry(entry);
+                    }
                 }
-                await onEntry(entry);
-            }
+            });
         } catch (err) {
             ftpError("Error al borrar", ftpDeleteFailed);
-        } finally {
-            await closeClient(client);
         }
     }
 
@@ -565,7 +625,6 @@ export default class FtpService {
 }
 
 const { dir: dirType, file: fileType } = FILE_TYPE;
-const { getClient, closeClient } = FtpClient;
 const { handleApiErrors } = ValidateUtils;
 const transferSessions = new Map();
 const {
@@ -577,6 +636,7 @@ const {
     ftpMoveFailed,
     ftpRenameFailed,
     ftpDeleteFailed,
+    ftpThumbnailFailed,
     ftpThumbnailTooLarge,
     ftpFileRequired
 } = API_ERROR;
@@ -732,30 +792,34 @@ async function cleanupTransfer(session) {
         return;
     }
 
-    let client;
     try {
-        client = await getClient(session.username);
-        for (const entry of session.entries.values()) {
-            if (entry.type === fileType && entry.remotePath) {
-                try {
-                    await client.delete(entry.remotePath);
-                } catch {
-                    continue;
+        await ftpConnectionManager.execute({
+            authUser: { id: session.ownerId, username: session.username },
+            pool: "write",
+            paths: [session.dir],
+            callback: async ({ client }) => {
+                for (const entry of session.entries.values()) {
+                    if (entry.type === fileType && entry.remotePath) {
+                        try {
+                            await client.delete(entry.remotePath);
+                        } catch {
+                            continue;
+                        }
+                    }
+                }
+
+                const directories = [...session.createdDirs].sort((a, b) => b.split("/").length - a.split("/").length);
+                for (const remoteDir of directories) {
+                    try {
+                        await client.rmdir(remoteDir, false);
+                    } catch {
+                        continue;
+                    }
                 }
             }
-        }
-        const directories = [...session.createdDirs].sort((a, b) => b.split("/").length - a.split("/").length);
-        for (const remoteDir of directories) {
-            try {
-                await client.rmdir(remoteDir, false);
-            } catch {
-                continue;
-            }
-        }
+        });
     } catch {
         return;
-    } finally {
-        await closeClient(client);
     }
 }
 

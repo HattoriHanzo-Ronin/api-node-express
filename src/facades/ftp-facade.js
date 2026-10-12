@@ -44,6 +44,7 @@ export default class FtpFacade {
      * @returns {Promise<string>} Directory hash
      */
     async getHash({ dir, authUser }) {
+        await this.ftpService.touchSession({ authUser });
         const directory = this.directoryCache.get(authUser.id, dir);
         if (directory) {
             return directory.hash;
@@ -162,12 +163,12 @@ export default class FtpFacade {
      * @returns {Promise<{ hash: string, data: Object[] }>} Updated directory resources
      */
     async rename({ dir, entry, newName, authUser }) {
-        const result = await this.ftpService.rename({ dir, entry, newName, authUser });
+        const renamedEntry = await this.ftpService.rename({ dir, entry, newName, authUser });
         if (entry.type === FILE_TYPE.dir) {
             await this.#moveCachedDirectory(
                 authUser.id,
                 path.posix.join(dir, entry.name),
-                path.posix.join(dir, result.name)
+                path.posix.join(dir, renamedEntry.name)
             );
         }
 
@@ -415,7 +416,19 @@ export default class FtpFacade {
         }
 
         try {
-            const entries = await this.ftpService.dir({ dir, authUser: { username: cachedDirectory.username } });
+            const entries = await this.ftpService.dir({
+                dir,
+                authUser: { id: ownerId, username: cachedDirectory.username },
+                internal: true
+            });
+            if (!entries) {
+                if (this.ftpService.isSessionActive({ ownerId })) {
+                    setTimeout(() => this.#checkDirectory(ownerId, dir), FtpFacade.#DIRECTORY_CHECK_TIMEOUT);
+                } else {
+                    this.directoryCache.delete(ownerId, dir);
+                }
+                return;
+            }
             const hash = FtpFacade.#hashDirectory(entries);
             if (hash !== cachedDirectory.hash) {
                 this.directoryCache.set(ownerId, dir, { ...cachedDirectory, hash });

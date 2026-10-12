@@ -4,6 +4,7 @@ import PostgresClient from "./utils/connection/postgres-client.js";
 
 import FtpController from "./controllers/ftp-controller.js";
 import FtpService from "./services/ftp-service.js";
+import ftpConnectionManager from "./utils/connection/ftp-connection-manager.js";
 import FtpMapper from "./mappers/ftp-mapper.js";
 import FtpFacade from "./facades/ftp-facade.js";
 import MemoryCache from "./utils/cache/memory-cache.js";
@@ -82,3 +83,10 @@ createApp({
     usersController,
     authController
 });
+
+for (const signal of ["SIGINT", "SIGTERM"]) {
+    process.once(signal, async () => {
+        await ftpConnectionManager.closeAll();
+        process.exit(0);
+    });
+}
