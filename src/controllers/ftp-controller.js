@@ -1,3 +1,4 @@
+import path from "node:path";
 import FtpSchema from "../schemas/ftp-schema.js";
 import ValidateUtils from "../utils/validate-utils.js";
 
@@ -57,22 +58,48 @@ export default class FtpController {
         res.set("Data-Version", hash).json(data);
     };
 
-    upload = async (req, res) => {
-        const { query, file, user: authUser } = req;
+    createUpload = async (req, res) => {
+        const { body, user: authUser } = req;
+        const { dir, entries } = validateData(body, getCreateUploadSchema());
+        res.status(201).json(await this.ftpFacade.createUpload({ dir, entries, authUser }));
+    };
+
+    uploadEntry = async (req, res) => {
+        const { params, query, file, user: authUser } = req;
         try {
-            const { dir, extract } = validateData(query, getUploadSchema());
-            const { hash, data } = await this.ftpFacade.upload({ dir, extract, file, authUser });
-            res.set("Data-Version", hash).status(201).json(data);
+            const { id, path, offset } = validateData({ ...params, ...query }, getUploadEntrySchema());
+            res.json(await this.ftpFacade.uploadEntry({ id, entryPath: path, offset, file, authUser }));
         } catch (error) {
             file?.stream.resume();
             throw error;
         }
     };
 
-    download = async (req, res) => {
+    completeUpload = async (req, res) => {
+        const { params, user: authUser } = req;
+        const { id } = validateData(params, getTransferSchema());
+        const { hash, data } = await this.ftpFacade.completeUpload({ id, authUser });
+        res.set("Data-Version", hash).json(data);
+    };
+
+    cancelTransfer = async (req, res) => {
+        const { params, user: authUser } = req;
+        const { id } = validateData(params, getTransferSchema());
+        await this.ftpFacade.cancelTransfer({ id, authUser });
+        res.status(204).send();
+    };
+
+    createDownload = async (req, res) => {
         const { body, user: authUser } = req;
-        const { dir, entries } = validateData(body, getDownloadSchema());
-        await this.ftpFacade.download({ dir, entries, authUser, stream: res });
+        const { dir, entries } = validateData(body, getCreateDownloadSchema());
+        res.status(201).json(await this.ftpFacade.createDownload({ dir, entries, authUser }));
+    };
+
+    downloadEntry = async (req, res) => {
+        const { params, query, user: authUser } = req;
+        const { id, path: entryPath, offset } = validateData({ ...params, ...query }, getDownloadEntrySchema());
+        res.attachment(path.posix.basename(entryPath));
+        await this.ftpFacade.downloadEntry({ id, entryPath, offset, authUser, stream: res });
     };
 
     delete = async (req, res) => {
@@ -90,8 +117,11 @@ const {
     getDirSchema,
     getMoveSchema,
     getRenameSchema,
-    getDownloadSchema,
+    getCreateDownloadSchema,
+    getCreateUploadSchema,
+    getDownloadEntrySchema,
     getMakeDirSchema,
-    getUploadSchema
+    getTransferSchema,
+    getUploadEntrySchema
 } = FtpSchema;
 const { validateData } = ValidateUtils;

@@ -24,13 +24,16 @@
 # - Resource entries must include name and type.
 # - Allowed entry types are DIR and FILE.
 # - FILE responses include supportsThumbnail.
-# - Upload uses query parameter extract=true to extract a ZIP tree; false uploads the ZIP as a regular file.
+# - Upload and download use transfer sessions.
+# - Replace the session identifiers below with those returned by their creation requests.
 
 @baseUrl = http://localhost:60004/ftp
 @token = PASTE_ACCESS_TOKEN
 @folderName = Test Folder
 @fileName = test.txt
 @thumbnailName = photo.jpg
+@uploadId = PASTE_UPLOAD_SESSION_ID
+@downloadId = PASTE_DOWNLOAD_SESSION_ID
 
 ############################################################
 # List directory
@@ -152,24 +155,45 @@ Content-Type: application/json
 ###
 
 ############################################################
-# Upload file
+# Create upload session
 #
 # Expected:
 # Status: 201
-# Headers:
-# Data-Version: <SHA-256 directory hash>
 #
 # Response:
-# [
-#   {
-#       "name": "test.txt",
-#       "type": "FILE",
-#       "supportsThumbnail": false
-#   }
-# ]
+# {
+#   "id": "<upload-session-id>",
+#   "entries": [
+#       { "path": "test.txt", "type": "FILE", "size": 9 }
+#   ]
+# }
 ############################################################
 
-POST {{baseUrl}}/upload?dir=.&extract=false
+POST {{baseUrl}}/uploads
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "entries": [
+        { "path": "{{fileName}}", "type": "FILE", "size": 9 }
+    ]
+}
+
+###
+
+############################################################
+# Upload file entry
+#
+# Expected:
+# Status: 200
+#
+# Response:
+# {
+#   "nextOffset": 9
+# }
+############################################################
+
+PUT {{baseUrl}}/uploads/{{uploadId}}/entries?path={{fileName}}&offset=0
 Authorization: Bearer {{token}}
 Content-Type: multipart/form-data; boundary=Boundary
 
@@ -183,18 +207,39 @@ Hello FTP
 ###
 
 ############################################################
-# Download file
+# Complete upload session
 #
 # Expected:
 # Status: 200
-# Content-Disposition: attachment; filename="test.txt"
-# Content-Type: text/plain
+# Headers:
+# Data-Version: <SHA-256 directory hash>
 #
 # Response:
-# File download
+# Updated destination directory entries
 ############################################################
 
-POST {{baseUrl}}/download
+POST {{baseUrl}}/uploads/{{uploadId}}/complete
+Authorization: Bearer {{token}}
+
+###
+
+############################################################
+# Create download session
+#
+# Expected:
+# Status: 201
+#
+# Response:
+# {
+#   "id": "<download-session-id>",
+#   "totalBytes": 9,
+#   "entries": [
+#       { "path": "test.txt", "type": "FILE", "size": 9 }
+#   ]
+# }
+############################################################
+
+POST {{baseUrl}}/downloads
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -203,6 +248,35 @@ Content-Type: application/json
         { "name": "{{fileName}}", "type": "FILE" }
     ]
 }
+
+###
+
+############################################################
+# Download file entry
+#
+# Expected:
+# Status: 200
+# Content-Disposition: attachment; filename="test.txt"
+# Content-Length: <remaining bytes>
+#
+# Response:
+# File stream beginning at offset
+############################################################
+
+GET {{baseUrl}}/downloads/{{downloadId}}/entries?path={{fileName}}&offset=0
+Authorization: Bearer {{token}}
+
+###
+
+############################################################
+# Cancel download session
+#
+# Expected:
+# Status: 204
+############################################################
+
+DELETE {{baseUrl}}/downloads/{{downloadId}}
+Authorization: Bearer {{token}}
 
 ###
 
@@ -329,7 +403,7 @@ Content-Type: application/json
 # }
 ############################################################
 
-POST {{baseUrl}}/download
+POST {{baseUrl}}/downloads
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -356,7 +430,7 @@ Content-Type: application/json
 # }
 ############################################################
 
-POST {{baseUrl}}/download
+POST {{baseUrl}}/downloads
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -385,7 +459,7 @@ Content-Type: application/json
 # }
 ############################################################
 
-POST {{baseUrl}}/download
+POST {{baseUrl}}/downloads
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -416,7 +490,7 @@ Content-Type: application/json
 # }
 ############################################################
 
-POST {{baseUrl}}/download
+POST {{baseUrl}}/downloads
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -460,7 +534,7 @@ Content-Type: application/json
 ###
 
 ############################################################
-# ApiError - Upload without file
+# ApiError - Upload entry without file
 #
 # Expected:
 # Status: 400
@@ -472,7 +546,7 @@ Content-Type: application/json
 # }
 ############################################################
 
-POST {{baseUrl}}/upload
+PUT {{baseUrl}}/uploads/{{uploadId}}/entries?path={{fileName}}&offset=0
 Authorization: Bearer {{token}}
 Content-Type: application/json
 

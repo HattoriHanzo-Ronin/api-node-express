@@ -15,21 +15,25 @@ describe("FtpController", () => {
             makeDir: vi.fn(),
             move: vi.fn(),
             rename: vi.fn(),
-            upload: vi.fn(),
-            download: vi.fn(),
+            createUpload: vi.fn(),
+            uploadEntry: vi.fn(),
+            completeUpload: vi.fn(),
+            cancelTransfer: vi.fn(),
+            createDownload: vi.fn(),
+            downloadEntry: vi.fn(),
             delete: vi.fn()
         };
         controller = new FtpController({ ftpFacade });
         req = { params: {}, query: {}, body: {}, file: undefined, user: { id: "user-id", username: "ronin" } };
-        res = { status: vi.fn().mockReturnThis(), set: vi.fn().mockReturnThis(), type: vi.fn().mockReturnThis(), json: vi.fn(), send: vi.fn() };
+        res = { status: vi.fn().mockReturnThis(), set: vi.fn().mockReturnThis(), type: vi.fn().mockReturnThis(), attachment: vi.fn().mockReturnThis(), json: vi.fn(), send: vi.fn() };
     });
 
     describe("dir", () => {
         it("should list ftp resources", async () => {
             ftpFacade.dir.mockResolvedValue({ hash: "directory-hash", data: [{ name: "docs", type: "DIR" }] });
-            req.query.dir = "   /files   ";
+            req.query.dir = "   files   ";
             await controller.dir(req, res);
-            expect(ftpFacade.dir).toHaveBeenCalledWith({ dir: "/files", authUser: req.user });
+            expect(ftpFacade.dir).toHaveBeenCalledWith({ dir: "files", authUser: req.user });
             expect(res.set).toHaveBeenCalledWith("Data-Version", "directory-hash");
             expect(res.json).toHaveBeenCalledWith([{ name: "docs", type: "DIR" }]);
         });
@@ -71,10 +75,10 @@ describe("FtpController", () => {
         it("should return a cached JPEG thumbnail", async () => {
             const thumbnail = Buffer.from("thumbnail");
             req.params.name = "photo.jpg";
-            req.query.dir = "/files";
+            req.query.dir = "files";
             ftpFacade.getThumbnail.mockResolvedValue(thumbnail);
             await controller.getThumbnail(req, res);
-            expect(ftpFacade.getThumbnail).toHaveBeenCalledWith({ dir: "/files", name: "photo.jpg", authUser: req.user });
+            expect(ftpFacade.getThumbnail).toHaveBeenCalledWith({ dir: "files", name: "photo.jpg", authUser: req.user });
             expect(res.type).toHaveBeenCalledWith("jpeg");
             expect(res.send).toHaveBeenCalledWith(thumbnail);
         });
@@ -98,7 +102,7 @@ describe("FtpController", () => {
 
         it("should fail when the file name is invalid", async () => {
             req.params.name = "../photo.jpg";
-            req.query.dir = "/files";
+            req.query.dir = "files";
             await expect(controller.getThumbnail(req, res)).rejects.toThrow("Error al validar los datos");
         });
 
@@ -113,10 +117,10 @@ describe("FtpController", () => {
         it("should create a directory", async () => {
             const data = [{ name: "Nueva Carpeta", type: "DIR" }];
             ftpFacade.makeDir.mockResolvedValue({ hash: "directory-hash", data });
-            req.body = { dir: "/files", name: "   Nueva Carpeta   " };
+            req.body = { dir: "files", name: "   Nueva Carpeta   " };
             await controller.makeDir(req, res);
             expect(ftpFacade.makeDir).toHaveBeenCalledWith({
-                dir: "/files",
+                dir: "files",
                 name: "Nueva Carpeta",
                 authUser: req.user
             });
@@ -146,11 +150,11 @@ describe("FtpController", () => {
             const entries = [{ name: "file.txt", type: "file" }];
             const data = [{ name: "file.txt", type: "FILE" }];
             ftpFacade.move.mockResolvedValue({ hash: "directory-hash", data });
-            req.body = { dir: "/files", destination: "/backup", entries };
+            req.body = { dir: "files", destination: "backup", entries };
             await controller.move(req, res);
             expect(ftpFacade.move).toHaveBeenCalledWith({
-                dir: "/files",
-                destination: "/backup",
+                dir: "files",
+                destination: "backup",
                 entries: [{ name: "file.txt", type: "FILE" }],
                 authUser: req.user
             });
@@ -159,7 +163,7 @@ describe("FtpController", () => {
         });
 
         it("should fail when destination contains traversal", async () => {
-            req.body = { dir: "/files", destination: "../backup", entries: [{ name: "file.txt", type: "FILE" }] };
+            req.body = { dir: "files", destination: "../backup", entries: [{ name: "file.txt", type: "FILE" }] };
             await expect(controller.move(req, res)).rejects.toThrow("Error al validar los datos");
         });
     });
@@ -168,10 +172,10 @@ describe("FtpController", () => {
         it("should rename a ftp entry", async () => {
             const data = [{ name: "renamed.txt", type: "FILE" }];
             ftpFacade.rename.mockResolvedValue({ hash: "directory-hash", data });
-            req.body = { dir: "/files", entry: { name: "file.txt", type: "file" }, newName: "renamed.txt" };
+            req.body = { dir: "files", entry: { name: "file.txt", type: "file" }, newName: "renamed.txt" };
             await controller.rename(req, res);
             expect(ftpFacade.rename).toHaveBeenCalledWith({
-                dir: "/files",
+                dir: "files",
                 entry: { name: "file.txt", type: "FILE" },
                 newName: "renamed.txt",
                 authUser: req.user
@@ -187,27 +191,60 @@ describe("FtpController", () => {
     });
 
     describe("upload", () => {
-        it("should upload a file", async () => {
-            const file = { originalname: "file.txt", stream: {} };
-            const data = [{ name: "file.txt", type: "FILE" }];
-            ftpFacade.upload.mockResolvedValue({ hash: "directory-hash", data });
-            req.query = { dir: "/upload", extract: "false" };
-            req.file = file;
-            await controller.upload(req, res);
-            expect(ftpFacade.upload).toHaveBeenCalledWith({ dir: "/upload", extract: false, file, authUser: req.user });
+        it("should create an upload session", async () => {
+            const session = { id: "550e8400-e29b-41d4-a716-446655440000", entries: [] };
+            ftpFacade.createUpload.mockResolvedValue(session);
+            req.body = { dir: "upload", entries: [{ path: "folder", type: "dir" }] };
+            await controller.createUpload(req, res);
+            expect(ftpFacade.createUpload).toHaveBeenCalledWith({
+                dir: "upload",
+                entries: [{ path: "folder", type: "DIR" }],
+                authUser: req.user
+            });
             expect(res.status).toHaveBeenCalledWith(201);
-            expect(res.set).toHaveBeenCalledWith("Data-Version", "directory-hash");
-            expect(res.json).toHaveBeenCalledWith(data);
+            expect(res.json).toHaveBeenCalledWith(session);
+        });
+
+        it("should upload one session file", async () => {
+            req.params.id = "550e8400-e29b-41d4-a716-446655440000";
+            req.query.path = "folder/file.txt";
+            req.query.offset = "90";
+            req.file = { stream: {} };
+            ftpFacade.uploadEntry.mockResolvedValue({ nextOffset: 180 });
+            await controller.uploadEntry(req, res);
+            expect(ftpFacade.uploadEntry).toHaveBeenCalledWith({
+                id: req.params.id,
+                entryPath: req.query.path,
+                offset: 90,
+                file: req.file,
+                authUser: req.user
+            });
+            expect(res.json).toHaveBeenCalledWith({ nextOffset: 180 });
         });
     });
 
     describe("download", () => {
-        it("should download ftp entries", async () => {
-            req.body = { dir: "/files", entries: [{ name: "file.txt", type: "file" }] };
-            await controller.download(req, res);
-            expect(ftpFacade.download).toHaveBeenCalledWith({
-                dir: "/files",
+        it("should create a download session", async () => {
+            const session = { id: "550e8400-e29b-41d4-a716-446655440000", entries: [] };
+            ftpFacade.createDownload.mockResolvedValue(session);
+            req.body = { dir: "files", entries: [{ name: "file.txt", type: "file" }] };
+            await controller.createDownload(req, res);
+            expect(ftpFacade.createDownload).toHaveBeenCalledWith({
+                dir: "files",
                 entries: [{ name: "file.txt", type: "FILE" }],
+                authUser: req.user
+            });
+            expect(res.json).toHaveBeenCalledWith(session);
+        });
+
+        it("should preserve the optional download offset contract", async () => {
+            req.params.id = "550e8400-e29b-41d4-a716-446655440000";
+            req.query = { path: "folder/file.txt", offset: "90" };
+            await controller.downloadEntry(req, res);
+            expect(ftpFacade.downloadEntry).toHaveBeenCalledWith({
+                id: req.params.id,
+                entryPath: req.query.path,
+                offset: 90,
                 authUser: req.user,
                 stream: res
             });
@@ -215,12 +252,12 @@ describe("FtpController", () => {
 
         it("should fail with empty entries", async () => {
             req.body.entries = [];
-            await expect(controller.download(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.createDownload(req, res)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail when entry contains traversal", async () => {
             req.body.entries = [{ name: "../file.txt", type: "FILE" }];
-            await expect(controller.download(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.createDownload(req, res)).rejects.toThrow("Error al validar los datos");
         });
     });
 
@@ -229,10 +266,10 @@ describe("FtpController", () => {
             const entries = [{ name: "file.txt", type: "file" }];
             const data = [];
             ftpFacade.delete.mockResolvedValue({ hash: "directory-hash", data });
-            req.body = { dir: "/files", entries };
+            req.body = { dir: "files", entries };
             await controller.delete(req, res);
             expect(ftpFacade.delete).toHaveBeenCalledWith({
-                dir: "/files",
+                dir: "files",
                 entries: [{ name: "file.txt", type: "FILE" }],
                 authUser: req.user
             });
