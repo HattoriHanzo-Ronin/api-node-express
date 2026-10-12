@@ -145,21 +145,19 @@ export default class FtpService {
      * @param {Object[]} params.entries Resources to move
      * @param {string} params.destination Destination FTP directory path
      * @param {{ username: string }} params.authUser Authenticated user
-     * @returns {Promise<{ lastContent: string[], movedContent: Object[] }>} Moved resources
+     * @param {(entry: Object, newName: string) => Promise<void>} params.onEntry Handles each moved resource
      */
-    static async move({ dir, entries, destination, authUser }) {
+    static async move({ dir, entries, destination, authUser, onEntry }) {
         let client;
         try {
             client = await getClient(authUser.username);
             const list = await client.list(destination);
-            const movedContent = [];
             for (const item of entries) {
                 const newName = getAvailableName(item.name, list);
                 await client.rename(`${dir}/${item.name}`, `${destination}/${newName}`);
                 list.push({ name: newName });
-                movedContent.push({ ...item, name: newName });
+                await onEntry(item, newName);
             }
-            return { lastContent: entries.map(({ name }) => name), movedContent };
         } catch (err) {
             ftpError("Error al mover los archivos", ftpMoveFailed);
         } finally {
@@ -473,18 +471,21 @@ export default class FtpService {
      * @param {string} params.dir FTP directory path
      * @param {Object[]} params.entries Resources to delete
      * @param {{ username: string }} params.authUser Authenticated user
+     * @param {(entry: Object) => Promise<void>} params.onEntry Handles each deleted resource
      */
-    static async delete({ dir, entries, authUser }) {
+    static async delete({ dir, entries, authUser, onEntry }) {
         let client;
         try {
             client = await getClient(authUser.username);
-            for (const { name, type } of entries) {
+            for (const entry of entries) {
+                const { name, type } = entry;
                 const remotePath = `${dir}/${name}`;
                 if (type === dirType) {
                     await client.rmdir(remotePath, true);
                 } else {
                     await client.delete(remotePath);
                 }
+                await onEntry(entry);
             }
         } catch (err) {
             ftpError("Error al borrar", ftpDeleteFailed);

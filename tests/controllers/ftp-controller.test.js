@@ -148,23 +148,33 @@ describe("FtpController", () => {
     describe("move", () => {
         it("should move ftp entries", async () => {
             const entries = [{ name: "file.txt", type: "file" }];
-            const data = [{ name: "file.txt", type: "FILE" }];
-            ftpFacade.move.mockResolvedValue({ hash: "directory-hash", data });
             req.body = { dir: "files", destination: "backup", entries };
             await controller.move(req, res);
             expect(ftpFacade.move).toHaveBeenCalledWith({
                 dir: "files",
                 destination: "backup",
                 entries: [{ name: "file.txt", type: "FILE" }],
-                authUser: req.user
+                authUser: req.user,
+                stream: res
             });
-            expect(res.set).toHaveBeenCalledWith("Data-Version", "directory-hash");
-            expect(res.json).toHaveBeenCalledWith(data);
         });
 
         it("should fail when destination contains traversal", async () => {
             req.body = { dir: "files", destination: "../backup", entries: [{ name: "file.txt", type: "FILE" }] };
             await expect(controller.move(req, res)).rejects.toThrow("Error al validar los datos");
+        });
+
+        it("should reject equal source and destination before opening the stream", async () => {
+            req.body = { dir: "files", destination: "files", entries: [{ name: "file.txt", type: "FILE" }] };
+            await expect(controller.move(req, res)).rejects.toThrow("Error al validar los datos");
+            expect(ftpFacade.move).not.toHaveBeenCalled();
+            expect(res.set).not.toHaveBeenCalled();
+        });
+
+        it("should reject the root as the implicit source and destination", async () => {
+            req.body = { entries: [{ name: "file.txt", type: "FILE" }] };
+            await expect(controller.move(req, res)).rejects.toThrow("Error al validar los datos");
+            expect(ftpFacade.move).not.toHaveBeenCalled();
         });
     });
 
@@ -264,17 +274,14 @@ describe("FtpController", () => {
     describe("delete", () => {
         it("should delete ftp entries", async () => {
             const entries = [{ name: "file.txt", type: "file" }];
-            const data = [];
-            ftpFacade.delete.mockResolvedValue({ hash: "directory-hash", data });
             req.body = { dir: "files", entries };
             await controller.delete(req, res);
             expect(ftpFacade.delete).toHaveBeenCalledWith({
                 dir: "files",
                 entries: [{ name: "file.txt", type: "FILE" }],
-                authUser: req.user
+                authUser: req.user,
+                stream: res
             });
-            expect(res.set).toHaveBeenCalledWith("Data-Version", "directory-hash");
-            expect(res.json).toHaveBeenCalledWith(data);
         });
 
         it("should fail when entries are missing", async () => {
