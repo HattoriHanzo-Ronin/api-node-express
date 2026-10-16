@@ -15,7 +15,7 @@ const ENV = Object.freeze({
     ftpMaxTransfers: Number(process.env.FTP_MAX_TRANSFERS),
     ftpIdleTimeout: Number(process.env.FTP_IDLE_TIMEOUT),
     ftpScaleWait: Number(process.env.FTP_SCALE_WAIT),
-    ftpProtectedUsers: process.env.FTP_PROTECTED_USERS,
+    ftpProtectedUserIds: process.env.FTP_PROTECTED_USER_IDS,
     ftpInternalPoolMin: Number(process.env.FTP_INTERNAL_POOL_MIN),
     ftpInternalPoolMax: Number(process.env.FTP_INTERNAL_POOL_MAX),
     ftpReadPoolMin: Number(process.env.FTP_READ_POOL_MIN),
@@ -43,7 +43,7 @@ function validateConfiguration(environment) {
     const validNumbers = numericEntries.every(([key, value]) =>
         Number.isInteger(value) && (key === "ftpMaxUploadChunkSize" ? value >= 0 : value > 0)
     );
-    const validStrings = typeof environment.ftpProtectedUsers === "string" && [
+    const validStrings = typeof environment.ftpProtectedUserIds === "string" && [
         environment.jwtAccessTokenExpiresIn,
         environment.jwtRefreshTokenExpiresIn
     ].every((value) => typeof value === "string" && value.length > 0);

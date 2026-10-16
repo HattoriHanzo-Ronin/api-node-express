@@ -18,7 +18,7 @@ describe("DirectoryCache", () => {
     });
 
     it("should set, get and delete directory versions", () => {
-        const value = { username: "ronin", hash: "first-hash" };
+        const value = { hash: "first-hash" };
         cache.set("user-id", "first", value);
         expect(cache.has("user-id", "first")).toBe(true);
         expect(cache.get("user-id", "first")).toBe(value);
@@ -28,8 +28,8 @@ describe("DirectoryCache", () => {
     });
 
     it("should cache multiple directories for the same owner", () => {
-        const first = { username: "ronin", hash: "first-hash" };
-        const second = { username: "ronin", hash: "second-hash" };
+        const first = { hash: "first-hash" };
+        const second = { hash: "second-hash" };
         cache.set("user-id", "first", first);
         cache.set("user-id", "second", second);
         expect(cache.get("user-id", "first")).toBe(first);
@@ -40,7 +40,7 @@ describe("DirectoryCache", () => {
     });
 
     it("should restart the inactivity timeout on set", () => {
-        const value = { username: "ronin", hash: "first-hash" };
+        const value = { hash: "first-hash" };
         cache.set("user-id", "files", value);
         vi.advanceTimersByTime(9 * 60 * 1000);
         cache.set("user-id", "files", { ...value, hash: "second-hash" });
@@ -51,7 +51,7 @@ describe("DirectoryCache", () => {
     });
 
     it("should not restart the inactivity timeout on get", () => {
-        const value = { username: "ronin", hash: "hash" };
+        const value = { hash: "hash" };
         cache.set("user-id", "files", value);
         vi.advanceTimersByTime(9 * 60 * 1000);
         expect(cache.get("user-id", "files")).toBe(value);
@@ -60,7 +60,7 @@ describe("DirectoryCache", () => {
     });
 
     it("should expire each directory independently", () => {
-        const value = { username: "ronin", hash: "hash" };
+        const value = { hash: "hash" };
         cache.set("user-id", "first", value);
         vi.advanceTimersByTime(9 * 60 * 1000);
         cache.set("user-id", "second", value);

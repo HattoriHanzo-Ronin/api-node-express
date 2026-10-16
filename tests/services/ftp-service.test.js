@@ -36,7 +36,7 @@ vi.mock("../../src/config/environment.js", () => ({
         ftpMaxTransfers: 16,
         ftpIdleTimeout: 15 * 60 * 1000,
         ftpScaleWait: 5000,
-        ftpProtectedUsers: "",
+        ftpProtectedUserIds: "",
         ftpInternalPoolMin: 1,
         ftpInternalPoolMax: 1,
         ftpReadPoolMin: 1,
@@ -79,7 +79,7 @@ describe("FtpService", () => {
                 { name: "file.txt", type: "FILE", size: 128, modifyTime, supportsThumbnail: false },
                 { name: "photo.jpg", type: "FILE", size: 256, modifyTime, supportsThumbnail: true }
             ]);
-            expect(FtpClient.getClient).toHaveBeenCalledWith(authUser.username);
+            expect(FtpClient.getClient).toHaveBeenCalledWith(authUser.id);
             expect(mockClient.list).toHaveBeenCalledWith("files");
         });
 

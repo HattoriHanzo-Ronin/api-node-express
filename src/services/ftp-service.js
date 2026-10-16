@@ -242,7 +242,6 @@ export default class FtpService {
             type: "UPLOAD",
             dir,
             ownerId: authUser.id,
-            username: authUser.username,
             entries: new Map(),
             createdDirs: new Set(),
             activeStreams: new Set()
@@ -437,7 +436,6 @@ export default class FtpService {
                         type: "DOWNLOAD",
                         dir,
                         ownerId: authUser.id,
-                        username: authUser.username,
                         timeout,
                         entries: resolvedEntries,
                         activeStreams: new Set()
@@ -807,7 +805,7 @@ async function cleanupTransfer(session) {
 
     try {
         await ftpConnectionManager.execute({
-            authUser: { id: session.ownerId, username: session.username },
+            authUser: { id: session.ownerId },
             pool: "write",
             paths: [session.dir],
             callback: async ({ client }) => {

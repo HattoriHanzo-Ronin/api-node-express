@@ -6,7 +6,7 @@ const testEnvironment = vi.hoisted(() => ({
     ftpMaxTransfers: 16,
     ftpIdleTimeout: 15 * 60 * 1000,
     ftpScaleWait: 5000,
-    ftpProtectedUsers: "",
+    ftpProtectedUserIds: "",
     ftpInternalPoolMin: 1,
     ftpInternalPoolMax: 1,
     ftpReadPoolMin: 1,
@@ -31,7 +31,7 @@ describe("FtpConnectionManager", () => {
             ftpMaxTransfers: 16,
             ftpIdleTimeout: 15 * 60 * 1000,
             ftpScaleWait: 5000,
-            ftpProtectedUsers: "",
+            ftpProtectedUserIds: "",
             ftpInternalPoolMin: 1,
             ftpInternalPoolMax: 1,
             ftpReadPoolMin: 1,
@@ -58,7 +58,18 @@ describe("FtpConnectionManager", () => {
     it("should open one reserved connection for every pool", async () => {
         await manager.execute({ authUser, pool: "read", callback: async () => undefined });
         expect(createClient).toHaveBeenCalledTimes(3);
-        expect(createClient).toHaveBeenCalledWith(authUser.username);
+        expect(createClient).toHaveBeenCalledWith(authUser.id);
+    });
+
+    it("should preserve the user session after a username change", async () => {
+        await manager.execute({ authUser, pool: "read", callback: async () => undefined });
+        await manager.execute({
+            authUser: { ...authUser, username: "renamed-user" },
+            pool: "read",
+            callback: async () => undefined
+        });
+        expect(createClient).toHaveBeenCalledTimes(3);
+        expect(createClient).toHaveBeenCalledWith(authUser.id);
     });
 
     it("should keep operations sequential within one connection", async () => {
@@ -254,7 +265,7 @@ describe("FtpConnectionManager", () => {
         manager = await createConfiguredManager({
             createClient,
             closeClient,
-            environment: { ftpProtectedUsers: "ronin:6" }
+            environment: { ftpProtectedUserIds: `${authUser.id}:6` }
         });
         const first = deferred();
         const firstOperation = manager.execute({ authUser, pool: "read", callback: () => first.promise });
@@ -274,7 +285,7 @@ describe("FtpConnectionManager", () => {
         manager = await createConfiguredManager({
             createClient,
             closeClient,
-            environment: { ftpMaxConnections: 7, ftpProtectedUsers: "admin:4" }
+            environment: { ftpMaxConnections: 7, ftpProtectedUserIds: "admin-id:4" }
         });
         const read = deferred();
         const running = manager.execute({ authUser, pool: "read", callback: () => read.promise });
@@ -343,7 +354,7 @@ describe("FtpConnectionManager", () => {
 
     it("should reject invalid protected user reservations with an API error", async () => {
         await manager.closeAll();
-        testEnvironment.ftpProtectedUsers = "ronin";
+        testEnvironment.ftpProtectedUserIds = authUser.id;
         vi.resetModules();
         await expect(import("../../../src/utils/connection/ftp-connection-manager.js")).rejects.toMatchObject({
             name: "ApiError",

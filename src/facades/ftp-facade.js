@@ -401,7 +401,7 @@ export default class FtpFacade {
         const ownerId = authUser.id;
         const watching = this.directoryCache.has(ownerId, dir);
         const directoryHash = hash ?? FtpFacade.#hashDirectory(entries);
-        this.directoryCache.set(ownerId, dir, { username: authUser.username, hash: directoryHash });
+        this.directoryCache.set(ownerId, dir, { hash: directoryHash });
         if (!watching) {
             setTimeout(() => this.#checkDirectory(ownerId, dir), DIRECTORY_CHECK_TIMEOUT);
         }
@@ -418,7 +418,7 @@ export default class FtpFacade {
         try {
             const entries = await this.ftpService.dir({
                 dir,
-                authUser: { id: ownerId, username: cachedDirectory.username },
+                authUser: { id: ownerId },
                 internal: true
             });
             if (!entries) {
@@ -455,7 +455,7 @@ export default class FtpFacade {
         if (directory !== undefined) {
             await this.#watchDirectory({
                 dir: destinationKey,
-                authUser: { id: ownerId, username: directory.username },
+                authUser: { id: ownerId },
                 hash: directory.hash
             });
 
@@ -463,7 +463,7 @@ export default class FtpFacade {
                 this.#queueThumbnails({
                     dir: destinationKey,
                     names,
-                    authUser: { id: ownerId, username: directory.username }
+                    authUser: { id: ownerId }
                 });
             }
         }

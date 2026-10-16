@@ -144,7 +144,6 @@ export class FtpConnectionManager {
 
         session = {
             ownerId: authUser.id,
-            username: authUser.username,
             lastActivity: Date.now(),
             pools: Object.fromEntries(Object.keys(POOL_CONFIG)
                 .map((type) => [type, { connections: [], queue: [] }])),
@@ -257,7 +256,7 @@ export class FtpConnectionManager {
                 type,
                 busy: false,
                 lastUsed: Date.now(),
-                clientPromise: Promise.resolve().then(() => this.createClient(session.username))
+                clientPromise: Promise.resolve().then(() => this.createClient(session.ownerId))
             };
             session.pools[type].connections.push(connection);
             this.#totalConnections += 1;
@@ -295,11 +294,11 @@ export class FtpConnectionManager {
     #hasCapacity(requestSession) {
         const projectedCounts = new Map();
         for (const session of this.#sessions.values()) {
-            projectedCounts.set(session.username, countConnections(session));
+            projectedCounts.set(session.ownerId, countConnections(session));
         }
-        projectedCounts.set(requestSession.username, (projectedCounts.get(requestSession.username) ?? 0) + 1);
-        const unclaimedReservations = [...PROTECTED_USERS].reduce((total, [username, reserved]) =>
-            total + Math.max(0, reserved - (projectedCounts.get(username) ?? 0)), 0);
+        projectedCounts.set(requestSession.ownerId, (projectedCounts.get(requestSession.ownerId) ?? 0) + 1);
+        const unclaimedReservations = [...PROTECTED_USER_IDS].reduce((total, [ownerId, reserved]) =>
+            total + Math.max(0, reserved - (projectedCounts.get(ownerId) ?? 0)), 0);
         return this.#totalConnections + 1 + unclaimedReservations <= MAX_CONNECTIONS;
     }
 
@@ -317,7 +316,7 @@ export class FtpConnectionManager {
         }
         return sessions
             .filter((session) => session.ownerId !== excludedOwnerId)
-            .filter((session) => !PROTECTED_USERS.has(session.username) && isSessionIdle(session))
+            .filter((session) => !PROTECTED_USER_IDS.has(session.ownerId) && isSessionIdle(session))
             .map((session) => ({ session }))
             .at(0);
     }
@@ -377,7 +376,7 @@ export class FtpConnectionManager {
         if (!isSessionIdle(session)) {
             return;
         }
-        if (PROTECTED_USERS.has(session.username)) {
+        if (PROTECTED_USER_IDS.has(session.ownerId)) {
             await this.#trimProtectedSession(session);
             return;
         }
@@ -452,11 +451,11 @@ export class FtpConnectionManager {
     }
 }
 
-function parseProtectedUsers(source) {
+function parseProtectedUserIds(source) {
     return new Map(source.split(",").filter(Boolean).map((entry) => {
-        const [username, reservedSource] = entry.trim().split(":");
+        const [ownerId, reservedSource] = entry.trim().split(":");
         const reserved = Number(reservedSource);
-        if (!username || !Number.isInteger(reserved)
+        if (!ownerId || !Number.isInteger(reserved)
             || reserved < MIN_CONNECTIONS_PER_USER || reserved > MAX_CONNECTIONS_PER_USER) {
             throw new ApiError({
                 message: `Reserva SFTP no válida: ${entry}`,
@@ -464,7 +463,7 @@ function parseProtectedUsers(source) {
             });
         }
 
-        return [username, reserved];
+        return [ownerId, reserved];
     }));
 }
 
@@ -502,7 +501,7 @@ const {
     ftpMaxTransfers: MAX_TRANSFERS,
     ftpIdleTimeout: IDLE_TIMEOUT,
     ftpScaleWait: SCALE_WAIT,
-    ftpProtectedUsers: PROTECTED_USERS_SOURCE,
+    ftpProtectedUserIds: PROTECTED_USER_IDS_SOURCE,
     ftpInternalPoolMin: INTERNAL_POOL_MIN,
     ftpInternalPoolMax: INTERNAL_POOL_MAX,
     ftpReadPoolMin: READ_POOL_MIN,
@@ -526,8 +525,8 @@ const POOL_CONFIG = Object.freeze({
 const MIN_CONNECTIONS_PER_USER = Object.values(POOL_CONFIG).reduce((total, { min }) => total + min, 0);
 const MAX_CONNECTIONS_PER_USER = Object.values(POOL_CONFIG).reduce((total, { max }) => total + max, 0);
 validateConfiguration();
-const PROTECTED_USERS = parseProtectedUsers(PROTECTED_USERS_SOURCE);
-const RESERVED_CONNECTIONS = [...PROTECTED_USERS.values()].reduce((total, reserved) => total + reserved, 0);
+const PROTECTED_USER_IDS = parseProtectedUserIds(PROTECTED_USER_IDS_SOURCE);
+const RESERVED_CONNECTIONS = [...PROTECTED_USER_IDS.values()].reduce((total, reserved) => total + reserved, 0);
 
 if (RESERVED_CONNECTIONS > MAX_CONNECTIONS) {
     throw new ApiError({
