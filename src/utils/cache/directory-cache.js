@@ -14,7 +14,7 @@ export default class DirectoryCache {
      *
      * @param {string} ownerId Cache owner identifier
      * @param {string} key Directory path
-     * @param {{ username: string, hash: string }} value Directory version
+     * @param {{ hash: string }} value Directory version
      */
     set(ownerId, key, value) {
         let entry = this.#cache.get(ownerId);
@@ -32,7 +32,7 @@ export default class DirectoryCache {
      *
      * @param {string} ownerId Cache owner identifier
      * @param {string} key Directory path
-     * @returns {{ username: string, hash: string } | undefined} Cached directory version
+     * @returns {{ hash: string } | undefined} Cached directory version
      */
     get(ownerId, key) {
         if (!this.has(ownerId, key)) {

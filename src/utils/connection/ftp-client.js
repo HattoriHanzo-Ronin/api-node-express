@@ -13,18 +13,22 @@ export default class FtpClient {
     /**
      * Returns a connected SFTP client
      *
-     * @param {string} username FTP username
+     * @param {string} ownerId User identifier
      * @returns {Promise<SftpClient>} Connected SFTP client
      */
-    static async getClient(username) {
+    static async getClient(ownerId) {
         const client = new SftpClient();
         await client.connect({
             host: ftpHost,
             port: ftpPort,
-            username,
+            username: FtpClient.#normalizeUsername(ownerId),
             privateKey: SECRETS.sftpKey
         });
         return client;
+    }
+
+    static #normalizeUsername(ownerId) {
+        return ownerId.replaceAll("-", "");
     }
 
     /**

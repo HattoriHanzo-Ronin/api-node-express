@@ -65,7 +65,7 @@ describe("FtpFacade", () => {
 
         it("should return a cached directory hash", async () => {
             const authUser = { id: "user-id", username: "ronin" };
-            directoryCache.set(authUser.id, "files", { username: authUser.username, hash: "directory-hash" });
+            directoryCache.set(authUser.id, "files", { hash: "directory-hash" });
             await expect(ftpFacade.getHash({ dir: "files", authUser })).resolves.toBe("directory-hash");
             expect(ftpService.touchSession).toHaveBeenCalledWith({ authUser });
             expect(ftpService.dir).not.toHaveBeenCalled();
@@ -137,7 +137,6 @@ describe("FtpFacade", () => {
             await vi.advanceTimersByTimeAsync(5000);
             expect(ftpService.dir).toHaveBeenCalledTimes(2);
             expect(directoryCache.get("user-id", "files")).toEqual({
-                username: "ronin",
                 hash: expect.not.stringMatching(initialHash)
             });
         });
@@ -289,7 +288,7 @@ describe("FtpFacade", () => {
         it("should stream moved entries and relocate folder caches", async () => {
             const authUser = { id: "user-id", username: "ronin" };
             const thumbnail = new Map([["photo.jpg", Buffer.from("thumbnail")]]);
-            const directory = { username: "ronin", hash: "hash" };
+            const directory = { hash: "hash" };
             memoryCache.set("user-id", "source/photos", thumbnail);
             directoryCache.set("user-id", "source/photos", directory);
             const entries = [{ name: "photos", type: "DIR" }];
@@ -326,7 +325,7 @@ describe("FtpFacade", () => {
 
         it("should delete renamed folder caches", async () => {
             const authUser = { id: "user-id", username: "ronin" };
-            const directory = { username: "ronin", hash: "hash" };
+            const directory = { hash: "hash" };
             const bufferMap = new Map();
             memoryCache.set("user-id", "files/photos", bufferMap);
             directoryCache.set("user-id", "files/photos", directory);
@@ -347,7 +346,7 @@ describe("FtpFacade", () => {
 
         it("should stream deleted entries and clear folder caches", async () => {
             const authUser = { id: "user-id", username: "ronin" };
-            const directory = { username: "ronin", hash: "hash" };
+            const directory = { hash: "hash" };
             memoryCache.set("user-id", "files/photos", new Map());
             directoryCache.set("user-id", "files/photos", directory);
             const entries = [{ name: "photos", type: "DIR" }];
@@ -374,7 +373,7 @@ describe("FtpFacade", () => {
                 { name: "first.txt", type: "FILE" },
                 { name: "second.txt", type: "FILE" }
             ];
-            directoryCache.set("user-id", "files", { username: "ronin", hash: "old-hash" });
+            directoryCache.set("user-id", "files", { hash: "old-hash" });
             ftpService.delete.mockImplementation(async ({ onEntry }) => {
                 await onEntry(entries[0]);
                 throw new Error("FTP error");
