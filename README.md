@@ -75,8 +75,8 @@ DB[(PostgreSQL)]
 Route --> Controller
 Controller --> Facade
 Facade --> Service
-Service --> Mapper
-Mapper --> Model
+Service --> Model
+Facade --> Mapper
 Model --> DB
 ```
 
@@ -85,9 +85,9 @@ Model --> DB
 | Layer | Responsibility |
 |---|---|
 | Controller | HTTP input/output |
-| Facade | Use-case orchestration, ACL and transactions |
-| Service | Business rules |
+| Facade | Use-case orchestration, ACL and transactions; uses Mapper to transform data |
 | Mapper | Domain transformation |
+| Service | Business rules |
 | Model | SQL and persistence |
 
 ## Getting Started
@@ -271,7 +271,7 @@ This project is actively used as the backend foundation for future applications 
 - [x] Device Management
 - [x] Router Synchronization
 - [x] SFTP Integration
-- [ ] Android Explorer
+- [x] Android Explorer
 - [ ] Portfolio
 - [ ] TypeScript Migration
 
