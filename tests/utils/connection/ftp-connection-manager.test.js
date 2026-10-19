@@ -137,19 +137,19 @@ describe("FtpConnectionManager", () => {
         await Promise.all(operations);
     });
 
-    it("should omit internal checks while their directory is write locked", async () => {
+    it("should omit internal checks while their exact path is write locked", async () => {
         const write = deferred();
         const writeOperation = manager.execute({
             authUser,
             pool: "write",
-            paths: ["files"],
+            paths: ["files/photo.jpg"],
             callback: () => write.promise
         });
         await vi.waitFor(() => expect(createClient).toHaveBeenCalledTimes(3));
         await expect(manager.execute({
             authUser,
             pool: "internal",
-            paths: ["files/photos"],
+            paths: ["files/photo.jpg"],
             skipLocked: true,
             callback: async () => "checked"
         })).resolves.toBeUndefined();
@@ -157,7 +157,7 @@ describe("FtpConnectionManager", () => {
         await writeOperation;
     });
 
-    it("should make a write wait for an internal check already using the directory", async () => {
+    it("should allow operations on different paths", async () => {
         await manager.touch({ authUser });
         const check = deferred();
         const calls = [];
@@ -178,11 +178,113 @@ describe("FtpConnectionManager", () => {
             paths: ["files/photos"],
             callback: async () => calls.push("write")
         });
-        await Promise.resolve();
-        expect(calls).toEqual(["check"]);
+        await vi.waitFor(() => expect(calls).toEqual(["check", "write"]));
         check.resolve();
         await Promise.all([checking, writing]);
         expect(calls).toEqual(["check", "write"]);
+    });
+
+    it("should allow shared locks on the same path", async () => {
+        const first = deferred();
+        const calls = [];
+        const firstOperation = manager.execute({
+            authUser,
+            pool: "write",
+            sharedPaths: ["files"],
+            callback: async () => {
+                calls.push("first");
+                await first.promise;
+            }
+        });
+        await vi.waitFor(() => expect(calls).toEqual(["first"]));
+        const secondOperation = manager.execute({
+            authUser,
+            pool: "write",
+            sharedPaths: ["files"],
+            callback: async () => calls.push("second")
+        });
+        await vi.advanceTimersByTimeAsync(5000);
+        await vi.waitFor(() => expect(calls).toEqual(["first", "second"]));
+        first.resolve();
+        await Promise.all([firstOperation, secondOperation]);
+    });
+
+    it("should queue an exclusive lock while the path is shared", async () => {
+        const shared = deferred();
+        const calls = [];
+        const sharing = manager.execute({
+            authUser,
+            pool: "write",
+            sharedPaths: ["files"],
+            callback: async () => {
+                calls.push("shared");
+                await shared.promise;
+            }
+        });
+        await vi.waitFor(() => expect(calls).toEqual(["shared"]));
+        const exclusive = manager.execute({
+            authUser,
+            pool: "write",
+            paths: ["files"],
+            callback: async () => calls.push("exclusive")
+        });
+        await vi.advanceTimersByTimeAsync(5000);
+        expect(calls).toEqual(["shared"]);
+        shared.resolve();
+        await Promise.all([sharing, exclusive]);
+        expect(calls).toEqual(["shared", "exclusive"]);
+    });
+
+    it("should block reads and writes inside a deleted directory without blocking unrelated paths", async () => {
+        const deletion = deferred();
+        const calls = [];
+        const deleting = manager.execute({
+            authUser, pool: "write", paths: ["files/photos"], treePaths: ["files/photos"],
+            callback: async () => {
+                calls.push("delete");
+                await deletion.promise;
+            }
+        });
+        await vi.waitFor(() => expect(calls).toEqual(["delete"]));
+        const reading = manager.execute({
+            authUser, pool: "read", paths: ["files/photos/image.jpg"],
+            callback: async () => calls.push("read")
+        });
+        const writing = manager.execute({
+            authUser, pool: "write", paths: ["files/photos/new.txt"],
+            callback: async () => calls.push("write")
+        });
+        await manager.execute({
+            authUser, pool: "read", paths: ["files/photos-other"],
+            callback: async () => calls.push("unrelated")
+        });
+        expect(calls).toEqual(["delete", "unrelated"]);
+        deletion.resolve();
+        await Promise.all([deleting, reading, writing]);
+        expect(calls).toContain("read");
+        expect(calls).toContain("write");
+    });
+
+    it("should wait for an existing read inside a directory before deleting it", async () => {
+        const read = deferred();
+        const calls = [];
+        const reading = manager.execute({
+            authUser, pool: "read", paths: ["files/photos/image.jpg"],
+            callback: async () => {
+                calls.push("read");
+                await read.promise;
+            }
+        });
+        await vi.waitFor(() => expect(calls).toEqual(["read"]));
+        const deleting = manager.execute({
+            authUser, pool: "write", paths: ["files/photos"], treePaths: ["files/photos"],
+            callback: async () => calls.push("delete")
+        });
+        await Promise.resolve();
+        expect(calls).toEqual(["read"]);
+        read.resolve();
+        await Promise.all([reading, deleting]);
+        expect(calls).toEqual(["read", "delete"]);
     });
 
     it("should limit active transfers independently from open connections", async () => {

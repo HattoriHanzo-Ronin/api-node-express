@@ -29,13 +29,15 @@ export class FtpConnectionManager {
      *
      * @param {Object} params.authUser Authenticated user
      * @param {"internal" | "read" | "write"} params.pool Pool type
-     * @param {string[]} [params.paths] Paths locked by a write operation
+     * @param {string[]} [params.paths] Exclusively locked paths
+     * @param {string[]} [params.sharedPaths] Shared locked paths
+     * @param {string[]} [params.treePaths] Exclusively locked paths and their descendants
      * @param {boolean} [params.skipLocked] Whether to omit an internal operation when a path is locked
      * @param {boolean} [params.transfer] Whether the operation consumes a global transfer position
      * @param {(source: { client: import("ssh2-sftp-client") }) => Promise<*>} params.callback Operation
      * @returns {Promise<*>} Operation result, or undefined when an internal operation is omitted
      */
-    async execute({ authUser, pool, paths = [], skipLocked = false, transfer = false, callback }) {
+    async execute({ authUser, pool, paths = [], sharedPaths = [], treePaths = [], skipLocked = false, transfer = false, callback }) {
         let session = this.#sessions.get(authUser.id);
         if (pool === "internal") {
             if (!session || !this.#isActive(session)) {
@@ -44,9 +46,11 @@ export class FtpConnectionManager {
         } else {
             session ??= await this.#getSession(authUser);
         }
+
         if (pool !== "internal") {
             this.#touch(session);
         }
+
         let releaseTransfer = () => {};
         let releasePaths = () => {};
         let connection;
@@ -54,17 +58,22 @@ export class FtpConnectionManager {
             if (transfer) {
                 releaseTransfer = await this.#acquireTransfer();
             }
-            if (pool === "write") {
-                releasePaths = await this.#lockPaths(session, paths);
+
+            if (pool === "write" || pool === "read") {
+                releasePaths = await this.#lockPaths(session, pool === "write" ? paths : [],
+                    pool === "read" ? [...paths, ...sharedPaths] : sharedPaths, treePaths);
             }
+
             connection = await this.#acquire(session, pool);
             if (skipLocked) {
                 const releaseInternalPaths = this.#tryLockPaths(session, paths);
                 if (!releaseInternalPaths) {
                     return undefined;
                 }
+
                 releasePaths = releaseInternalPaths;
             }
+
             return await callback({ client: await connection.clientPromise });
         } catch (error) {
             if (connection && isConnectionError(error)) {
@@ -72,11 +81,13 @@ export class FtpConnectionManager {
                 connection = undefined;
                 await this.#restorePool(session, pool);
             }
+
             throw error;
         } finally {
             if (connection) {
                 this.#release(session, pool, connection);
             }
+
             releasePaths();
             releaseTransfer();
             if (!connection && session.expired) {
@@ -104,6 +115,40 @@ export class FtpConnectionManager {
     async touch({ authUser }) {
         const session = await this.#getSession(authUser);
         this.#touch(session);
+    }
+
+    /**
+     * Locks paths for the lifetime of a transfer session
+     *
+     * @param {Object} params.authUser Authenticated user
+     * @param {string[]} params.paths Exclusively locked paths
+     * @param {string[]} params.sharedPaths Shared locked paths
+     * @param {string[]} params.treePaths Exclusively locked paths and their descendants
+     * @returns {Promise<() => void>} Lock release function
+     */
+    async lockTransfer({ authUser, paths, sharedPaths, treePaths }) {
+        const session = await this.#getSession(authUser);
+        this.#touch(session);
+        session.transferLocks += 1;
+        try {
+            const release = await this.#lockPaths(session, paths, sharedPaths, treePaths);
+            let released = false;
+            return () => {
+                if (released) {
+                    return;
+                }
+
+                released = true;
+                release();
+                session.transferLocks -= 1;
+                if (session.expired) {
+                    void this.#closeSession(session);
+                }
+            };
+        } catch (error) {
+            session.transferLocks -= 1;
+            throw error;
+        }
     }
 
     /**
@@ -147,7 +192,9 @@ export class FtpConnectionManager {
             lastActivity: Date.now(),
             pools: Object.fromEntries(Object.keys(POOL_CONFIG)
                 .map((type) => [type, { connections: [], queue: [] }])),
-            lockedPaths: new Set(),
+            lockedPaths: new Map(),
+            lockedTrees: new Set(),
+            transferLocks: 0,
             lockQueue: [],
             closing: false
         };
@@ -413,22 +460,50 @@ export class FtpConnectionManager {
         ));
     }
 
-    async #lockPaths(session, paths) {
-        const normalizedPaths = [...new Set(paths)].sort();
-        const release = this.#tryLockPaths(session, normalizedPaths);
+    async #lockPaths(session, paths, sharedPaths, treePaths) {
+        const request = normalizeLockRequest(paths, sharedPaths, treePaths);
+        const queuedRequest = {
+            ...request,
+            sharedPaths: request.sharedPaths.filter((path) => !session.lockedPaths.get(path)?.shared)
+        };
+        const release = !session.lockQueue.some((pending) => !pending.treePaths.length && lockRequestsConflict(queuedRequest, pending))
+            && this.#tryLockPaths(session, request.paths, request.sharedPaths, request.treePaths);
         if (release) {
             return release;
         }
-        return new Promise((resolve, reject) => session.lockQueue.push({ paths: normalizedPaths, resolve, reject }));
+
+        return new Promise((resolve, reject) => session.lockQueue.push({ ...request, resolve, reject }));
     }
 
-    #tryLockPaths(session, paths) {
-        if (paths.some((path) => [...session.lockedPaths].some((lockedPath) => pathsOverlap(path, lockedPath)))) {
+    #tryLockPaths(session, paths, sharedPaths = [], treePaths = []) {
+        if (paths.some((path) => session.lockedPaths.has(path))
+            || sharedPaths.some((path) => session.lockedPaths.get(path)?.exclusive)
+            || [...paths, ...sharedPaths, ...treePaths].some((path) =>
+                [...session.lockedTrees].some((tree) => isWithinPath(path, tree)))
+            || paths.some((path) => [...session.lockedTrees].some((tree) => isWithinPath(tree, path)))
+            || treePaths.some((tree) => [...session.lockedPaths.keys(), ...session.lockedTrees]
+                .some((path) => isWithinPath(path, tree) ||
+                    (session.lockedPaths.get(path)?.exclusive && isWithinPath(tree, path))))) {
             return null;
         }
-        paths.forEach((path) => session.lockedPaths.add(path));
+
+        paths.forEach((path) => session.lockedPaths.set(path, { exclusive: true, shared: 0 }));
+        sharedPaths.forEach((path) => {
+            const lock = session.lockedPaths.get(path) ?? { exclusive: false, shared: 0 };
+            lock.shared += 1;
+            session.lockedPaths.set(path, lock);
+        });
+        treePaths.forEach((path) => session.lockedTrees.add(path));
         return () => {
             paths.forEach((path) => session.lockedPaths.delete(path));
+            sharedPaths.forEach((path) => {
+                const lock = session.lockedPaths.get(path);
+                lock.shared -= 1;
+                if (!lock.shared) {
+                    session.lockedPaths.delete(path);
+                }
+            });
+            treePaths.forEach((path) => session.lockedTrees.delete(path));
             this.#dispatchLocks(session);
         };
     }
@@ -436,11 +511,17 @@ export class FtpConnectionManager {
     #dispatchLocks(session) {
         for (let index = 0; index < session.lockQueue.length;) {
             const pending = session.lockQueue[index];
-            const release = this.#tryLockPaths(session, pending.paths);
+            if (session.lockQueue.slice(0, index).some((earlier) => !earlier.treePaths.length && lockRequestsConflict(earlier, pending))) {
+                index += 1;
+                continue;
+            }
+
+            const release = this.#tryLockPaths(session, pending.paths, pending.sharedPaths, pending.treePaths);
             if (!release) {
                 index += 1;
                 continue;
             }
+
             session.lockQueue.splice(index, 1);
             pending.resolve(release);
         }
@@ -482,7 +563,7 @@ function countConnections(session) {
 }
 
 function isSessionIdle(session) {
-    return Object.values(session.pools).every((pool) =>
+    return session.transferLocks === 0 && session.lockQueue.length === 0 && Object.values(session.pools).every((pool) =>
         pool.queue.length === 0 && pool.connections.every((connection) => !connection.busy)
     );
 }
@@ -492,8 +573,31 @@ function isConnectionError(error) {
         || /connection|socket|channel|not connected/i.test(error?.message ?? "");
 }
 
-function pathsOverlap(first, second) {
-    return first === second || first.startsWith(`${second}/`) || second.startsWith(`${first}/`);
+function normalizeLockRequest(paths, sharedPaths, treePaths = []) {
+    const normalizedPaths = [...new Set(paths)].sort();
+    const exclusivePaths = new Set(normalizedPaths);
+    return {
+        paths: normalizedPaths,
+        sharedPaths: [...new Set(sharedPaths)].filter((path) => !exclusivePaths.has(path)).sort(),
+        treePaths: [...new Set(treePaths)].sort()
+    };
+}
+
+function lockRequestsConflict(first, second) {
+    const secondExclusive = new Set(second.paths);
+    const secondShared = new Set(second.sharedPaths);
+    return first.paths.some((path) => secondExclusive.has(path) || secondShared.has(path))
+        || first.sharedPaths.some((path) => secondExclusive.has(path))
+        || first.treePaths.some((tree) => [...second.paths, ...second.sharedPaths, ...second.treePaths]
+            .some((path) => isWithinPath(path, tree)))
+        || second.treePaths.some((tree) => [...first.paths, ...first.sharedPaths, ...first.treePaths]
+            .some((path) => isWithinPath(path, tree)))
+        || first.treePaths.some((tree) => second.paths.some((path) => isWithinPath(tree, path)))
+        || second.treePaths.some((tree) => first.paths.some((path) => isWithinPath(tree, path)));
+}
+
+function isWithinPath(path, tree) {
+    return path === tree || path.startsWith(`${tree}/`) || tree === ".";
 }
 
 const {
