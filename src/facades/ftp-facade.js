@@ -118,6 +118,7 @@ export default class FtpFacade {
      */
     async move({ dir, entries, destination, authUser, stream }) {
         let completed = 0;
+        let cacheCleared = false;
         try {
             await this.ftpService.move({
                 dir,
@@ -142,15 +143,22 @@ export default class FtpFacade {
                         completed,
                         total: entries.length
                     });
+                },
+                onComplete: async () => {
+                    this.#clearDirectoryCache(authUser.id, dir);
+                    this.#clearDirectoryCache(authUser.id, destination);
+                    cacheCleared = true;
+                    const { hash } = await this.dir({ dir: destination, authUser });
+                    await writeProgress(stream, { event: "complete", version: hash });
+                    stream.end();
                 }
             });
         } finally {
-            this.#clearDirectoryCache(authUser.id, dir);
-            this.#clearDirectoryCache(authUser.id, destination);
+            if (!cacheCleared) {
+                this.#clearDirectoryCache(authUser.id, dir);
+                this.#clearDirectoryCache(authUser.id, destination);
+            }
         }
-        const { hash } = await this.dir({ dir: destination, authUser });
-        await writeProgress(stream, { event: "complete", version: hash });
-        stream.end();
     }
 
     /**
@@ -208,8 +216,9 @@ export default class FtpFacade {
      * @returns {Promise<{ hash: string, data: Object[] }>} Updated directory resources
      */
     async completeUpload({ id, authUser }) {
-        const { dir } = await this.ftpService.completeUpload({ id, authUser });
-        return this.dir({ dir, authUser });
+        return this.ftpService.completeUpload({
+            id, authUser, onComplete: ({ dir }) => this.dir({ dir, authUser })
+        });
     }
 
     /**
@@ -257,6 +266,7 @@ export default class FtpFacade {
      */
     async delete({ dir, entries, authUser, stream }) {
         let completed = 0;
+        let cacheCleared = false;
         try {
             await this.ftpService.delete({
                 dir,
@@ -275,14 +285,20 @@ export default class FtpFacade {
                         completed,
                         total: entries.length
                     });
+                },
+                onComplete: async () => {
+                    this.#clearDirectoryCache(authUser.id, dir);
+                    cacheCleared = true;
+                    const { hash } = await this.dir({ dir, authUser });
+                    await writeProgress(stream, { event: "complete", version: hash });
+                    stream.end();
                 }
             });
         } finally {
-            this.#clearDirectoryCache(authUser.id, dir);
+            if (!cacheCleared) {
+                this.#clearDirectoryCache(authUser.id, dir);
+            }
         }
-        const { hash } = await this.dir({ dir, authUser });
-        await writeProgress(stream, { event: "complete", version: hash });
-        stream.end();
     }
 
     #clearDirectoryCache(ownerId, dir) {

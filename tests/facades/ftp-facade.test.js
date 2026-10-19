@@ -277,7 +277,7 @@ describe("FtpFacade", () => {
 
         it("should synchronize the directory when an upload completes", async () => {
             const authUser = { id: "user-id", username: "ronin" };
-            ftpService.completeUpload.mockResolvedValue({ dir: "files" });
+            ftpService.completeUpload.mockImplementation(({ onComplete }) => onComplete({ dir: "files" }));
             await expect(ftpFacade.completeUpload({ id: "upload-id", authUser })).resolves.toEqual({
                 hash: expect.any(String),
                 data: []
@@ -292,8 +292,9 @@ describe("FtpFacade", () => {
             memoryCache.set("user-id", "source/photos", thumbnail);
             directoryCache.set("user-id", "source/photos", directory);
             const entries = [{ name: "photos", type: "DIR" }];
-            ftpService.move.mockImplementation(async ({ onEntry }) => {
+            ftpService.move.mockImplementation(async ({ onEntry, onComplete }) => {
                 await onEntry(entries[0], "moved-photos");
+                await onComplete();
             });
             const stream = new PassThrough();
             let headersSent = false;
@@ -350,8 +351,9 @@ describe("FtpFacade", () => {
             memoryCache.set("user-id", "files/photos", new Map());
             directoryCache.set("user-id", "files/photos", directory);
             const entries = [{ name: "photos", type: "DIR" }];
-            ftpService.delete.mockImplementation(async ({ onEntry }) => {
+            ftpService.delete.mockImplementation(async ({ onEntry, onComplete }) => {
                 await onEntry(entries[0]);
+                await onComplete();
             });
             const stream = new PassThrough();
             await ftpFacade.delete({ dir: "files", entries, authUser, stream });
