@@ -49,7 +49,7 @@ Its goal is to provide a maintainable backend capable of managing authentication
 | Users | Delegated user administration |
 | Devices | Multiple connections per device |
 | Router Sync | MAC whitelist synchronization |
-| Storage | Transactional streaming SFTP transfers, progressive write operations, ZIP trees and lazy thumbnails generated in an isolated service |
+| Storage | Transactional streaming SFTP transfers, progressive write operations and lazy thumbnails generated in an isolated service |
 | Resource Sync | Database versions and SHA-256 hashes for FTP directories |
 | Validation | Centralized Zod schemas |
 | Error Handling | Unified ApiError pipeline |
@@ -108,7 +108,7 @@ pnpm --dir thumbnail-generator install
 
 ### Configuration
 
-Copy `.env.example` to `.env` for the API and `thumbnail-generator/.env.example` to `thumbnail-generator/.env` when running the thumbnail generator independently. Configure the required secrets and internal service URLs. Both services communicate through `API_URL` and `THUMBNAIL_GENERATOR_URL`; the generator listens on `THUMBNAIL_GENERATOR_PORT`.
+Copy `.env.example` to `.env` for the API and `thumbnail-generator/.env.example` to `thumbnail-generator/.env` when running the thumbnail generator independently. Configure the required secrets and internal service URLs. Both services communicate through `API_URL` and `THUMBNAIL_GENERATOR_URL`; the generator uses `PORT` when running independently.
 
 Runtime limits, cache lifetimes, SFTP pool sizes and JWT expirations are configured exclusively through the environment variables documented in `.env.example`; they have no application defaults. Numeric values are expressed as bytes, counts or milliseconds as indicated by their names. Protected SFTP reservations use canonical `user-id:connections` entries separated by commas through `FTP_PROTECTED_USER_IDS`; use an empty value when no user needs a reservation. Missing or inconsistent configuration prevents the API from starting.
 
@@ -134,7 +134,7 @@ Manual API documentation is available under `tests/http`.
 - **Users** — User administration and Role + Scope ACL.
 - **Devices** — Network inventory and connection management.
 - **Whitelist** — Router synchronization.
-- **FTP/SFTP** — Streaming file management, ZIP transfers and lazy thumbnails.
+- **FTP/SFTP** — Streaming file management, per-file transfers and lazy thumbnails.
 - **Thumbnail Generator** — Isolated FFmpeg processing over temporary range-enabled media streams.
 - **Data Versions** — Database versions and per-directory FTP hashes for synchronized resources.
 
@@ -157,7 +157,7 @@ Collection endpoints keep their original response bodies and expose synchronizat
 - `Data-Version` for users, devices and FTP directory listings.
 - `Devices-Version` and `Whitelist-Version` for allowed and not allowed device listings.
 
-FTP directory listings and write operations expose a SHA-256 directory hash through `Data-Version`. Write operations return the refreshed destination listing, allowing clients to replace their local state immediately.
+FTP directory listings and applicable write responses expose a SHA-256 directory hash through `Data-Version`. Upload completion, directory creation and renaming return a refreshed listing. Move and delete operations send their final directory version in a streamed completion event.
 
 Authentication is attached to each protected endpoint instead of being applied globally. Requests to existing protected routes without a valid bearer token return `AUTHENTICATION_REQUIRED`, while unknown paths reach the standard `ROUTE_NOT_FOUND` response.
 
@@ -187,9 +187,11 @@ GET /data-versions/ftp?dir=.
 }
 ```
 
-Uploads are parsed as multipart streams and large files may be sent through ordered, offset-based requests without writing intermediate data to local storage. A failed or abandoned upload is cleaned as one transaction. ZIP files can be uploaded unchanged or extracted as a streamed directory tree using the `extract` query parameter. Single-file downloads stream the original resource, while multiple files and directories are generated as a streamed ZIP response; failed download sessions are invalidated instead of returning a partial result.
+Uploads are parsed as multipart streams and files may be sent individually through ordered, offset-based requests without writing intermediate data to local storage. A failed or abandoned upload is cleaned as one transaction. Download sessions return a recursive manifest; clients download each file individually and may provide an offset to resume. A failed download invalidates the session.
 
 Delete and move operations stream progress events as entries complete. The API invalidates affected directory state on failure, while the client only applies a completed operation as a whole.
+
+Transfer, move and delete operations protect their selected entries and the directory paths needed by the operation. Conflicting operations wait, while independent work in the same directory can continue. Upload, move and delete retain their path locks through the final directory refresh; download locks are released after all file streams finish. Locks are managed per user and do not prevent changes made outside the API.
 
 SFTP clients are reused through isolated per-user pools for internal work, reads and writes. Pools, caches and protected reservations use the stable user UUID, so changing a username does not change its storage identity. The UUID remains canonical inside the API and is converted to a 32-character, hyphenless Ubuntu username only when opening the SFTP connection. Each active user starts with one reserved connection per pool; reads can scale to two connections and writes to three, subject to the global connection and transfer limits. Idle sessions close after the configured timeout, active work is never interrupted, and protected users retain their base reservation.
 
@@ -206,8 +208,9 @@ Media processing is delegated to the standalone thumbnail generator. The API exp
 - Centralized validation and error handling.
 - Applied authentication and role checks directly to protected routes so unknown resources remain distinguishable from unauthenticated requests.
 - Added database-backed resource versions and per-directory FTP hashes for lightweight client synchronization.
-- Streamed multipart uploads, direct downloads and ZIP trees without buffering complete files.
+- Streamed multipart uploads and per-file downloads without buffering complete files.
 - Added resumable offset-based uploads, all-or-nothing transfer cleanup and streamed move/delete progress.
+- Coordinated per-user entry and path locks across transfers and progressive write operations.
 - Reused SFTP sessions through bounded per-user internal, read and write pools identified by stable UUIDs, with idle eviction and protected reservations.
 - Added bounded in-memory thumbnail caching with lazy background generation.
 - Isolated FFmpeg in a dedicated thumbnail service with fixed protocols, demuxers, resource limits and temporary range-enabled access to SFTP media.
