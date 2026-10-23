@@ -108,9 +108,9 @@ pnpm --dir thumbnail-generator install
 
 ### Configuration
 
-Copy `.env.example` to `.env` for the API and `thumbnail-generator/.env.example` to `thumbnail-generator/.env` when running the thumbnail generator independently. Configure the required secrets and internal service URLs. Both services communicate through `API_URL` and `THUMBNAIL_GENERATOR_URL`; the generator uses `PORT` when running independently.
+Copy `.env.example` to `.env` for the API and `thumbnail-generator/.env.example` to `thumbnail-generator/.env` when running the thumbnail generator independently. Configure the required secrets and internal service URLs. Both services communicate through `API_URL` and `THUMBNAIL_GENERATOR_URL`; the generator uses `PORT` and its `THUMBNAIL_*` scheduling variables when running independently.
 
-Runtime limits, cache lifetimes, SFTP pool sizes and JWT expirations are configured exclusively through the environment variables documented in `.env.example`; they have no application defaults. Numeric values are expressed as bytes, counts or milliseconds as indicated by their names. Protected SFTP reservations use canonical `user-id:connections` entries separated by commas through `FTP_PROTECTED_USER_IDS`; use an empty value when no user needs a reservation. Missing or inconsistent configuration prevents the API from starting.
+Runtime limits, cache lifetimes, SFTP pool sizes and JWT expirations are configured exclusively through the environment variables documented in the corresponding `.env.example`; they have no application defaults. Numeric values are expressed as bytes, counts or milliseconds as indicated by their names. Protected SFTP reservations use canonical `user-id:connections` entries separated by commas through `FTP_PROTECTED_USER_IDS`; use an empty value when no user needs a reservation. Missing or inconsistent configuration prevents either service from starting.
 
 ### Running
 
@@ -197,7 +197,7 @@ SFTP clients are reused through isolated per-user pools for internal work, reads
 
 Directory listings mark compatible media with `supportsThumbnail`. Thumbnail generation runs lazily in the background and adds each result to the bounded cache as soon as it is available. The thumbnail endpoint reports generated, pending and unavailable states with HTTP `200`, `404` and `204` respectively.
 
-Media processing is delegated to the standalone thumbnail generator. The API exposes short-lived, range-enabled media sessions so FFmpeg can seek through SFTP files without sharing FTP credentials or buffering complete media files. Internal media access restricts its accepted origin and is intended to remain unavailable through the external reverse proxy; generated JPEG responses are limited by environment configuration.
+Media processing is delegated to the standalone thumbnail generator. The API submits thumbnail work while the generator owns a global adaptive FFmpeg queue: it starts from the configured initial concurrency and adjusts admission from its container CPU and memory usage. The API exposes short-lived, range-enabled media sessions so FFmpeg can seek through SFTP files without sharing FTP credentials or buffering complete media files. Internal media access restricts its accepted origin and is intended to remain unavailable through the external reverse proxy; generated JPEG responses are limited by environment configuration.
 
 ## Key Architectural Decisions
 
@@ -213,7 +213,7 @@ Media processing is delegated to the standalone thumbnail generator. The API exp
 - Coordinated per-user entry and path locks across transfers and progressive write operations.
 - Reused SFTP sessions through bounded per-user internal, read and write pools identified by stable UUIDs, with idle eviction and protected reservations.
 - Added bounded in-memory thumbnail caching with lazy background generation.
-- Isolated FFmpeg in a dedicated thumbnail service with fixed protocols, demuxers, resource limits and temporary range-enabled access to SFTP media.
+- Isolated FFmpeg in a dedicated thumbnail service with fixed protocols, demuxers, resource limits, adaptive queued scheduling and temporary range-enabled access to SFTP media.
 
 ## Project Structure
 
