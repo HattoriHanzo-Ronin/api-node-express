@@ -92,7 +92,7 @@ export default class FtpService {
                 transfer: true,
                 paths: names.map((name) => path.posix.join(dir, name)),
                 callback: async ({ client }) => {
-                    for (const name of names) {
+                    await Promise.all(names.map(async (name) => {
                         let thumbnail;
                         try {
                             const remotePath = path.posix.join(dir, name);
@@ -102,7 +102,7 @@ export default class FtpService {
                             thumbnail = null;
                         }
                         await callback({ name, thumbnail });
-                    }
+                    }));
                 }
             });
         } catch {

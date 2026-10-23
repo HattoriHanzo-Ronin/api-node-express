@@ -44,8 +44,13 @@ describe("ThumbnailService", () => {
             await pipeline(createReadStream(fixture, { start, end }), response);
         });
         await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+        process.env.PORT = "3000";
         process.env.API_URL = `http://127.0.0.1:${server.address().port}`;
         process.env.THUMBNAIL_GENERATOR_URL = "http://thumbnail-generator:3000";
+        process.env.THUMBNAIL_INITIAL_CONCURRENCY = "20";
+        process.env.THUMBNAIL_CPU_TARGET = "80";
+        process.env.THUMBNAIL_MEMORY_TARGET = "80";
+        process.env.THUMBNAIL_SCHEDULER_INTERVAL = "1000";
         ({ default: service } = await import("../../src/services/thumbnail-service.js"));
     });
 
@@ -57,7 +62,7 @@ describe("ThumbnailService", () => {
     });
 
     it("should create a JPEG using HTTP range requests", async () => {
-        const thumbnail = await service.create("550e8400-e29b-41d4-a716-446655440000");
+        const thumbnail = await service.create({ id: "550e8400-e29b-41d4-a716-446655440000" });
         expect(thumbnail.subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8]));
         expect(ranges.some(Boolean)).toBe(true);
         expect(origins.every((origin) => origin === "http://thumbnail-generator:3000")).toBe(true);
