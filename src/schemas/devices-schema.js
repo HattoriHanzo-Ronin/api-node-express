@@ -24,12 +24,7 @@ export default class DevicesSchema {
     }
 }
 
-const {
-    handleValidationIssues,
-    zodEnumIgnoreCase,
-    useRequiredProperties,
-    withSuperRefine
-} = ValidateUtils;
+const { handleValidationIssues, zodEnumIgnoreCase, useRequiredProperties, withSuperRefine } = ValidateUtils;
 const { ERROR_MESSAGES, REGEX, ALLOW_ENUMS } = ValidateUtils;
 const { typeRequired, typeNotRequired, format, emptyArray, length, invalidEnum } = ERROR_MESSAGES;
 const { passwordRegex, safeTextRegex } = REGEX;
@@ -62,6 +57,13 @@ const devicesSchema = z.object({
         .nullable()
         .default(null),
     ip: z.string(typeNotRequired).trim().regex(ipRegex, format).nullable().default(null),
+    ssid: z
+        .string(typeNotRequired)
+        .trim()
+        .min(1, length(1, "min"))
+        .regex(/^[\p{L}\p{N} ._-]+$/u, format)
+        .nullable()
+        .default(null),
     wifi_pass: z
         .string(typeNotRequired)
         .trim()
@@ -109,6 +111,16 @@ function cases({ type, mac_filter, admin_pass, ip, wifi_pass, model, connections
                                 condition: ip === null,
                                 path: ["ip"],
                                 message: "Debe especificar ip del router"
+                            },
+                            {
+                                condition: wifi_pass !== null && ssid === null,
+                                path: ["ssid"],
+                                message: "Debe especificar el SSID"
+                            },
+                            {
+                                condition: ssid !== null && Buffer.byteLength(ssid, "utf8") > 32,
+                                path: ["ssid"],
+                                message: "Longitud superada"
                             }
                         ],
                         ctx
@@ -134,6 +146,11 @@ function cases({ type, mac_filter, admin_pass, ip, wifi_pass, model, connections
                                 condition: wifi_pass !== null,
                                 path: ["wifi_pass"],
                                 message: "Solo el router soporta contraseña Wi-Fi"
+                            },
+                            {
+                                condition: ssid !== null,
+                                path: ["ssid"],
+                                message: "Solo el router soporta SSID"
                             }
                         ],
                         ctx

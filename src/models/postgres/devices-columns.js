@@ -11,7 +11,8 @@ const insertionColumns = [
     ...allowedColumns,
     ...routerColumns,
     { name: "mac_filter" },
-    { name: "wifi_pass" }
+    { name: "wifi_pass" },
+    { name: "ssid" }
 ];
 const devicesColumns = {
     allowedInfo: createColumnSet([...infoCommonColumns, ...allowedColumns], TABLE),
