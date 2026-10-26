@@ -1,0 +1,26 @@
+{
+    "name": "router-cpanel-service",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "start": "node src/server.js",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "@novnc/novnc": "^1.7.0",
+        "dotenv": "^18.0.4",
+        "express": "5.2.1",
+        "jsonwebtoken": "^9.0.3",
+        "puppeteer-core": "^25.12.0",
+        "ws": "^8.19.0"
+    },
+    "devDependencies": {
+        "vitest": "^5.0.3"
+    },
+    "engines": {
+        "node": ">=24.0.0",
+        "pnpm": ">=11.0.0"
+    },
+    "packageManager": "pnpm@12.15.0+sha512.b3951d6d6ff4a9f13dc7cf56cd28d2b8eb37dbcc9c68e52e1e1191873ea9f82a017287ab50baadc5ccc494f036c67c0e47eb13608c2fa36f47711b61ea128e61"
+}
