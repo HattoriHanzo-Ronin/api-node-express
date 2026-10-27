@@ -5,6 +5,7 @@ const API_ERROR = Object.freeze({
     routerSessionInvalid: { code: "ROUTER_SESSION_INVALID" },
     routerSessionNotFound: { code: "ROUTER_SESSION_NOT_FOUND" },
     routerSessionCapacityReached: { code: "ROUTER_SESSION_CAPACITY_REACHED" },
+    routerSessionConnectionCapacityReached: { code: "ROUTER_SESSION_CONNECTION_CAPACITY_REACHED" },
     routerSessionFailed: { code: "ROUTER_SESSION_FAILED" }
 });
 

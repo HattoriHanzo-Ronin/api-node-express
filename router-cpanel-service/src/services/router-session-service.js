@@ -147,14 +147,25 @@ export default class RouterSessionService {
      */
     async openVncSocket({ sessionId, token }) {
         const session = this.#getSession({ sessionId, token });
+        ApiError.handle([{
+            condition: session.vncConnectionCount >= MAX_VNC_CONNECTIONS_PER_SESSION,
+            message: "La sesión de panel de router ya tiene el máximo de conexiones VNC",
+            status: 429,
+            apiError: ROUTER_SESSION_CONNECTION_CAPACITY_REACHED
+        }]);
+
+        session.vncConnectionCount += 1;
         this.#scheduleClose({ session });
         try {
-            return await connectVnc({
+            const vncSocket = await connectVnc({
                 port: session.vncPort,
                 attempts: RouterSessionService.#VNC_CONNECTION_ATTEMPTS,
                 delayMs: RouterSessionService.#VNC_CONNECTION_DELAY
             });
+            vncSocket.once("close", () => { session.vncConnectionCount -= 1; });
+            return vncSocket;
         } catch {
+            session.vncConnectionCount -= 1;
             throw new ApiError({
                 message: "No se ha podido abrir la conexión VNC",
                 apiError: ROUTER_SESSION_FAILED
@@ -268,6 +279,7 @@ export default class RouterSessionService {
             loading: false,
             loadingUntil: 0,
             loadingRequests: new Set(),
+            vncConnectionCount: 0,
             statusListeners: new Set()
         };
         try {
@@ -528,12 +540,14 @@ const {
     displayBase: DISPLAY_BASE,
     maxActiveUsers: MAX_ACTIVE_USERS,
     maxSessionsPerUser: MAX_SESSIONS_PER_USER,
+    maxVncConnectionsPerSession: MAX_VNC_CONNECTIONS_PER_SESSION,
     publicUrl: PUBLIC_URL,
     sessionInactivityTimeout: SESSION_INACTIVITY_TIMEOUT,
     vncPortBase: VNC_PORT_BASE
 } = ENV;
 const {
     routerSessionCapacityReached: ROUTER_SESSION_CAPACITY_REACHED,
+    routerSessionConnectionCapacityReached: ROUTER_SESSION_CONNECTION_CAPACITY_REACHED,
     routerSessionFailed: ROUTER_SESSION_FAILED,
     routerSessionInvalid: ROUTER_SESSION_INVALID,
     routerSessionNotFound: ROUTER_SESSION_NOT_FOUND

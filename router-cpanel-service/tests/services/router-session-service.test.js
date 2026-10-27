@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
     mkdtemp: vi.fn(),
     rm: vi.fn(),
     launch: vi.fn(),
+    createConnection: vi.fn(),
     spawn: vi.fn()
 }));
 
@@ -16,6 +17,7 @@ vi.mock("../../src/config/environment.js", () => ({
         vncPortBase: 5900,
         maxActiveUsers: 1,
         maxSessionsPerUser: 1,
+        maxVncConnectionsPerSession: 1,
         sessionInactivityTimeout: 600_000,
         jwtAccessTokenExpiresIn: "30min"
     }
@@ -23,6 +25,7 @@ vi.mock("../../src/config/environment.js", () => ({
 
 vi.mock("../../src/config/secrets.js", () => ({ SECRETS: { jwtSecret: "router-cpanel-jwt-secret" } }));
 vi.mock("node:fs/promises", () => ({ mkdtemp: mocks.mkdtemp, rm: mocks.rm }));
+vi.mock("node:net", () => ({ createConnection: mocks.createConnection }));
 vi.mock("node:child_process", () => ({ spawn: mocks.spawn }));
 vi.mock("puppeteer-core", () => ({ default: { launch: mocks.launch } }));
 
@@ -38,6 +41,7 @@ describe("RouterSessionService", () => {
         mocks.mkdtemp.mockResolvedValue("/tmp/router-cpanel-session");
         mocks.rm.mockResolvedValue();
         mocks.launch.mockResolvedValue(browser);
+        mocks.createConnection.mockImplementation(() => createVncSocket());
         mocks.spawn.mockImplementation(() => createChildProcess());
     });
 
@@ -207,11 +211,37 @@ describe("RouterSessionService", () => {
         await Promise.resolve();
         expect(mocks.browser.close).toHaveBeenCalledTimes(1);
     });
+
+    it("should limit VNC connections for a browser session", async () => {
+        const service = new RouterSessionService();
+        const session = await service.create({ ownerId: "user-id", routerName: "Router", routerIp: "router.local", clientType: "desktop" });
+        const token = getViewerToken(session.url);
+        const firstSocket = await service.openVncSocket({ sessionId: session.id, token });
+        await expect(service.openVncSocket({ sessionId: session.id, token })).rejects.toMatchObject({
+            code: "ROUTER_SESSION_CONNECTION_CAPACITY_REACHED",
+            status: 429
+        });
+        firstSocket.destroy();
+        await expect(service.openVncSocket({ sessionId: session.id, token })).resolves.toBeInstanceOf(EventEmitter);
+        await service.close({ sessionId: session.id });
+    });
 });
+
+function getViewerToken(url) {
+    const viewerUrl = new URL(url);
+    return new URL(viewerUrl.searchParams.get("path"), viewerUrl.origin).searchParams.get("token");
+}
 
 function createChildProcess() {
     const childProcess = new EventEmitter();
     childProcess.kill = vi.fn();
     queueMicrotask(() => childProcess.emit("spawn"));
     return childProcess;
+}
+
+function createVncSocket() {
+    const socket = new EventEmitter();
+    socket.destroy = vi.fn(() => socket.emit("close"));
+    queueMicrotask(() => socket.emit("connect"));
+    return socket;
 }
