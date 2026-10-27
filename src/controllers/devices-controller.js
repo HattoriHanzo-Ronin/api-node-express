@@ -1,6 +1,7 @@
 import ValidateUtils from "../utils/validate-utils.js";
 import DevicesSchema from "../schemas/devices-schema.js";
 import idSchema from "../schemas/common/id-schema.js";
+import { routerCpanelNavigationSchema, routerCpanelSessionSchema } from "../schemas/router-cpanel-schema.js";
 
 /**
  * Devices controller
@@ -47,6 +48,28 @@ export default class DevicesController {
     delete = async (req, res) => {
         const { id } = validateData(req.params, idSchema);
         res.json(await this.devicesFacade.delete({ id }));
+    };
+
+    createRouterCpanel = async (req, res) => {
+        const { params, body, user: authUser } = req;
+        const { id: routerId } = validateData({ id: params.routerId }, idSchema);
+        const { language, clientType, theme } = validateData(body, routerCpanelSessionSchema);
+        res.status(201).json(await this.devicesFacade.createRouterCpanel({ authUser, routerId, language, clientType, theme }));
+    };
+
+    navigateRouterCpanel = async (req, res) => {
+        const { params, body, user: authUser } = req;
+        const { id: sessionId } = validateData({ id: params.sessionId }, idSchema);
+        const { action } = validateData(body, routerCpanelNavigationSchema);
+        await this.devicesFacade.navigateRouterCpanel({ authUser, sessionId, action });
+        res.status(204).send();
+    };
+
+    closeRouterCpanel = async (req, res) => {
+        const { params, user: authUser } = req;
+        const { id: sessionId } = validateData({ id: params.sessionId }, idSchema);
+        await this.devicesFacade.closeRouterCpanel({ authUser, sessionId });
+        res.status(204).send();
     };
 }
 

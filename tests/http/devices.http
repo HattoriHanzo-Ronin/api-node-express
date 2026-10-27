@@ -31,6 +31,61 @@
 @token = PASTE_ACCESS_TOKEN
 @deviceId = PASTE_DEVICE_ID
 @routerId = PASTE_ROUTER_ID
+@routerCpanelSessionId = PASTE_ROUTER_CPANEL_SESSION_ID
+
+############################################################
+# Create router control panel session
+#
+# Expected:
+# Status: 201
+#
+# Response:
+# {
+#   "id": "...",
+#   "url": "https://router-cpanel.example/viewer/?...",
+#   "expiresAt": "..."
+# }
+############################################################
+
+POST {{baseUrl}}/{{routerId}}/cpanel
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "clientType": "mobile",
+    "language": "es-ES"
+}
+
+###
+
+############################################################
+# Navigate router control panel session
+#
+# Expected:
+# Status: 204
+############################################################
+
+POST {{baseUrl}}/cpanel/{{routerCpanelSessionId}}/navigation
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "action": "back"
+}
+
+###
+
+############################################################
+# Close router control panel session
+#
+# Expected:
+# Status: 204
+############################################################
+
+DELETE {{baseUrl}}/cpanel/{{routerCpanelSessionId}}
+Authorization: Bearer {{token}}
+
+###
 
 ############################################################
 # Get all devices
