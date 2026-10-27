@@ -10,6 +10,7 @@ const ENV = Object.freeze({
     vncPortBase: Number(process.env.VNC_PORT_BASE),
     maxActiveUsers: Number(process.env.MAX_ACTIVE_USERS),
     maxSessionsPerUser: Number(process.env.MAX_SESSIONS_PER_USER),
+    maxVncConnectionsPerSession: Number(process.env.MAX_VNC_CONNECTIONS_PER_SESSION),
     sessionInactivityTimeout: Number(process.env.SESSION_INACTIVITY_TIMEOUT),
     jwtAccessTokenExpiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRES_IN
 });
@@ -23,6 +24,7 @@ function validateConfiguration(environment) {
         environment.vncPortBase,
         environment.maxActiveUsers,
         environment.maxSessionsPerUser,
+        environment.maxVncConnectionsPerSession,
         environment.sessionInactivityTimeout
     ].every((value) => Number.isInteger(value) && value > 0);
     const validStrings = [environment.chromePath, environment.jwtAccessTokenExpiresIn].every((value) => typeof value === "string" && value.length > 0);
