@@ -21,6 +21,7 @@ import DevicesService from "./services/devices-service.js";
 import DevicesMapper from "./mappers/devices-mapper.js";
 import DevicesFacade from "./facades/devices-facade.js";
 import DevicesController from "./controllers/devices-controller.js";
+import RouterCpanel from "./devices-routers/cpanel/router-cpanel.js";
 import WhitelistModel from "./models/postgres/whitelist-model.js";
 import WhitelistService from "./services/whitelist-service.js";
 import WhitelistFacade from "./facades/whitelist-facade.js";
@@ -37,6 +38,7 @@ import RefreshTokensModel from "./models/postgres/refresh-tokens-model.js";
 import RefreshTokensService from "./services/refresh-tokens-service.js";
 import AuthFacade from "./facades/auth-facade.js";
 import AuthController from "./controllers/auth-controller.js";
+import { ENV } from "./config/environment.js";
 
 const tx = PostgresClient.executeTx;
 
@@ -55,11 +57,13 @@ const dataVersionsController = new DataVersionsController({ dataVersionsFacade }
 
 const connectionsService = new ConnectionsService({ connectionsModel: ConnectionsModel });
 const devicesService = new DevicesService({ devicesModel: DevicesModel });
+const routerCpanel = new RouterCpanel({ routerCpanelServiceUrl: ENV.routerCpanelServiceUrl });
 const devicesFacade = new DevicesFacade({
     devicesService,
     dataVersionsService,
     devicesMapper: DevicesMapper,
     connectionsService,
+    routerCpanel,
     tx
 });
 const devicesController = new DevicesController({ devicesFacade });

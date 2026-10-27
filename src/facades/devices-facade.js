@@ -1,5 +1,6 @@
 import ValidateUtils from "../utils/validate-utils.js";
 import RouterResolver from "../devices-routers/router-resolver.js";
+import { DEVICE_TYPE } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
 
 /**
@@ -8,11 +9,12 @@ import { API_ERROR } from "../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class DevicesFacade {
-    constructor({ devicesService, dataVersionsService, devicesMapper, connectionsService, tx }) {
+    constructor({ devicesService, dataVersionsService, devicesMapper, connectionsService, routerCpanel, tx }) {
         this.devicesService = devicesService;
         this.dataVersionsService = dataVersionsService;
         this.devicesMapper = devicesMapper;
         this.connectionsService = connectionsService;
+        this.routerCpanel = routerCpanel;
         this.tx = tx;
     }
 
@@ -68,6 +70,57 @@ export default class DevicesFacade {
         ]);
         const source = this.devicesMapper.createDeviceSource(result);
         return { version, data: this.devicesMapper.devicesToDomain(source) };
+    }
+
+    /**
+     * Creates a router control panel session
+     *
+     * @param {Object} params.authUser Authenticated user
+     * @param {string} params.routerId Router identifier
+     * @param {string | undefined} params.language Viewer language
+     * @param {"desktop" | "mobile"} params.clientType Viewer client type
+     * @param {"dark" | "light"} params.theme Viewer theme
+     * @returns {Promise<{ id: string, url: string, expiresAt: string }>} Router control panel session
+     */
+    async createRouterCpanel({ authUser, routerId, language, clientType, theme }) {
+        const router = await this.getById({ id: routerId });
+        handleApiErrors([{
+            condition: router.type !== DEVICE_TYPE.router,
+            message: "El dispositivo no es un router",
+            status: 400,
+            apiError: API_ERROR.routerCpanelNotRouter
+        }]);
+
+        return this.routerCpanel.create({
+            ownerId: authUser.id,
+            routerName: router.name,
+            routerIp: router.ip,
+            routerPassword: router.admin_pass,
+            language,
+            clientType,
+            theme
+        });
+    }
+
+    /**
+     * Navigates a router control panel session
+     *
+     * @param {Object} params.authUser Authenticated user
+     * @param {string} params.sessionId Router control panel session identifier
+     * @param {"back" | "reload"} params.action Browser navigation action
+     */
+    async navigateRouterCpanel({ authUser, sessionId, action }) {
+        await this.routerCpanel.navigate({ sessionId, ownerId: authUser.id, action });
+    }
+
+    /**
+     * Deletes a router control panel session
+     *
+     * @param {Object} params.authUser Authenticated user
+     * @param {string} params.sessionId Router control panel session identifier
+     */
+    async closeRouterCpanel({ authUser, sessionId }) {
+        await this.routerCpanel.close({ sessionId, ownerId: authUser.id });
     }
 
     /**

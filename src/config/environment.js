@@ -5,6 +5,7 @@ const ENV = Object.freeze({
     port: Number(process.env.PORT),
     apiUrl: process.env.API_URL,
     thumbnailGeneratorUrl: process.env.THUMBNAIL_GENERATOR_URL,
+    routerCpanelServiceUrl: process.env.ROUTER_CPANEL_SERVICE_URL,
     dbHost: process.env.HOSTDB,
     dbPort: Number(process.env.PORTDB),
     dbUser: process.env.USERDB,
@@ -47,8 +48,10 @@ function validateConfiguration(environment) {
         environment.jwtAccessTokenExpiresIn,
         environment.jwtRefreshTokenExpiresIn
     ].every((value) => typeof value === "string" && value.length > 0);
+    const validUrls = [environment.apiUrl, environment.thumbnailGeneratorUrl, environment.routerCpanelServiceUrl]
+        .every((value) => typeof value === "string" && URL.canParse(value));
     const validCacheLimits = environment.memoryCacheMaxSizePerOwner <= environment.memoryCacheMaxSize;
-    if (!validNumbers || !validStrings || !validCacheLimits) {
+    if (!validNumbers || !validStrings || !validUrls || !validCacheLimits) {
         throw new ApiError({
             message: "La configuración de la aplicación no es válida",
             apiError: API_ERROR.configurationInvalid

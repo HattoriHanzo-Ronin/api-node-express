@@ -17,6 +17,7 @@ flowchart LR
     DB[(PostgreSQL)]
     SFTP[(SFTP)]
     Thumbnails["Thumbnail Generator"]
+    Cpanel["Router CPanel Service"]
     Routers["Compatible Routers"]
 
     Android --> API
@@ -25,6 +26,8 @@ flowchart LR
     API --> SFTP
     API --> Thumbnails
     Thumbnails --> API
+    API --> Cpanel
+    Cpanel --> Routers
     API --> Routers
 ```
 
@@ -49,6 +52,7 @@ Its goal is to provide a maintainable backend capable of managing authentication
 | Users | Delegated user administration |
 | Devices | Multiple connections per device |
 | Router Sync | MAC whitelist synchronization |
+| Router Control Panel | Isolated noVNC router sessions managed through the API |
 | Storage | Transactional streaming SFTP transfers, progressive write operations and lazy thumbnails generated in an isolated service |
 | Resource Sync | Database versions and SHA-256 hashes for FTP directories |
 | Validation | Centralized Zod schemas |
@@ -104,11 +108,12 @@ Follow these steps to run the project locally
 ```bash
 pnpm install
 pnpm --dir thumbnail-generator install
+pnpm --dir router-cpanel-service install
 ```
 
 ### Configuration
 
-Copy `.env.example` to `.env` for the API and `thumbnail-generator/.env.example` to `thumbnail-generator/.env` when running the thumbnail generator independently. Configure the required secrets and internal service URLs. Both services communicate through `API_URL` and `THUMBNAIL_GENERATOR_URL`; the generator uses `PORT` and its `THUMBNAIL_*` scheduling variables when running independently.
+Copy `.env.example` to `.env` for the API, `thumbnail-generator/.env.example` to `thumbnail-generator/.env`, and `router-cpanel-service/.env.example` to `router-cpanel-service/.env` when running the isolated services independently. Configure the required secrets and internal service URLs. The API communicates with the thumbnail generator through `THUMBNAIL_GENERATOR_URL` and with the router panel service through `ROUTER_CPANEL_SERVICE_URL`; the cpanel service exposes only its noVNC viewer publicly while its session API stays on the internal network.
 
 Runtime limits, cache lifetimes, SFTP pool sizes and JWT expirations are configured exclusively through the environment variables documented in the corresponding `.env.example`; they have no application defaults. Numeric values are expressed as bytes, counts or milliseconds as indicated by their names. Protected SFTP reservations use canonical `user-id:connections` entries separated by commas through `FTP_PROTECTED_USER_IDS`; use an empty value when no user needs a reservation. Missing or inconsistent configuration prevents either service from starting.
 
@@ -117,6 +122,7 @@ Runtime limits, cache lifetimes, SFTP pool sizes and JWT expirations are configu
 ```bash
 pnpm run postgres
 pnpm --dir thumbnail-generator start
+pnpm --dir router-cpanel-service start
 ```
 
 ### Testing
@@ -124,6 +130,7 @@ pnpm --dir thumbnail-generator start
 ```bash
 pnpm test
 pnpm --dir thumbnail-generator test
+pnpm --dir router-cpanel-service test
 ```
 
 Manual API documentation is available under `tests/http`.
@@ -136,6 +143,7 @@ Manual API documentation is available under `tests/http`.
 - **Whitelist** — Router synchronization.
 - **FTP/SFTP** — Streaming file management, per-file transfers and lazy thumbnails.
 - **Thumbnail Generator** — Isolated FFmpeg processing over temporary range-enabled media streams.
+- **Router CPanel Service** — Isolated Chromium/noVNC sessions for router administration, with ownership and inactivity control.
 - **Data Versions** — Database versions and per-directory FTP hashes for synchronized resources.
 
 ## API Usage
@@ -188,6 +196,8 @@ GET /data-versions/ftp?dir=.
 ```
 
 Uploads are parsed as multipart streams and files may be sent individually through ordered, offset-based requests without writing intermediate data to local storage. A failed or abandoned upload is cleaned as one transaction. Download sessions return a recursive manifest; clients download each file individually and may provide an offset to resume. A failed download invalidates the session.
+
+Router control panel sessions are created through `POST /devices/:id/cpanel` with a validated `clientType` and optional `language`. The API obtains router credentials internally, returns the viewer URL, and keeps back/reload and session closure behind authenticated API routes.
 
 Delete and move operations stream progress events as entries complete. The API invalidates affected directory state on failure, while the client only applies a completed operation as a whole.
 

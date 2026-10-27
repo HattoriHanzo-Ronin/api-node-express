@@ -17,10 +17,13 @@ describe("DevicesController", () => {
             getNotAllowedDevices: vi.fn(),
             create: vi.fn(),
             update: vi.fn(),
-            delete: vi.fn()
+            delete: vi.fn(),
+            createRouterCpanel: vi.fn(),
+            navigateRouterCpanel: vi.fn(),
+            closeRouterCpanel: vi.fn()
         };
         controller = new DevicesController({ devicesFacade });
-        req = { params: {}, body: validClient() };
+        req = { params: {}, body: validClient(), user: { id: "user-id" } };
         res = { json: vi.fn(), set: vi.fn().mockReturnThis(), status: vi.fn().mockReturnThis() };
     });
 
@@ -80,6 +83,55 @@ describe("DevicesController", () => {
         await controller.delete(req, res);
         expect(devicesFacade.delete).toHaveBeenCalledWith({ id: UUID });
         expect(res.json).toHaveBeenCalledWith({ id: UUID });
+    });
+
+    it("should create a router control panel session", async () => {
+        req.params.routerId = UUID;
+        req.body = { clientType: "mobile", language: "es-ES", theme: "light" };
+        devicesFacade.createRouterCpanel.mockResolvedValue({ id: "session-id" });
+        await controller.createRouterCpanel(req, res);
+        expect(devicesFacade.createRouterCpanel).toHaveBeenCalledWith({
+            authUser: req.user,
+            routerId: UUID,
+            clientType: "mobile",
+            language: "es-ES",
+            theme: "light"
+        });
+        expect(res.status).toHaveBeenCalledWith(201);
+        expect(res.json).toHaveBeenCalledWith({ id: "session-id" });
+    });
+
+    it("should default the router control panel client type to desktop", async () => {
+        req.params.routerId = UUID;
+        req.body = {};
+        devicesFacade.createRouterCpanel.mockResolvedValue({ id: "session-id" });
+        await controller.createRouterCpanel(req, res);
+        expect(devicesFacade.createRouterCpanel).toHaveBeenCalledWith({
+            authUser: req.user,
+            routerId: UUID,
+            clientType: "desktop",
+            language: undefined,
+            theme: "dark"
+        });
+    });
+
+    it("should navigate a router control panel session", async () => {
+        req.params.sessionId = UUID;
+        req.body = { action: "back" };
+        res.send = vi.fn();
+        await controller.navigateRouterCpanel(req, res);
+        expect(devicesFacade.navigateRouterCpanel).toHaveBeenCalledWith({ authUser: req.user, sessionId: UUID, action: "back" });
+        expect(res.status).toHaveBeenCalledWith(204);
+        expect(res.send).toHaveBeenCalledWith();
+    });
+
+    it("should close a router control panel session", async () => {
+        req.params.sessionId = UUID;
+        res.send = vi.fn();
+        await controller.closeRouterCpanel(req, res);
+        expect(devicesFacade.closeRouterCpanel).toHaveBeenCalledWith({ authUser: req.user, sessionId: UUID });
+        expect(res.status).toHaveBeenCalledWith(204);
+        expect(res.send).toHaveBeenCalledWith();
     });
 
     describe("schema validation", () => {
