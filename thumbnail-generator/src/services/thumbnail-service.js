@@ -5,6 +5,20 @@ import { isIP } from "node:net";
 import { availableParallelism } from "node:os";
 import ffmpegPath from "ffmpeg-static";
 import { ENV } from "../config/environment.js";
+import { API_ERROR } from "../config/errors.js";
+import ApiError from "../utils/error/api-error.js";
+
+const {
+    apiUrl,
+    thumbnailCpuTarget,
+    thumbnailGeneratorUrl,
+    thumbnailInitialConcurrency,
+    thumbnailMaxOutputSize,
+    thumbnailMaxPixels,
+    thumbnailMemoryTarget,
+    thumbnailSchedulerInterval,
+    thumbnailTimeout
+} = ENV;
 
 /**
  * Streamed media thumbnail generator
@@ -15,13 +29,13 @@ export default class ThumbnailService {
     static #DEMUXERS =
         "avi,asf,bmp_pipe,flv,gif,hevc,jpeg_pipe,matroska,mjpeg,mov,mpeg,mpegts,mpegvideo,ogg,png_pipe,tiff_pipe,webm,webp_pipe";
     static #MAX_ALLOC = 256 * 1024 * 1024;
-    static #MAX_OUTPUT_SIZE = 5 * 1024 * 1024;
+    static #MAX_OUTPUT_SIZE = thumbnailMaxOutputSize;
     static #MAX_ERROR_OUTPUT_SIZE = 8 * 1024;
-    static #MAX_PIXELS = 40_000_000;
-    static #TIMEOUT = 30_000;
+    static #MAX_PIXELS = thumbnailMaxPixels;
+    static #TIMEOUT = thumbnailTimeout;
     static #QUEUE = [];
     static #ACTIVE = 0;
-    static #TARGET_CONCURRENCY = ENV.thumbnailInitialConcurrency;
+    static #TARGET_CONCURRENCY = thumbnailInitialConcurrency;
     static #SCHEDULER;
     static #LAST_CPU_SAMPLE;
 
@@ -34,7 +48,7 @@ export default class ThumbnailService {
      */
     static create({ id, signal }) {
         if (signal?.aborted) {
-            return Promise.reject(ThumbnailService.#createError("La solicitud fue cancelada", 499));
+            return Promise.reject(ThumbnailService.#createCancelledError());
         }
 
         return new Promise((resolve, reject) => {
@@ -46,7 +60,7 @@ export default class ThumbnailService {
                 }
 
                 ThumbnailService.#QUEUE.splice(index, 1);
-                reject(ThumbnailService.#createError("La solicitud fue cancelada", 499));
+                reject(ThumbnailService.#createCancelledError());
                 ThumbnailService.#stopScheduler();
             };
             job.cancel = cancel;
@@ -65,7 +79,7 @@ export default class ThumbnailService {
             const job = ThumbnailService.#QUEUE.shift();
             if (job.signal?.aborted) {
                 job.signal.removeEventListener("abort", job.cancel);
-                job.reject(ThumbnailService.#createError("La solicitud fue cancelada", 499));
+                job.reject(ThumbnailService.#createCancelledError());
                 continue;
             }
 
@@ -78,7 +92,15 @@ export default class ThumbnailService {
         try {
             job.resolve(await ThumbnailService.#generate({ id: job.id, signal: job.signal }));
         } catch (error) {
-            job.reject(error);
+            if (error instanceof ApiError) {
+                job.reject(error);
+                return;
+            }
+
+            job.reject(ThumbnailService.#createError({
+                message: "No se pudo generar la miniatura",
+                apiError: API_ERROR.thumbnailGenerationFailed
+            }));
         } finally {
             job.signal?.removeEventListener("abort", job.cancel);
             ThumbnailService.#ACTIVE -= 1;
@@ -115,7 +137,7 @@ export default class ThumbnailService {
             "-max_pixels",
             String(ThumbnailService.#MAX_PIXELS),
             "-headers",
-            `Origin: ${ENV.thumbnailGeneratorUrl}\r\n`,
+            `Origin: ${thumbnailGeneratorUrl}\r\n`,
             "-i",
             mediaUrl,
             "-map",
@@ -166,17 +188,29 @@ export default class ThumbnailService {
             childProcess.once("error", reject);
             childProcess.once("close", (code) => {
                 if (cancelled) {
-                    reject(ThumbnailService.#createError("La solicitud fue cancelada", 499));
+                    reject(ThumbnailService.#createCancelledError());
                     return;
                 }
 
                 if (timeoutReached) {
-                    reject(ThumbnailService.#createError("Se agotó el tiempo para generar la miniatura", 504));
+                    reject(
+                        ThumbnailService.#createError({
+                            message: "Se agotó el tiempo para generar la miniatura",
+                            status: 504,
+                            apiError: API_ERROR.thumbnailGenerationTimeout
+                        })
+                    );
                     return;
                 }
 
                 if (outputSize > ThumbnailService.#MAX_OUTPUT_SIZE) {
-                    reject(ThumbnailService.#createError("La miniatura supera el tamaño permitido", 413));
+                    reject(
+                        ThumbnailService.#createError({
+                            message: "La miniatura supera el tamaño permitido",
+                            status: 413,
+                            apiError: API_ERROR.thumbnailOutputTooLarge
+                        })
+                    );
                     return;
                 }
 
@@ -185,7 +219,13 @@ export default class ThumbnailService {
                         console.error(errorOutput.trim());
                     }
 
-                    reject(ThumbnailService.#createError("El archivo multimedia no es válido", 422));
+                    reject(
+                        ThumbnailService.#createError({
+                            message: "El archivo multimedia no es válido",
+                            status: 422,
+                            apiError: API_ERROR.thumbnailMediaInvalid
+                        })
+                    );
                     return;
                 }
 
@@ -209,7 +249,7 @@ export default class ThumbnailService {
             return;
         }
 
-        ThumbnailService.#SCHEDULER = setInterval(() => void ThumbnailService.#adjustConcurrency(), ENV.thumbnailSchedulerInterval);
+        ThumbnailService.#SCHEDULER = setInterval(() => void ThumbnailService.#adjustConcurrency(), thumbnailSchedulerInterval);
         ThumbnailService.#SCHEDULER.unref();
         void ThumbnailService.#adjustConcurrency();
     }
@@ -222,7 +262,7 @@ export default class ThumbnailService {
         clearInterval(ThumbnailService.#SCHEDULER);
         ThumbnailService.#SCHEDULER = undefined;
         ThumbnailService.#LAST_CPU_SAMPLE = undefined;
-        ThumbnailService.#TARGET_CONCURRENCY = ENV.thumbnailInitialConcurrency;
+        ThumbnailService.#TARGET_CONCURRENCY = thumbnailInitialConcurrency;
     }
 
     /**
@@ -234,7 +274,7 @@ export default class ThumbnailService {
             return;
         }
 
-        const hasCapacity = usage.cpu < ENV.thumbnailCpuTarget / 100 && usage.memory < ENV.thumbnailMemoryTarget / 100;
+        const hasCapacity = usage.cpu < thumbnailCpuTarget / 100 && usage.memory < thumbnailMemoryTarget / 100;
         if (hasCapacity) {
             ThumbnailService.#TARGET_CONCURRENCY += 1;
         } else {
@@ -326,7 +366,7 @@ export default class ThumbnailService {
      * @returns {Promise<string>} Resolved media URL
      */
     static async #getMediaUrl(id) {
-        const mediaUrl = new URL(`/ftp/media/${id}`, ENV.apiUrl);
+        const mediaUrl = new URL(`/ftp/media/${id}`, apiUrl);
         if (!isIP(mediaUrl.hostname)) {
             [mediaUrl.hostname] = await resolve4(mediaUrl.hostname);
         }
@@ -334,9 +374,15 @@ export default class ThumbnailService {
         return mediaUrl.href;
     }
 
-    static #createError(message, status) {
-        const error = new Error(message);
-        error.status = status;
-        return error;
+    static #createError({ message, status, apiError }) {
+        return new ApiError({ message, status, apiError });
+    }
+
+    static #createCancelledError() {
+        return ThumbnailService.#createError({
+            message: "La solicitud fue cancelada",
+            status: 499,
+            apiError: API_ERROR.thumbnailRequestCancelled
+        });
     }
 }

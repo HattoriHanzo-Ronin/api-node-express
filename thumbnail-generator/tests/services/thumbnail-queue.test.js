@@ -27,6 +27,9 @@ describe("ThumbnailService queue", () => {
         vi.stubEnv("THUMBNAIL_CPU_TARGET", "80");
         vi.stubEnv("THUMBNAIL_MEMORY_TARGET", "80");
         vi.stubEnv("THUMBNAIL_SCHEDULER_INTERVAL", "1000");
+        vi.stubEnv("THUMBNAIL_MAX_OUTPUT_SIZE", "5242880");
+        vi.stubEnv("THUMBNAIL_MAX_PIXELS", "40000000");
+        vi.stubEnv("THUMBNAIL_TIMEOUT", "30000");
         mockReadFile.mockImplementation(async (file) => {
             if (file === "/sys/fs/cgroup/cpu.stat") {
                 return `usage_usec ${resourceUsage.cpu}`;
