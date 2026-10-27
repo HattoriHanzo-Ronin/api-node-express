@@ -83,7 +83,7 @@ const devicesSchema = z.object({
     mac_filter: z.boolean(typeNotRequired).nullable().default(null)
 });
 
-function cases({ type, mac_filter, admin_pass, ip, wifi_pass, model, connections }, ctx) {
+function cases({ type, mac_filter, admin_pass, ip, ssid, wifi_pass, model, connections }, ctx) {
     const isRouter = type === router;
     handleValidationIssues(
         [
