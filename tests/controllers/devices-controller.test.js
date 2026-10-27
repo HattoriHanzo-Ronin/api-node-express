@@ -186,6 +186,17 @@ describe("DevicesController", () => {
             await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
         });
 
+        it("should fail when router specifies Wi-Fi password without SSID", async () => {
+            req.body = validRouter();
+            delete req.body.ssid;
+            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+        });
+
+        it("should fail when router SSID exceeds 32 bytes", async () => {
+            req.body = { ...validRouter(), ssid: "á".repeat(17) };
+            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+        });
+
         it("should fail when client uses mac filtering", async () => {
             req.body.mac_filter = true;
             await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
@@ -198,6 +209,11 @@ describe("DevicesController", () => {
 
         it("should fail when client uses wifi password", async () => {
             req.body.wifi_pass = "WifiPass123!";
+            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+        });
+
+        it("should fail when client uses SSID", async () => {
+            req.body.ssid = "Home Network";
             await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
         });
 
@@ -232,6 +248,7 @@ function validRouter() {
         type: "ROUTER",
         ip: "192.168.1.1",
         admin_pass: "Password123!",
+        ssid: "Home Network",
         wifi_pass: "WifiPass123!",
         mac_filter: true
     };
