@@ -8,12 +8,6 @@ export default class ThumbnailController {
         this.thumbnailService = thumbnailService;
     }
 
-    /**
-     * Creates a JPEG thumbnail from a temporary media session
-     *
-     * @param {import("express").Request} req HTTP request
-     * @param {import("express").Response} res HTTP response
-     */
     create = async (req, res) => {
         const controller = new AbortController();
         res.once("close", () => {

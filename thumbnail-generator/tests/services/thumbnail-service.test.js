@@ -51,6 +51,9 @@ describe("ThumbnailService", () => {
         process.env.THUMBNAIL_CPU_TARGET = "80";
         process.env.THUMBNAIL_MEMORY_TARGET = "80";
         process.env.THUMBNAIL_SCHEDULER_INTERVAL = "1000";
+        process.env.THUMBNAIL_MAX_OUTPUT_SIZE = "5242880";
+        process.env.THUMBNAIL_MAX_PIXELS = "40000000";
+        process.env.THUMBNAIL_TIMEOUT = "30000";
         ({ default: service } = await import("../../src/services/thumbnail-service.js"));
     });
 
