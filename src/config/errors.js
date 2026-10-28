@@ -5,7 +5,6 @@ const API_ERROR = ObjectUtils.deepFreeze({
     routeNotFound: "ROUTE_NOT_FOUND",
     validationFailed: "VALIDATION_FAILED",
     configurationInvalid: "CONFIGURATION_INVALID",
-    corsOriginNotAllowed: "CORS_ORIGIN_NOT_ALLOWED",
     deviceNameAlreadyExists: "DEVICE_NAME_ALREADY_EXISTS",
     deviceIpAlreadyInUse: "DEVICE_IP_ALREADY_IN_USE",
     deviceNotFound: "DEVICE_NOT_FOUND",
@@ -57,8 +56,7 @@ const API_ERROR = ObjectUtils.deepFreeze({
     ftpThumbnailFailed: "FTP_THUMBNAIL_FAILED",
     ftpThumbnailPending: "FTP_THUMBNAIL_PENDING",
     ftpThumbnailTooLarge: "FTP_THUMBNAIL_TOO_LARGE",
-    ftpFileRequired: "FTP_FILE_REQUIRED",
-    zipInvalidPath: "ZIP_INVALID_PATH"
+    ftpFileRequired: "FTP_FILE_REQUIRED"
 });
 
 export { API_ERROR };

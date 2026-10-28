@@ -27,7 +27,6 @@ vi.mock("../../src/utils/connection/ftp/ftp-client.js", () => ({
 
 vi.mock("../../src/config/environment.js", () => ({
     ENV: {
-        apiUrl: "http://api-node-express:60004",
         thumbnailGeneratorUrl: "http://thumbnail-generator:3000",
         ftpMaxConnections: 100,
         ftpMaxTransfers: 16,
@@ -128,7 +127,6 @@ describe("FtpService", () => {
                 expect(url).toMatch(/^http:\/\/thumbnail-generator:3000\/thumbnail\/[\da-f-]{36}$/);
                 expect(options).toEqual({
                     method: "POST",
-                    headers: { Origin: "http://api-node-express:60004" },
                     signal: expect.any(AbortSignal)
                 });
             }

@@ -1,5 +1,4 @@
 import express from "express";
-import cors from "cors";
 import busboy from "busboy";
 import ApiError from "../utils/error/api-error.js";
 import { API_ERROR } from "../config/errors.js";
@@ -10,32 +9,6 @@ import { API_ERROR } from "../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class Middlewares {
-    /**
-     * Creates CORS middleware
-     *
-     * @param {string[] | undefined} acceptOrigins Accepted origins
-     * @returns {import("express").RequestHandler} Express middleware
-     */
-    static cors(acceptOrigins) {
-        return cors({
-            exposedHeaders: ["Data-Version", "Devices-Version", "Whitelist-Version", "Content-Disposition"],
-            origin: (origin, callback) => {
-                if (acceptOrigins) {
-                    if (acceptOrigins.includes(origin)) {
-                        return callback(null, true);
-                    }
-
-                    return callback(new ApiError({
-                        message: "Origen no permitido",
-                        status: 403,
-                        apiError: corsOriginNotAllowed
-                    }));
-                }
-                return callback(null, true);
-            }
-        });
-    }
-
     /**
      * Creates JSON body parser middleware
      *
@@ -199,4 +172,4 @@ export default class Middlewares {
     }
 }
 
-const { corsOriginNotAllowed, routeNotFound, internalError, authenticationRequired, aclPermissionDenied } = API_ERROR;
+const { routeNotFound, internalError, authenticationRequired, aclPermissionDenied } = API_ERROR;

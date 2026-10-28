@@ -1,14 +1,13 @@
 import { Router } from "express";
 import Middlewares from "../middlewares/middlewares.js";
 import { USER_ROLE } from "../config/constants.js";
-import { ENV } from "../config/environment.js";
 
 export default function createFtpRouter({ ftpController, requireAuth }) {
     const router = Router();
     const { ftp } = USER_ROLE;
-    const { asyncHandler, authorizedRoles, cors, multipart, routeNotFound } = Middlewares;
+    const { asyncHandler, authorizedRoles, multipart, routeNotFound } = Middlewares;
 
-    router.get("/media/:id", cors([ENV.thumbnailGeneratorUrl]), asyncHandler(ftpController.streamMedia));
+    router.get("/media/:id", asyncHandler(ftpController.streamMedia));
     router.get("/", requireAuth, authorizedRoles([ftp]), asyncHandler(ftpController.dir));
     router.get("/thumbnail/:name", requireAuth, authorizedRoles([ftp]), asyncHandler(ftpController.getThumbnail));
     router.get("/downloads/:id/entries", requireAuth, authorizedRoles([ftp]), asyncHandler(ftpController.downloadEntry));

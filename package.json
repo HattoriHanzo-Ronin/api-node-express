@@ -11,11 +11,9 @@
         "lint:fix": "eslint . --fix"
     },
     "dependencies": {
-        "archiver": "^8.0.0",
         "axios": "^1.20.0",
         "axios-cookiejar-support": "^7.0.0",
         "busboy": "^1.6.0",
-        "cors": "^2.8.6",
         "dotenv": "^18.0.5",
         "express": "^5.2.1",
         "jsonwebtoken": "^9.0.3",
@@ -23,7 +21,6 @@
         "puppeteer-core": "^25.12.0",
         "ssh2-sftp-client": "^12.1.1",
         "tough-cookie": "^6.0.2",
-        "unzipper": "^0.12.5",
         "zod": "^4.6.5"
     },
     "repository": {
@@ -44,7 +41,6 @@
     "homepage": "https://github.com/HattoriHanzo-Ronin/api-node-express#readme",
     "devDependencies": {
         "@types/express": "^5.0.6",
-        "adm-zip": "^0.6.1",
         "eslint": "^10.11.0",
         "vitest": "^5.0.3"
     },
