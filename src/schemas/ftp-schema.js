@@ -1,5 +1,7 @@
 import z from "zod";
 import ValidateUtils from "../utils/validate-utils.js";
+import ZodUtils from "../utils/zod-utils.js";
+import { FILE_TYPE } from "../config/constants.js";
 import dirSchema, { pathSchema } from "./common/dir-schema.js";
 import idSchema from "./common/id-schema.js";
 
@@ -58,10 +60,10 @@ export default class FtpSchema {
     }
 }
 
-const { handleValidationIssues, zodEnumIgnoreCase, withSuperRefine } = ValidateUtils;
-const { ALLOW_ENUMS, ERROR_MESSAGES } = ValidateUtils;
+const { handleValidationIssues, zodEnumIgnoreCase, withSuperRefine } = ZodUtils;
+const { ERROR_MESSAGES } = ValidateUtils;
 const { typeRequired, format, emptyArray, emptyString, invalidEnum } = ERROR_MESSAGES;
-const { fileType } = ALLOW_ENUMS;
+const fileType = Object.values(FILE_TYPE);
 const { dir } = dirSchema.shape;
 const name = z
     .string(typeRequired)

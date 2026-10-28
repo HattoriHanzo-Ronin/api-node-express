@@ -1,6 +1,6 @@
 import { dataVersionsSchema } from "../schemas/data-versions-schema.js";
 import dirSchema from "../schemas/common/dir-schema.js";
-import ValidateUtils from "../utils/validate-utils.js";
+import ZodUtils from "../utils/zod-utils.js";
 
 /**
  * Data versions controller
@@ -36,4 +36,4 @@ export default class DataVersionsController {
     };
 }
 
-const { validateData } = ValidateUtils;
+const { validateData } = ZodUtils;

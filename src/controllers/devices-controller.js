@@ -1,4 +1,4 @@
-import ValidateUtils from "../utils/validate-utils.js";
+import ZodUtils from "../utils/zod-utils.js";
 import DevicesSchema from "../schemas/devices-schema.js";
 import idSchema from "../schemas/common/id-schema.js";
 import { routerCpanelNavigationSchema, routerCpanelSessionSchema } from "../schemas/router-cpanel-schema.js";
@@ -78,5 +78,5 @@ function validateRouterId({ params }) {
     return routerId;
 }
 
-const { validateData } = ValidateUtils;
+const { validateData } = ZodUtils;
 const { getValidatedSchema, getPartialSchema } = DevicesSchema;

@@ -1,6 +1,7 @@
 import z from "zod";
 import { DEVICE_TYPE } from "../config/constants.js";
 import ValidateUtils from "../utils/validate-utils.js";
+import ZodUtils from "../utils/zod-utils.js";
 import idSchema from "./common/id-schema.js";
 import macSchema from "./common/mac-schema.js";
 
@@ -24,12 +25,15 @@ export default class DevicesSchema {
     }
 }
 
-const { handleValidationIssues, zodEnumIgnoreCase, useRequiredProperties, withSuperRefine } = ValidateUtils;
-const { ERROR_MESSAGES, REGEX, ALLOW_ENUMS } = ValidateUtils;
+const { handleValidationIssues, zodEnumIgnoreCase, useRequiredProperties, withSuperRefine } = ZodUtils;
+const { ERROR_MESSAGES, REGEX } = ValidateUtils;
 const { typeRequired, typeNotRequired, format, emptyArray, length, invalidEnum } = ERROR_MESSAGES;
-const { passwordRegex, safeTextRegex } = REGEX;
+const { passwordRegex } = REGEX;
 const ipRegex = /^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
-const { connectionsCtype, devicesType } = ALLOW_ENUMS;
+const safeTextRegex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 -]+$/;
+const CONNECTION_CTYPE = Object.freeze({ wan: "WAN", lan: "LAN", wifi: "WIFI" });
+const connectionsCtype = Object.values(CONNECTION_CTYPE);
+const devicesType = Object.values(DEVICE_TYPE);
 const { router, server } = DEVICE_TYPE;
 const devicesSchema = z.object({
     name: z
