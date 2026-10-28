@@ -15,17 +15,17 @@ describe("ConnectionsService getByDevices", () => {
 describe("ConnectionsService createMany", () => {
     it("should create device connections", async () => {
         const { connectionsModel, connectionsService } = setup();
-        const connections = [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }];
         const createdConnections = [connection()];
+        const connections = createdConnections;
         connectionsModel.insertMany.mockResolvedValue(createdConnections);
-        const result = connectionsService.createMany({ clientTx: {}, deviceId: "device-1", connections });
+        const result = connectionsService.createMany({ clientTx: {}, connections });
         await expect(result).resolves.toEqual(createdConnections);
         expect(connectionsModel.insertMany).toHaveBeenCalledWith({ clientTx: {}, connections: createdConnections });
     });
 
     it("should fail if connections are not defined", async () => {
         const { connectionsService } = setup();
-        await expect(connectionsService.createMany({ clientTx: {}, deviceId: "device-1" })).rejects.toMatchObject({
+        await expect(connectionsService.createMany({ clientTx: {} })).rejects.toMatchObject({
             code: "CONNECTION_REQUIRED"
         });
     });
@@ -54,8 +54,8 @@ describe("ConnectionsService update operations", () => {
 
     it("should delete removed connection ctypes", async () => {
         const { connectionsModel, connectionsService } = setup();
-        const connections = [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }];
-        const oldConnections = [...connections, { mac: "AA:BB:CC:DD:EE:02", ctype: "WIFI" }];
+        const connections = [connection()];
+        const oldConnections = [...connections, connection({ mac: "AA:BB:CC:DD:EE:02", ctype: "WIFI" })];
         const deletedConnections = [connection({ mac: "AA:BB:CC:DD:EE:02", ctype: "WIFI" })];
         connectionsModel.deleteMany.mockResolvedValue(deletedConnections);
         await expect(connectionsService.update(updateParams({ connections, oldConnections }))).resolves.toEqual({
@@ -66,26 +66,26 @@ describe("ConnectionsService update operations", () => {
 
     it("should create new connection ctypes", async () => {
         const { connectionsModel, connectionsService } = setup();
-        const oldConnections = [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }];
-        const connections = [...oldConnections, { mac: "AA:BB:CC:DD:EE:02", ctype: "WIFI" }];
+        const oldConnections = [connection()];
+        const connections = [...oldConnections, connection({ mac: "AA:BB:CC:DD:EE:02", ctype: "WIFI" })];
         const createdConnections = [connection({ mac: "AA:BB:CC:DD:EE:02", ctype: "WIFI" })];
         connectionsModel.insertMany.mockResolvedValue(createdConnections);
         await expect(connectionsService.update(updateParams({ connections, oldConnections }))).resolves.toEqual({
             createdConnections
         });
-        expect(connectionsModel.insertMany).toHaveBeenCalledWith({ clientTx: {}, connections: createdConnections });
+        expect(connectionsModel.insertMany).toHaveBeenCalledWith({ clientTx: {}, connections: [connections[1]] });
     });
 
     it("should update changed connection macs", async () => {
         const { connectionsModel, connectionsService } = setup();
-        const oldConnections = [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }];
-        const connections = [{ mac: "AA:BB:CC:DD:EE:02", ctype: "LAN" }];
+        const oldConnections = [connection()];
+        const connections = [connection({ mac: "AA:BB:CC:DD:EE:02" })];
         const updatedConnections = [connection({ mac: "AA:BB:CC:DD:EE:02" })];
         connectionsModel.updateMany.mockResolvedValue(updatedConnections);
         await expect(connectionsService.update(updateParams({ connections, oldConnections }))).resolves.toEqual({
             updatedConnections
         });
-        expect(connectionsModel.updateMany).toHaveBeenCalledWith({ clientTx: {}, connections: updatedConnections });
+        expect(connectionsModel.updateMany).toHaveBeenCalledWith({ clientTx: {}, connections });
     });
 });
 
@@ -93,12 +93,12 @@ describe("ConnectionsService update combined operations and errors", () => {
     it("should execute delete, create and update operations when all connection groups change", async () => {
         const { connectionsModel, connectionsService } = setup();
         const oldConnections = [
-            { mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" },
-            { mac: "AA:BB:CC:DD:EE:02", ctype: "WIFI" }
+            connection(),
+            connection({ mac: "AA:BB:CC:DD:EE:02", ctype: "WIFI" })
         ];
         const connections = [
-            { mac: "AA:BB:CC:DD:EE:03", ctype: "LAN" },
-            { mac: "AA:BB:CC:DD:EE:04", ctype: "WAN" }
+            connection({ mac: "AA:BB:CC:DD:EE:03" }),
+            connection({ mac: "AA:BB:CC:DD:EE:04", ctype: "WAN" })
         ];
         const deletedConnections = [connection({ mac: "AA:BB:CC:DD:EE:02", ctype: "WIFI" })];
         const createdConnections = [connection({ mac: "AA:BB:CC:DD:EE:04", ctype: "WAN" })];
@@ -145,14 +145,13 @@ function connection({ mac = "AA:BB:CC:DD:EE:01", ctype = "LAN" } = {}) {
 }
 
 function createParams() {
-    return { clientTx: {}, deviceId: "device-1", connections: [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }] };
+    return { clientTx: {}, connections: [connection()] };
 }
 
 function updateParams({ connections, oldConnections } = {}) {
     return {
         clientTx: {},
-        deviceId: "device-1",
-        connections: connections ?? [{ mac: "AA:BB:CC:DD:EE:02", ctype: "LAN" }],
-        oldConnections: oldConnections ?? [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }]
+        connections: connections ?? [connection({ mac: "AA:BB:CC:DD:EE:02" })],
+        oldConnections: oldConnections ?? [connection()]
     };
 }

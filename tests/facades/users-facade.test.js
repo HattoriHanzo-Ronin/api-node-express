@@ -3,8 +3,8 @@ import UsersFacade from "../../src/facades/users-facade.js";
 
 describe("UsersFacade", () => {
     let usersService;
-    let dataVersionsService;
-    let userRolesService;
+    let dataVersionsFacade;
+    let userRolesFacade;
     let usersMapper;
     let usersFacade;
 
@@ -18,32 +18,34 @@ describe("UsersFacade", () => {
             update: vi.fn(),
             delete: vi.fn()
         };
-        dataVersionsService = { getById: vi.fn().mockResolvedValue({ version: "4" }) };
-        userRolesService = { getByUsers: vi.fn(), createMany: vi.fn(), replace: vi.fn() };
+        dataVersionsFacade = { getById: vi.fn().mockResolvedValue({ version: "4" }) };
+        userRolesFacade = {
+            getByUsers: vi.fn().mockResolvedValue(new Map()),
+            createMany: vi.fn(),
+            replace: vi.fn()
+        };
         usersMapper = { userToDomain: vi.fn(), usersToDomain: vi.fn() };
-        usersFacade = new UsersFacade({ usersService, dataVersionsService, userRolesService, usersMapper, tx: async (cb) => cb({}) });
+        usersFacade = new UsersFacade({ usersService, dataVersionsFacade, userRolesFacade, usersMapper, tx: async (cb) => cb({}) });
     });
 
     describe("getAll", () => {
         it("should return accessible users with their data version", async () => {
             const users = [{ id: "1", username: "user" }];
             usersService.getAll.mockResolvedValue(users);
-            userRolesService.getByUsers.mockResolvedValue([]);
             usersMapper.usersToDomain.mockReturnValue([{ id: "1", username: "user", roles: ["FTP"] }]);
 
             await expect(usersFacade.getAll({ authUser: { scope: ["FTP"] } })).resolves.toEqual({
                 version: "4",
                 data: [{ id: "1", username: "user" }]
             });
-            expect(dataVersionsService.getById).toHaveBeenCalledWith({ id: "users" });
-            expect(usersMapper.usersToDomain).toHaveBeenCalledWith({ users, roles: [] });
+            expect(dataVersionsFacade.getById).toHaveBeenCalledWith({ id: "users" });
+            expect(usersMapper.usersToDomain).toHaveBeenCalledWith({ users, aclByUser: new Map() });
         });
     });
 
     describe("getById", () => {
         it("should return user", async () => {
             usersService.getById.mockResolvedValue({ id: "1", username: "user" });
-            userRolesService.getByUsers.mockResolvedValue([]);
             usersMapper.userToDomain.mockReturnValue({ id: "1", username: "user", roles: ["FTP"] });
             const result = await usersFacade.getById({ authUser: { scope: ["FTP"] }, id: "1" });
             expect(result.username).toBe("user");
@@ -51,7 +53,6 @@ describe("UsersFacade", () => {
 
         it("should fail if user is outside managed scope", async () => {
             usersService.getById.mockResolvedValue({ id: "1", username: "user" });
-            userRolesService.getByUsers.mockResolvedValue([]);
             usersMapper.userToDomain.mockReturnValue({ id: "1", username: "user", roles: ["NET"] });
             await expect(usersFacade.getById({ authUser: { scope: ["FTP"] }, id: "1" })).rejects.toThrow(
                 "El usuario no existe"
@@ -62,7 +63,6 @@ describe("UsersFacade", () => {
     describe("authenticate", () => {
         it("should authenticate user", async () => {
             usersService.authenticate.mockResolvedValue({ id: "1" });
-            userRolesService.getByUsers.mockResolvedValue([]);
             usersMapper.userToDomain.mockReturnValue({ id: "1", username: "admin", roles: ["ADMIN"] });
             const result = await usersFacade.authenticate({ username: "admin", password: "1234" });
             expect(result.username).toBe("admin");
@@ -72,14 +72,14 @@ describe("UsersFacade", () => {
     describe("create", () => {
         it("should create user as super admin", async () => {
             usersService.create.mockResolvedValue({ id: "1", username: "user" });
-            userRolesService.createMany.mockResolvedValue([]);
+            userRolesFacade.createMany.mockResolvedValue({ roles: ["FTP"] });
             usersMapper.userToDomain.mockReturnValue({ id: "1", username: "user", roles: ["FTP"] });
             const result = await usersFacade.create({
                 authUser: { scope: ["ADMIN"] },
                 user: { username: "user", roles: ["FTP"] }
             });
             expect(result.id).toBe("1");
-            expect(userRolesService.createMany).toHaveBeenCalled();
+            expect(userRolesFacade.createMany).toHaveBeenCalled();
         });
 
         it("should fail when non super admin sends roles", async () => {
@@ -90,10 +90,10 @@ describe("UsersFacade", () => {
 
         it("should inherit admin scope when creating a user", async () => {
             usersService.create.mockResolvedValue({ id: "1", username: "user" });
-            userRolesService.createMany.mockResolvedValue([]);
+            userRolesFacade.createMany.mockResolvedValue({ roles: ["FTP"] });
             usersMapper.userToDomain.mockReturnValue({ id: "1", username: "user" });
             await usersFacade.create({ authUser: { scope: ["FTP"] }, user: { username: "user" } });
-            expect(userRolesService.createMany).toHaveBeenCalledWith({
+            expect(userRolesFacade.createMany).toHaveBeenCalledWith({
                 clientTx: expect.anything(),
                 userId: "1",
                 roles: ["FTP"],
@@ -106,7 +106,6 @@ describe("UsersFacade", () => {
         beforeEach(() => {
             usersService.update.mockResolvedValue({ id: "1", username: "updated" });
             usersService.getById.mockResolvedValue({ id: "1", username: "user" });
-            userRolesService.getByUsers.mockResolvedValue([]);
         });
 
         it("should allow user to update himself", async () => {
@@ -176,12 +175,12 @@ describe("UsersFacade", () => {
 
         it("should allow super admin to update roles", async () => {
             usersMapper.userToDomain.mockReturnValue({ roles: ["ADMIN"], scope: ["ADMIN"] });
-            userRolesService.replace.mockResolvedValue([]);
+            userRolesFacade.replace.mockResolvedValue({ roles: ["FTP"] });
             const result = await usersFacade.update({
                 authUser: { id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
                 data: { id: "2", roles: ["FTP"] }
             });
-            expect(userRolesService.replace).toHaveBeenCalled();
+            expect(userRolesFacade.replace).toHaveBeenCalled();
             expect(result).toBeDefined();
         });
 
@@ -211,17 +210,17 @@ describe("UsersFacade", () => {
                 authUser: { id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
                 data: { id: "2", username: "updated" }
             });
-            expect(userRolesService.replace).not.toHaveBeenCalled();
+            expect(userRolesFacade.replace).not.toHaveBeenCalled();
         });
 
         it("should replace roles when acl is modified", async () => {
             usersMapper.userToDomain.mockReturnValue({ roles: ["ADMIN"], scope: ["ADMIN"] });
-            userRolesService.replace.mockResolvedValue([]);
+            userRolesFacade.replace.mockResolvedValue({ roles: ["FTP"] });
             await usersFacade.update({
                 authUser: { id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
                 data: { id: "2", roles: ["FTP"] }
             });
-            expect(userRolesService.replace).toHaveBeenCalled();
+            expect(userRolesFacade.replace).toHaveBeenCalled();
         });
     });
 

@@ -84,7 +84,7 @@ describe("FtpFacade", () => {
         it("should return thumbnail candidates before caching their generated buffers", async () => {
             const data = { dir: "files", authUser: { id: "user-id", username: "ronin" } };
             const entries = [
-                { name: "folder", type: "DIR", supportsThumbnail: false },
+                { name: "folder", type: "d" },
                 { name: "photo.jpg", type: "FILE", supportsThumbnail: true },
                 { name: "notes.txt", type: "FILE", supportsThumbnail: false }
             ];

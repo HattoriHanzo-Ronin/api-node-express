@@ -8,11 +8,11 @@ import { API_ERROR } from "../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class DevicesFacade {
-    constructor({ devicesService, dataVersionsService, devicesMapper, connectionsService, routerAutomation, routerCpanel, tx }) {
+    constructor({ devicesService, dataVersionsFacade, devicesMapper, connectionsFacade, routerAutomation, routerCpanel, tx }) {
         this.devicesService = devicesService;
-        this.dataVersionsService = dataVersionsService;
+        this.dataVersionsFacade = dataVersionsFacade;
         this.devicesMapper = devicesMapper;
-        this.connectionsService = connectionsService;
+        this.connectionsFacade = connectionsFacade;
         this.routerAutomation = routerAutomation;
         this.routerCpanel = routerCpanel;
         this.tx = tx;
@@ -25,7 +25,7 @@ export default class DevicesFacade {
      */
     async getAll() {
         const [{ version }, result] = await Promise.all([
-            this.dataVersionsService.getById({ id: "devices" }),
+            this.dataVersionsFacade.getById({ id: "devices" }),
             this.devicesService.getAll()
         ]);
         return { version, data: await this.#mapResult({ result }) };
@@ -53,8 +53,9 @@ export default class DevicesFacade {
             this.#getVersions(["devices", "whitelist"]),
             this.devicesService.getAllowedDevices({ routerId })
         ]);
-        const source = this.devicesMapper.createDeviceSource(result);
-        return { version, data: this.devicesMapper.devicesToDomain(source) };
+        const { devices, connections } = this.devicesMapper.createDeviceSource(result);
+        const connectionsByDevice = this.connectionsFacade.connectionsByDeviceToDomain({ source: connections });
+        return { version, data: this.devicesMapper.devicesToDomain({ devices, connectionsByDevice }) };
     }
 
     /**
@@ -68,8 +69,9 @@ export default class DevicesFacade {
             this.#getVersions(["devices", "whitelist"]),
             this.devicesService.getNotAllowedDevices({ routerId })
         ]);
-        const source = this.devicesMapper.createDeviceSource(result);
-        return { version, data: this.devicesMapper.devicesToDomain(source) };
+        const { devices, connections } = this.devicesMapper.createDeviceSource(result);
+        const connectionsByDevice = this.connectionsFacade.connectionsByDeviceToDomain({ source: connections });
+        return { version, data: this.devicesMapper.devicesToDomain({ devices, connectionsByDevice }) };
     }
 
     /**
@@ -136,15 +138,12 @@ export default class DevicesFacade {
                 clientTx,
                 device: newDevice
             });
-            const deviceConnections = await this.connectionsService.createMany({
+            const deviceConnections = await this.connectionsFacade.createMany({
                 clientTx,
                 deviceId: result.id,
                 connections
             });
-            return this.devicesMapper.deviceToDomain({
-                ...result,
-                connections: deviceConnections
-            });
+            return this.devicesMapper.deviceToDomain({ source: result, connections: deviceConnections });
         });
     }
 
@@ -178,7 +177,7 @@ export default class DevicesFacade {
                     await routerImpl.delete({ key, ...delDevice });
                     await routerImpl.create({ key, ...addDevice, name: oldDeviceName });
                 };
-                device = this.devicesMapper.deviceToDomain({ ...result, connections });
+                device = this.devicesMapper.deviceToDomain({ source: result, connections });
                 await this.#executeRouterOperation(device, callback, rollbackCallback);
             };
             const excludeProcessedConnections = (connections) =>
@@ -186,17 +185,14 @@ export default class DevicesFacade {
                     ({ ctype }) => !connections.some(({ ctype: connectionCtype }) => ctype === connectionCtype)
                 );
             if (connections) {
-                const { deletedConnections, updatedConnections } = await this.connectionsService.update({
+                const { deletedConnections, updatedConnections } = await this.connectionsFacade.update({
                     clientTx,
                     deviceId: result.id,
                     connections,
                     oldConnections
                 });
                 if (deletedConnections) {
-                    device = this.devicesMapper.deviceToDomain({
-                        ...result,
-                        connections: deletedConnections
-                    });
+                    device = this.devicesMapper.deviceToDomain({ source: result, connections: deletedConnections });
                     await this.#deleteRouterWhitelist(device);
                     oldConnections = excludeProcessedConnections(deletedConnections);
                 }
@@ -236,9 +232,10 @@ export default class DevicesFacade {
      * @param {Function} rollbackCallback Rollback operation
      */
     async #executeRouterOperation({ id, name, connections }, callback, rollbackCallback) {
-        const routers = await this.devicesService.getRoutersByAllowedDevice({
+        const source = await this.devicesService.getRoutersByAllowedDevice({
             allowedDeviceId: id
         });
+        const routers = this.devicesMapper.routersToAutomation(source);
         const updatedRouters = new Map();
         let currentMac;
         for (const router of routers) {
@@ -318,30 +315,29 @@ export default class DevicesFacade {
     }
 
     async #getVersions(ids) {
-        const dataVersions = await Promise.all(ids.map((id) => this.dataVersionsService.getById({ id })));
-        return Object.fromEntries(ids.map((id, index) => [id, dataVersions[index].version]));
+        return this.dataVersionsFacade.getById({ id: ids });
     }
 
     async #mapResult({ id = null, result }) {
         let connections;
         if (id) {
-            connections = await this.connectionsService.getByDevices({
+            connections = await this.connectionsFacade.getByDevices({
                 devicesId: [id]
             });
-            return this.devicesMapper.deviceToDomain({ ...result, connections });
+            return this.devicesMapper.deviceToDomain({ source: result, connections: connections.get(id) ?? [] });
         }
 
         if (result.length === 0) {
             return this.devicesMapper.devicesToDomain({
                 devices: result,
-                connections: []
+                connectionsByDevice: new Map()
             });
         }
 
-        connections = await this.connectionsService.getByDevices({
+        connections = await this.connectionsFacade.getByDevices({
             devicesId: result.map(({ id }) => id)
         });
-        return this.devicesMapper.devicesToDomain({ devices: result, connections });
+        return this.devicesMapper.devicesToDomain({ devices: result, connectionsByDevice: connections });
     }
 }
 

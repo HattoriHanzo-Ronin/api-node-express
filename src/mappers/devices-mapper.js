@@ -34,33 +34,53 @@ export default class DevicesMapper {
     }
 
     /**
+     * Maps persistence router rows to automation sources
+     *
+     * @param {Object[]} source Persistence router rows
+     * @returns {Object[]} Router automation sources
+     */
+    routersToAutomation(source) {
+        const routers = new Map();
+        for (const row of source) {
+            const { ctype, mac, key, ...router } = row;
+            let routerEntry = routers.get(router.id);
+            if (!routerEntry) {
+                routerEntry = { ...router, connections: [] };
+                routers.set(router.id, routerEntry);
+            }
+
+            routerEntry.connections.push({ ctype, mac, key });
+        }
+        return [...routers.values()];
+    }
+
+    /**
      * Maps a persistence device to the domain model
      *
-     * @param {Object} source Persistence device
+     * @param {Object} params.source Persistence device
+     * @param {Object[]} params.connections Domain device connections
      * @returns {Object} Domain device
      */
-    deviceToDomain(source) {
-        let { connections, ...device } = source;
-        connections = connections
-            .filter(({ device_id: deviceId }) => deviceId === device.id)
-            .map(({ mac, ctype }) => ({ mac, ctype }));
-        device = Object.fromEntries(Object.entries(device).filter(([, value]) => value !== null));
-        if (device.mac_filter) {
-            const routerImpl = new this.routerAutomation({ router: device });
-            device = { ...device, capabilities: routerImpl.getCapabilities() };
+    deviceToDomain({ source, connections }) {
+        const device = Object.fromEntries(Object.entries(source).filter(([, value]) => value !== null));
+        if (!device.mac_filter) {
+            return { ...device, connections };
         }
 
-        return { ...device, connections };
+        const routerImpl = new this.routerAutomation({ router: device });
+        return { ...device, capabilities: routerImpl.getCapabilities(), connections };
     }
 
     /**
      * Maps persistence devices to the domain model
      *
-     * @param {{ devices: Object[], connections: Object[] }} source Persistence devices and connections
+     * @param {Object[]} params.devices Persistence devices
+     * @param {Map<string, Object[]>} params.connectionsByDevice Domain connections by device identifier
      * @returns {Object[]} Domain devices
      */
-    devicesToDomain(source) {
-        const { devices, connections } = source;
-        return devices.map((device) => this.deviceToDomain({ ...device, connections }));
+    devicesToDomain({ devices, connectionsByDevice }) {
+        return devices.map((device) =>
+            this.deviceToDomain({ source: device, connections: connectionsByDevice.get(device.id) ?? [] })
+        );
     }
 }

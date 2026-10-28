@@ -26,11 +26,10 @@ export default class ConnectionsService {
      * Creates the connections associated with a device
      *
      * @param {import("pg-promise").ITask<any>} params.clientTx Database transaction
-     * @param {string} params.deviceId Device identifier
      * @param {Object[]} params.connections Connections
      * @returns {Promise<Object[]>} Created connections
      */
-    async createMany({ clientTx, deviceId, connections }) {
+    async createMany({ clientTx, connections }) {
         try {
             ApiError.handle([
                 {
@@ -39,7 +38,6 @@ export default class ConnectionsService {
                     apiError: connectionRequired
                 }
             ]);
-            connections = connections.map((connection) => ({ device_id: deviceId, ...connection }));
             return await this.connectionsModel.insertMany({ clientTx, connections });
         } catch (err) {
             this.entityError(err);
@@ -58,7 +56,6 @@ export default class ConnectionsService {
      * Updates the connections associated with a device
      *
      * @param {import("pg-promise").ITask<any>} params.clientTx Database transaction
-     * @param {string} params.deviceId Device identifier
      * @param {Object[]} params.connections Connections
      * @param {Object[]} params.oldConnections Current connections
      * @returns {Promise<{
@@ -67,10 +64,8 @@ export default class ConnectionsService {
      *     updatedConnections: Object[] | undefined
      * }>} Updated connections
      */
-    async update({ clientTx, deviceId, connections, oldConnections }) {
+    async update({ clientTx, connections, oldConnections }) {
         try {
-            connections = connections.map((connection) => ({ device_id: deviceId, ...connection }));
-            oldConnections = oldConnections.map((connection) => ({ device_id: deviceId, ...connection }));
             let result = {};
             const deleteConnections = oldConnections
                 .filter(({ ctype }) => !connections.some(({ ctype: connectionCtype }) => connectionCtype === ctype))

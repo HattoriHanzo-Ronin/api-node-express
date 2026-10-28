@@ -30,7 +30,8 @@ export default class FtpFacade {
      * @returns {Promise<{ hash: string, data: Object[] }>} Directory resources
      */
     async dir({ dir, authUser }) {
-        const result = await this.ftpService.dir({ dir, authUser });
+        const source = await this.ftpService.dir({ dir, authUser });
+        const result = this.ftpMapper.entriesFromSftp(source);
         this.#syncThumbnails({ dir, entries: result, authUser });
         const hash = await this.#watchDirectory({ dir, authUser, entries: result });
         return { hash, data: this.ftpMapper.entriesToDomain(result) };
@@ -438,12 +439,12 @@ export default class FtpFacade {
         }
 
         try {
-            const entries = await this.ftpService.dir({
+            const source = await this.ftpService.dir({
                 dir,
                 authUser: { id: ownerId },
                 internal: true
             });
-            if (!entries) {
+            if (!source) {
                 if (this.ftpService.isSessionActive({ ownerId })) {
                     setTimeout(() => this.#checkDirectory(ownerId, dir), ftpDirectoryCheckTimeout);
                 } else {
@@ -451,6 +452,7 @@ export default class FtpFacade {
                 }
                 return;
             }
+            const entries = this.ftpMapper.entriesFromSftp(source);
             const hash = FtpFacade.#hashDirectory(entries);
             if (hash !== cachedDirectory.hash) {
                 this.directoryCache.set(ownerId, dir, { ...cachedDirectory, hash });

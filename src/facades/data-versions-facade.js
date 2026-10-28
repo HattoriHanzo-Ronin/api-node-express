@@ -4,18 +4,22 @@
  * @author HattoriHanzo-Ronin
  */
 export default class DataVersionsFacade {
-    constructor({ dataVersionsService, ftpFacade }) {
+    constructor({ dataVersionsService, dataVersionsMapper, ftpFacade }) {
         this.dataVersionsService = dataVersionsService;
+        this.dataVersionsMapper = dataVersionsMapper;
         this.ftpFacade = ftpFacade;
     }
 
     /**
      * Returns data versions by their resource identifiers
      *
-     * @param {string[]} params.id Resource identifiers
-     * @returns {Promise<Object<string, string>>} Data versions
+     * @param {string | string[]} params.id Resource identifier or identifiers
+     * @returns {Promise<{ version: string } | Object<string, string> | null>} Data version or versions
      */
     async getById({ id }) {
+        if (Array.isArray(id)) {
+            return this.dataVersionsMapper.versionsToDomain(await this.dataVersionsService.getByIds({ ids: id }));
+        }
         return this.dataVersionsService.getById({ id });
     }
 

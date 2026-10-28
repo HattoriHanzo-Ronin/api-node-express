@@ -8,10 +8,10 @@ import { API_ERROR } from "../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class UsersFacade {
-    constructor({ usersService, dataVersionsService, userRolesService, usersMapper, tx }) {
+    constructor({ usersService, dataVersionsFacade, userRolesFacade, usersMapper, tx }) {
         this.usersService = usersService;
-        this.dataVersionsService = dataVersionsService;
-        this.userRolesService = userRolesService;
+        this.dataVersionsFacade = dataVersionsFacade;
+        this.userRolesFacade = userRolesFacade;
         this.usersMapper = usersMapper;
         this.tx = tx;
     }
@@ -24,11 +24,11 @@ export default class UsersFacade {
      */
     async getAll({ authUser }) {
         const [{ version }, result] = await Promise.all([
-            this.dataVersionsService.getById({ id: "users" }),
+            this.dataVersionsFacade.getById({ id: "users" }),
             this.usersService.getAll()
         ]);
-        const roles = await this.userRolesService.getByUsers({ usersId: result.map(({ id }) => id) });
-        const users = this.usersMapper.usersToDomain({ users: result, roles });
+        const aclByUser = await this.userRolesFacade.getByUsers({ usersId: result.map(({ id }) => id) });
+        const users = this.usersMapper.usersToDomain({ users: result, aclByUser });
         const data = users
             .filter(({ roles }) => this.#allowedManage({ authUser, userRoles: roles }))
             .map((user) => this.#filterAcl({ authUser, source: user }));
@@ -44,10 +44,8 @@ export default class UsersFacade {
      */
     async getById({ authUser, id }) {
         const result = await this.usersService.getById({ id });
-        const user = this.usersMapper.userToDomain({
-            ...result,
-            roles: await this.userRolesService.getByUsers({ usersId: [id] })
-        });
+        const aclByUser = await this.userRolesFacade.getByUsers({ usersId: [id] });
+        const user = this.usersMapper.userToDomain({ source: result, acl: aclByUser.get(id) });
         ApiError.handle([
             {
                 condition: authUser && !this.#allowedManage({ authUser, userRoles: user.roles }),
@@ -68,11 +66,8 @@ export default class UsersFacade {
      */
     async authenticate({ username, password }) {
         const { id } = await this.usersService.authenticate({ username, password });
-        return this.usersMapper.userToDomain({
-            id,
-            username,
-            roles: await this.userRolesService.getByUsers({ usersId: [id] })
-        });
+        const aclByUser = await this.userRolesFacade.getByUsers({ usersId: [id] });
+        return this.usersMapper.userToDomain({ source: { id, username }, acl: aclByUser.get(id) });
     }
 
     /**
@@ -94,13 +89,8 @@ export default class UsersFacade {
 
         return this.tx(async (clientTx) => {
             const result = await this.usersService.create({ clientTx, user: newUser });
-            const roles = await this.userRolesService.createMany({
-                clientTx,
-                userId: result.id,
-                roles: userRoles,
-                scope: userScope
-            });
-            const createdUser = this.usersMapper.userToDomain({ ...result, roles });
+            const acl = await this.userRolesFacade.createMany({ clientTx, userId: result.id, roles: userRoles, scope: userScope });
+            const createdUser = this.usersMapper.userToDomain({ source: result, acl });
             return this.#filterAcl({ authUser, source: createdUser });
         });
     }
@@ -125,8 +115,8 @@ export default class UsersFacade {
         const updatesActive = active != null;
         const user = await this.usersService.getById({ id: updatedUserId });
         if (isAdmin) {
-            const roles = await this.userRolesService.getByUsers({ usersId: [updatedUserId] });
-            const { roles: tempRoles, scope: tempScope } = this.usersMapper.userToDomain({ ...user, roles });
+            const aclByUser = await this.userRolesFacade.getByUsers({ usersId: [updatedUserId] });
+            const { roles: tempRoles, scope: tempScope } = this.usersMapper.userToDomain({ source: user, acl: aclByUser.get(updatedUserId) });
             userRoles = tempRoles;
             userScope = tempScope;
         }
@@ -189,18 +179,19 @@ export default class UsersFacade {
                     updatedUserRoles &&
                     (updatedUserRoles.length !== userRoles.length ||
                         !userRoles.every((role) => updatedUserRoles.includes(role)));
+                const currentUserScope = userScope ?? [];
                 const isUpdatedScope =
                     updatedUserScope &&
-                    (updatedUserScope.length !== userScope.length ||
-                        !userScope.every((scope) => updatedUserScope.includes(scope)));
+                    (updatedUserScope.length !== currentUserScope.length ||
+                        !currentUserScope.every((scope) => updatedUserScope.includes(scope)));
                 if (isUpdatedRoles || isUpdatedScope) {
-                    const roles = await this.userRolesService.replace({
+                    const acl = await this.userRolesFacade.replace({
                         clientTx,
                         userId: updatedUserId,
                         roles: updatedUserRoles ?? userRoles,
                         scope: updatedUserScope ?? userScope
                     });
-                    return this.usersMapper.userToDomain({ ...result, roles });
+                    return this.usersMapper.userToDomain({ source: result, acl });
                 }
 
                 return { ...result, roles: userRoles, scope: userScope };

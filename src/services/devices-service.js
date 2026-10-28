@@ -70,21 +70,7 @@ export default class DevicesService {
      * @returns {Promise<Object[]>} Associated routers
      */
     async getRoutersByAllowedDevice({ allowedDeviceId }) {
-        const result = await this.devicesModel.getRoutersByAllowedDevice({
-            allowedDeviceId
-        });
-        const routers = new Map();
-        for (const row of result) {
-            const { ctype, mac, key, ...router } = row;
-            let routerEntry = routers.get(router.id);
-            if (!routerEntry) {
-                routerEntry = { ...router, connections: [] };
-                routers.set(router.id, routerEntry);
-            }
-
-            routerEntry.connections.push({ ctype, mac, key });
-        }
-        return [...routers.values()];
+        return this.devicesModel.getRoutersByAllowedDevice({ allowedDeviceId });
     }
 
     /**

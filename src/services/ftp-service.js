@@ -13,7 +13,6 @@ import { ENV } from "../config/environment.js";
  * @author HattoriHanzo-Ronin
  */
 export default class FtpService {
-    static #MEDIA_EXTENSION = /\.(jpe?g|png|webp|gif|bmp|tiff?|avif|heic|heif|mp4|m4v|mov|mkv|webm|avi|mpeg|mpg|wmv|flv|3gp|mts|m2ts|ogv)$/i;
     #transferSessions = new Map();
     #mediaSessions = new Map();
 
@@ -53,26 +52,13 @@ export default class FtpService {
      * @returns {Promise<Object[] | undefined>} Directory resources, or undefined when an internal check is omitted
      */
     async dir({ dir, authUser, internal = false }) {
-        const listDirectory = async (ftpClient) => {
-            const list = await ftpClient.list(dir);
-            return list.map(({ name, type, size, modifyTime }) => {
-                const normalizedType = type === "d" ? dirType : fileType;
-                return {
-                    name,
-                    type: normalizedType,
-                    size,
-                    modifyTime,
-                    supportsThumbnail: normalizedType === fileType && FtpService.#MEDIA_EXTENSION.test(path.extname(name))
-                };
-            });
-        };
         try {
             return await this.ftpConnectionManager.execute({
                 authUser,
                 pool: internal ? "internal" : "read",
                 paths: [dir],
                 skipLocked: internal,
-                callback: ({ client: ftpClient }) => listDirectory(ftpClient)
+                callback: ({ client }) => client.list(dir)
             });
         } catch (err) {
             FtpService.#ftpError({ message: "Error al listar la carpeta", apiError: ftpDirFailed });
