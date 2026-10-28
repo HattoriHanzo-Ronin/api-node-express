@@ -1,9 +1,6 @@
-import ValidateUtils from "../utils/validate-utils.js";
+import ApiError from "../utils/error/api-error.js";
 import { USER_ROLE } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
-
-const { admin } = USER_ROLE;
-const { userNotFound, aclPermissionDenied } = API_ERROR;
 
 /**
  * Users facade
@@ -32,7 +29,9 @@ export default class UsersFacade {
         ]);
         const roles = await this.userRolesService.getByUsers({ usersId: result.map(({ id }) => id) });
         const users = this.usersMapper.usersToDomain({ users: result, roles });
-        const data = users.filter((it) => allowedManage(authUser, it.roles)).map((it) => filterAcl(authUser, it));
+        const data = users
+            .filter(({ roles }) => this.#allowedManage({ authUser, userRoles: roles }))
+            .map((user) => this.#filterAcl({ authUser, source: user }));
         return { version, data };
     }
 
@@ -49,15 +48,15 @@ export default class UsersFacade {
             ...result,
             roles: await this.userRolesService.getByUsers({ usersId: [id] })
         });
-        handleApiErrors([
+        ApiError.handle([
             {
-                condition: authUser && !allowedManage(authUser, user.roles),
+                condition: authUser && !this.#allowedManage({ authUser, userRoles: user.roles }),
                 message: "El usuario no existe",
                 status: 404,
                 apiError: userNotFound
             }
         ]);
-        return filterAcl(authUser, user);
+        return this.#filterAcl({ authUser, source: user });
     }
 
     /**
@@ -84,11 +83,12 @@ export default class UsersFacade {
      * @returns {Promise<Object>} Created user
      */
     async create({ authUser, user }) {
-        let { roles: userRoles, scope: userScope, ...newUser } = user;
+        const { roles, scope: userScope, ...newUser } = user;
+        let userRoles = roles;
         const { scope: authScope } = authUser;
         const superAdmin = authScope.includes(admin);
         if (!superAdmin) {
-            forbiddenError(userRoles || userScope);
+            this.#forbiddenError({ condition: userRoles || userScope });
             userRoles = authScope;
         }
 
@@ -101,7 +101,7 @@ export default class UsersFacade {
                 scope: userScope
             });
             const createdUser = this.usersMapper.userToDomain({ ...result, roles });
-            return filterAcl(authUser, createdUser);
+            return this.#filterAcl({ authUser, source: createdUser });
         });
     }
 
@@ -110,14 +110,15 @@ export default class UsersFacade {
      *
      * @param {Object} params.authUser Authenticated user
      * @param {Object} params.data User data to update
+     * @param {boolean} [params.changePassword] Whether the current password challenge was validated
      * @returns {Promise<Object>} Updated user
      */
-    async update({ authUser, data }) {
+    async update({ authUser, data, changePassword = false }) {
         let userRoles;
         let userScope;
         const { id: updatedUserId, roles: updatedUserRoles, scope: updatedUserScope, ...newData } = data;
         const { id: authUserId, roles: authUserRoles, scope: authUserScope } = authUser;
-        const { active } = newData;
+        const { active, password } = newData;
         const isAdmin = authUserRoles.includes(admin);
         const superAdmin = authUserScope?.includes(admin);
         const isSelf = authUserId === updatedUserId;
@@ -130,24 +131,27 @@ export default class UsersFacade {
             userScope = tempScope;
         }
 
-        handleApiErrors([
+        ApiError.handle([
             {
                 condition: !isAdmin,
                 execute: () => {
-                    forbiddenError(updatedUserRoles || updatedUserScope || updatesActive || !isSelf);
+                    this.#forbiddenError({
+                        condition: updatedUserRoles || updatedUserScope || updatesActive || !isSelf || (password && !changePassword)
+                    });
                 }
             },
             {
                 condition: isAdmin,
                 execute: () => {
-                    forbiddenError(isSelf && updatesActive);
-                    handleApiErrors([
+                    this.#forbiddenError({ condition: isSelf && (updatesActive || (password && !changePassword)) });
+                    ApiError.handle([
                         {
                             condition: !superAdmin,
                             execute: () => {
-                                forbiddenError(
-                                    updatedUserRoles || updatedUserScope || !allowedManage(authUser, userRoles)
-                                );
+                                this.#forbiddenError({
+                                    condition: updatedUserRoles || updatedUserScope ||
+                                        !this.#allowedManage({ authUser, userRoles })
+                                });
                             }
                         },
                         {
@@ -163,7 +167,7 @@ export default class UsersFacade {
                                     userRoles.includes(admin) &&
                                     updatedUserRoles &&
                                     !updatedUserRoles.includes(admin);
-                                forbiddenError(wouldLoseAdminScope || wouldLoseAdminRole);
+                                this.#forbiddenError({ condition: wouldLoseAdminScope || wouldLoseAdminRole });
                             }
                         }
                     ]);
@@ -184,11 +188,11 @@ export default class UsersFacade {
                 const isUpdatedRoles =
                     updatedUserRoles &&
                     (updatedUserRoles.length !== userRoles.length ||
-                        !userRoles.every((it) => updatedUserRoles.includes(it)));
+                        !userRoles.every((role) => updatedUserRoles.includes(role)));
                 const isUpdatedScope =
                     updatedUserScope &&
                     (updatedUserScope.length !== userScope.length ||
-                        !userScope.every((it) => updatedUserScope.includes(it)));
+                        !userScope.every((scope) => updatedUserScope.includes(scope)));
                 if (isUpdatedRoles || isUpdatedScope) {
                     const roles = await this.userRolesService.replace({
                         clientTx,
@@ -216,7 +220,7 @@ export default class UsersFacade {
     async changePassword({ authUser, currentPassword, newPassword }) {
         const { id } = authUser;
         await this.usersService.checkPassword({ id, password: currentPassword });
-        await this.update({ authUser, data: { id, password: newPassword } });
+        await this.update({ authUser, data: { id, password: newPassword }, changePassword: true });
     }
 
     /**
@@ -230,29 +234,31 @@ export default class UsersFacade {
         await this.getById({ authUser, id });
         return this.usersService.delete({ id });
     }
+    #allowedManage({ authUser, userRoles }) {
+        return authUser.scope.includes(admin) || userRoles.every((role) => authUser.scope.includes(role));
+    }
+
+    #filterAcl({ authUser, source }) {
+        const canSeeAcl = !authUser || authUser.scope?.includes(admin);
+        if (canSeeAcl) {
+            return source;
+        }
+
+        const result = { ...source };
+        delete result.roles;
+        delete result.scope;
+        return result;
+    }
+
+    #forbiddenError({ condition }) {
+        ApiError.handle([{
+            condition,
+            message: "No tiene permisos para realizar esa acción",
+            status: 403,
+            apiError: aclPermissionDenied
+        }]);
+    }
 }
 
-const { handleApiErrors } = ValidateUtils;
-
-function allowedManage({ scope }, userRoles) {
-    return scope.includes(admin) || userRoles.every((it) => scope.includes(it));
-}
-
-/**
- * Filters ACL information from a user
- *
- * @param {Object | undefined} authUser Authenticated user
- * @param {Object} source User data
- * @returns {Object} Filtered user data
- */
-function filterAcl(authUser, source) {
-    const { roles, scope, ...result } = source;
-    const canSeeAcl = !authUser || authUser.scope?.includes(admin);
-    return canSeeAcl ? source : result;
-}
-
-function forbiddenError(condition) {
-    handleApiErrors([
-        { condition, message: "No tiene permisos para realizar esa acción", status: 403, apiError: aclPermissionDenied }
-    ]);
-}
+const { admin } = USER_ROLE;
+const { userNotFound, aclPermissionDenied } = API_ERROR;

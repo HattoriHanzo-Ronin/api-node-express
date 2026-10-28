@@ -13,9 +13,9 @@ export default class UsersMapper {
      * @returns {Object} User domain representation
      */
     static userToDomain(source) {
-        let { roles, ...user } = source;
-        roles = roles.filter(({ user_id: userId }) => userId === user.id);
-        return { ...user, ...mapRolesToDomain(roles) };
+        const { roles, ...user } = source;
+        const userRoles = roles.filter(({ user_id: userId }) => userId === user.id);
+        return { ...user, ...UsersMapper.#mapRolesToDomain(userRoles) };
     }
 
     /**
@@ -28,10 +28,10 @@ export default class UsersMapper {
         const { users, roles } = source;
         return users.map((user) => UsersMapper.userToDomain({ ...user, roles }));
     }
-}
 
-function mapRolesToDomain(roles) {
-    const adminRole = roles.find(({ role }) => role === USER_ROLE.admin);
-    roles = roles.map(({ role }) => role);
-    return adminRole ? { roles, scope: adminRole.scope.split(",") } : { roles };
+    static #mapRolesToDomain(roles) {
+        const adminRole = roles.find(({ role }) => role === USER_ROLE.admin);
+        const userRoles = roles.map(({ role }) => role);
+        return adminRole ? { roles: userRoles, scope: adminRole.scope.split(",") } : { roles: userRoles };
+    }
 }

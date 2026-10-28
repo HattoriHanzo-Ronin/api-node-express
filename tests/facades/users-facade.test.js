@@ -135,6 +135,25 @@ describe("UsersFacade", () => {
             ).rejects.toThrow("No tiene permisos para realizar esa acción");
         });
 
+        it("should require a password challenge when a user changes his own password", async () => {
+            await expect(
+                usersFacade.update({
+                    authUser: { id: "1", roles: ["FTP"], scope: ["FTP"] },
+                    data: { id: "1", password: "NewPassword123!" }
+                })
+            ).rejects.toThrow("No tiene permisos para realizar esa acción");
+        });
+
+        it("should allow an admin to change another user's password", async () => {
+            usersMapper.userToDomain.mockReturnValue({ roles: ["FTP"], scope: [] });
+            await expect(
+                usersFacade.update({
+                    authUser: { id: "1", roles: ["ADMIN"], scope: ["FTP"] },
+                    data: { id: "2", password: "NewPassword123!" }
+                })
+            ).resolves.toEqual({ id: "1", username: "updated" });
+        });
+
         it("should fail when admin deactivates himself", async () => {
             usersMapper.userToDomain.mockReturnValue({ roles: ["ADMIN"], scope: ["FTP"] });
             await expect(
@@ -222,7 +241,8 @@ describe("UsersFacade", () => {
             expect(usersService.checkPassword).toHaveBeenCalledWith({ id: "1", password: "Password123!" });
             expect(usersFacade.update).toHaveBeenCalledWith({
                 authUser,
-                data: { id: "1", password: "NewPassword123!" }
+                data: { id: "1", password: "NewPassword123!" },
+                changePassword: true
             });
         });
 
