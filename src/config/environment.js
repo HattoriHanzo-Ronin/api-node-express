@@ -3,7 +3,6 @@ import ApiError from "../utils/error/api-error.js";
 
 const ENV = Object.freeze({
     port: Number(process.env.PORT),
-    apiUrl: process.env.API_URL,
     thumbnailGeneratorUrl: process.env.THUMBNAIL_GENERATOR_URL,
     routerCpanelServiceUrl: process.env.ROUTER_CPANEL_SERVICE_URL,
     dbHost: process.env.HOSTDB,
@@ -48,7 +47,7 @@ function validateConfiguration(environment) {
         environment.jwtAccessTokenExpiresIn,
         environment.jwtRefreshTokenExpiresIn
     ].every((value) => typeof value === "string" && value.length > 0);
-    const validUrls = [environment.apiUrl, environment.thumbnailGeneratorUrl, environment.routerCpanelServiceUrl]
+    const validUrls = [environment.thumbnailGeneratorUrl, environment.routerCpanelServiceUrl]
         .every((value) => typeof value === "string" && URL.canParse(value));
     const validCacheLimits = environment.memoryCacheMaxSizePerOwner <= environment.memoryCacheMaxSize;
     if (!validNumbers || !validStrings || !validUrls || !validCacheLimits) {

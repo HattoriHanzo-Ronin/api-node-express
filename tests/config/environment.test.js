@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const validEnvironment = {
     PORT: "59998",
-    API_URL: "https://api.example",
     THUMBNAIL_GENERATOR_URL: "http://thumbnail-generator:3000",
     ROUTER_CPANEL_SERVICE_URL: "http://router-cpanel-service:3000",
     PORTDB: "5432",

@@ -19,12 +19,12 @@ export function createApp({
     accessTokenProvider
 }) {
     const app = express();
-    const { cors, json, errorHandler, routeNotFound, requireAuth: createRequireAuth } = Middlewares;
+    const { json, errorHandler, routeNotFound, requireAuth: createRequireAuth } = Middlewares;
     const requireAuth = createRequireAuth({ accessTokenProvider });
 
     app.disable("x-powered-by");
 
-    app.use(cors(), json());
+    app.use(json());
 
     app.use("/auth", createAuthRouter({ authController, requireAuth }));
     app.use("/ftp", createFtpRouter({ ftpController, requireAuth }));

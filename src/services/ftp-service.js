@@ -705,7 +705,6 @@ export default class FtpService {
         try {
             const response = await fetch(`${thumbnailGeneratorUrl}/thumbnail/${id}`, {
                 method: "POST",
-                headers: { Origin: apiUrl },
                 signal: AbortSignal.timeout(MEDIA_SESSION_TIMEOUT)
             });
             if (!response.ok) {
@@ -1041,8 +1040,7 @@ const {
     ftpTransferSessionTimeout: TRANSFER_SESSION_TIMEOUT,
     ftpMaxUploadChunkSize: MAX_UPLOAD_CHUNK_SIZE,
     ftpMaxThumbnailSize: MAX_THUMBNAIL_SIZE,
-    thumbnailGeneratorUrl,
-    apiUrl
+    thumbnailGeneratorUrl
 } = ENV;
 
 const { dir: dirType, file: fileType } = FILE_TYPE;
