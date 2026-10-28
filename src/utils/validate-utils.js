@@ -1,6 +1,5 @@
 import ApiError from "./error/api-error.js";
 import ObjectUtils from "./object-utils.js";
-import { API_ERROR } from "../config/errors.js";
 
 /**
  * Validation utilities
@@ -39,28 +38,4 @@ export default class ValidateUtils {
         }
     }
 
-    /**
-     * Evaluates a list of conditional actions and throws an ApiError when required
-     *
-     * @param {Object[]} errors Error conditions to evaluate
-     * @param {boolean} errors[].condition Indicates whether the rule matches
-     * @param {Function} [errors[].execute] Action executed when the condition matches
-     * @param {string} [errors[].message] Error message
-     * @param {number} [errors[].status] HTTP status code
-     * @param {{ code: string }} [errors[].apiError] API error
-     */
-    static handleApiErrors(errors) {
-        for (const error of errors) {
-            const { condition, execute, message, status, apiError } = error;
-            if (condition) {
-                if (execute) {
-                    execute();
-                }
-
-                if (message) {
-                    throw new ApiError({ message, status, apiError });
-                }
-            }
-        }
-    }
 }

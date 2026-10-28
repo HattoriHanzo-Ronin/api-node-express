@@ -10,7 +10,7 @@ const usersColumns = {
     authentication: createColumnSet(infoCommonColumns, TABLE),
     insert: createColumnSet(insertionColumns, TABLE),
     update: createColumnSet(
-        insertionColumns.map((it) => ({ ...it, skip: skipNullOrUndefined })),
+        insertionColumns.map((column) => ({ ...column, skip: skipNullOrUndefined })),
         TABLE
     )
 };

@@ -15,16 +15,44 @@ export default class UsersSchema {
     }
 
     static getValidatedSchema() {
-        return withSuperRefine(usersSchema, cases);
+        return withSuperRefine(usersSchema, UsersSchema.#cases);
     }
 
     static getPartialSchema() {
         const updateSchema = useRequiredProperties(usersSchema.partial(), idSchema.shape);
-        return withSuperRefine(updateSchema, cases);
+        return withSuperRefine(updateSchema, UsersSchema.#cases);
     }
 
     static getChangePasswordSchema() {
         return z.object({ currentPassword: passwordSchema, newPassword: passwordSchema });
+    }
+
+    static #cases({ roles, scope }, ctx) {
+        return handleValidationIssues(
+            [
+                {
+                    condition: roles,
+                    execute: () => {
+                        handleValidationIssues(
+                            [
+                                {
+                                    condition: !roles.includes(admin) && scope !== undefined,
+                                    path: ["scope"],
+                                    message: "No se puede definir scope para un usuario que no sea administrador"
+                                },
+                                {
+                                    condition: roles.includes(admin) && scope === undefined,
+                                    path: ["scope"],
+                                    message: "Se debe definir scope para un usuario administrador"
+                                }
+                            ],
+                            ctx
+                        );
+                    }
+                }
+            ],
+            ctx
+        );
     }
 }
 
@@ -34,9 +62,10 @@ const {
     withSuperRefine,
     handleValidationIssues
 } = ZodUtils;
-const { ERROR_MESSAGES, REGEX } = ValidateUtils;
-const { typeRequired, format, emptyArray, length, invalidEnum } = ERROR_MESSAGES;
-const { passwordRegex } = REGEX;
+const {
+    ERROR_MESSAGES: { typeRequired, format, emptyArray, length, invalidEnum },
+    REGEX: { passwordRegex }
+} = ValidateUtils;
 const userRoles = Object.values(USER_ROLE);
 const { admin } = USER_ROLE;
 const rolesArraySchema = z
@@ -61,31 +90,3 @@ const usersSchema = z.object({
     scope: rolesArraySchema,
     active: z.boolean(typeRequired)
 });
-
-function cases({ roles, scope }, ctx) {
-    return handleValidationIssues(
-        [
-            {
-                condition: roles,
-                execute: () => {
-                    handleValidationIssues(
-                        [
-                            {
-                                condition: !roles.includes(admin) && scope !== undefined,
-                                path: ["scope"],
-                                message: "No se puede definir scope para un usuario que no sea administrador"
-                            },
-                            {
-                                condition: roles.includes(admin) && scope === undefined,
-                                path: ["scope"],
-                                message: "Se debe definir scope para un usuario administrador"
-                            }
-                        ],
-                        ctx
-                    );
-                }
-            }
-        ],
-        ctx
-    );
-}
