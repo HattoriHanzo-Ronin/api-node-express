@@ -2,6 +2,8 @@ import ApiError from "../utils/error/api-error.js";
 import ValidateUtils from "../utils/validate-utils.js";
 import { API_ERROR } from "../config/errors.js";
 
+const { userNotFound, userInvalidCredentials, userIncorrectPassword, userEmptyUpdate } = API_ERROR;
+
 /**
  * Users service
  *
@@ -117,5 +119,3 @@ export default class UsersService {
         return this.usersModel.delete({ id });
     }
 }
-
-const { userNotFound, userInvalidCredentials, userIncorrectPassword, userEmptyUpdate } = API_ERROR;

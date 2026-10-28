@@ -2,6 +2,8 @@ import ApiError from "../utils/error/api-error.js";
 import { DEVICE_TYPE } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
 
+const { routerCpanelNotRouter, routerAddFailed, routerDeleteFailed, routerRollbackFailed } = API_ERROR;
+
 /**
  * Devices facade
  *
@@ -340,5 +342,3 @@ export default class DevicesFacade {
         return this.devicesMapper.devicesToDomain({ devices: result, connectionsByDevice: connections });
     }
 }
-
-const { routerCpanelNotRouter, routerAddFailed, routerDeleteFailed, routerRollbackFailed } = API_ERROR;

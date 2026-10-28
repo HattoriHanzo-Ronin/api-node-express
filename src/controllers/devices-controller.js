@@ -3,6 +3,9 @@ import DevicesSchema from "../schemas/devices-schema.js";
 import idSchema from "../schemas/common/id-schema.js";
 import { routerCpanelNavigationSchema, routerCpanelSessionSchema } from "../schemas/router-cpanel-schema.js";
 
+const { validateData } = ZodUtils;
+const { getValidatedSchema, getPartialSchema } = DevicesSchema;
+
 /**
  * Devices controller
  *
@@ -25,14 +28,14 @@ export default class DevicesController {
 
     getAllowedDevices = async (req, res) => {
         const routerId = this.#validateRouterId(req);
-        const { version, data } = await this.devicesFacade.getAllowedDevices({ routerId });
-        res.set({ "Devices-Version": version.devices, "Whitelist-Version": version.whitelist }).json(data);
+        const { version: { devices, whitelist }, data } = await this.devicesFacade.getAllowedDevices({ routerId });
+        res.set({ "Devices-Version": devices, "Whitelist-Version": whitelist }).json(data);
     };
 
     getNotAllowedDevices = async (req, res) => {
         const routerId = this.#validateRouterId(req);
-        const { version, data } = await this.devicesFacade.getNotAllowedDevices({ routerId });
-        res.set({ "Devices-Version": version.devices, "Whitelist-Version": version.whitelist }).json(data);
+        const { version: { devices, whitelist }, data } = await this.devicesFacade.getNotAllowedDevices({ routerId });
+        res.set({ "Devices-Version": devices, "Whitelist-Version": whitelist }).json(data);
     };
 
     create = async (req, res) => {
@@ -77,6 +80,3 @@ export default class DevicesController {
         return routerId;
     }
 }
-
-const { validateData } = ZodUtils;
-const { getValidatedSchema, getPartialSchema } = DevicesSchema;

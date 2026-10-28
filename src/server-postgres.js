@@ -60,13 +60,14 @@ const {
     refreshTokens: refreshTokensEntityError
 } = PostgresErrors;
 
-const dataVersionsService = new DataVersionsService({ dataVersionsModel: DataVersionsModel });
 const memoryCache = new MemoryCache();
 const directoryCache = new DirectoryCache();
 const ftpConnectionManager = new FtpConnectionManager();
 const ftpService = new FtpService({ ftpConnectionManager });
 const ftpFacade = new FtpFacade({ ftpService, ftpMapper: FtpMapper, memoryCache, directoryCache });
 const ftpController = new FtpController({ ftpFacade });
+
+const dataVersionsService = new DataVersionsService({ dataVersionsModel: DataVersionsModel });
 const dataVersionsFacade = new DataVersionsFacade({
     dataVersionsService,
     dataVersionsMapper: DataVersionsMapper,
@@ -82,6 +83,7 @@ const connectionsFacade = new ConnectionsFacade({
     connectionsService,
     connectionsMapper: ConnectionsMapper
 });
+
 const devicesService = new DevicesService({ devicesModel: DevicesModel, entityError: devicesEntityError });
 const routerAutomation = RouterAutomation;
 const devicesMapper = new DevicesMapper({ routerAutomation });
@@ -96,6 +98,7 @@ const devicesFacade = new DevicesFacade({
     tx
 });
 const devicesController = new DevicesController({ devicesFacade });
+
 const whitelistService = new WhitelistService({ whitelistModel: WhitelistModel, entityError: whitelistEntityError });
 const whitelistFacade = new WhitelistFacade({ whitelistService, devicesFacade, routerAutomation, tx });
 const whitelistController = new WhitelistController({ whitelistFacade });
@@ -105,6 +108,7 @@ const userRolesFacade = new UserRolesFacade({
     userRolesService,
     userRolesMapper: UserRolesMapper
 });
+
 const usersService = new UsersService({ usersModel: UsersModel, entityError: usersEntityError });
 const usersFacade = new UsersFacade({
     usersService,
@@ -114,6 +118,7 @@ const usersFacade = new UsersFacade({
     tx
 });
 const usersController = new UsersController({ usersFacade });
+
 const refreshTokensService = new RefreshTokensService({
     refreshTokensModel: RefreshTokensModel,
     entityError: refreshTokensEntityError

@@ -1,5 +1,8 @@
 import PostgresClient from "../../../utils/connection/postgres/postgres-client.js";
 
+const { getClient } = PostgresClient;
+const client = getClient();
+
 /**
  * Data versions table model
  *
@@ -27,6 +30,3 @@ export default class DataVersionsModel {
     }
 
 }
-
-const { getClient } = PostgresClient;
-const client = getClient();

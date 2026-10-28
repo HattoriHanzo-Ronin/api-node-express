@@ -7,6 +7,30 @@ import { FILE_TYPE } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
 import { ENV } from "../config/environment.js";
 
+const {
+    ftpMediaSessionTimeout: MEDIA_SESSION_TIMEOUT,
+    ftpTransferSessionTimeout: TRANSFER_SESSION_TIMEOUT,
+    ftpMaxUploadChunkSize: MAX_UPLOAD_CHUNK_SIZE,
+    ftpMaxThumbnailSize: MAX_THUMBNAIL_SIZE,
+    thumbnailGeneratorUrl
+} = ENV;
+const { dir: dirType, file: fileType } = FILE_TYPE;
+const {
+    ftpUploadFailed,
+    ftpUploadChunkTooLarge,
+    ftpUploadSizeExceeded,
+    ftpDownloadFailed,
+    ftpDownloadStale,
+    ftpDirFailed,
+    ftpMkdirFailed,
+    ftpMoveFailed,
+    ftpRenameFailed,
+    ftpDeleteFailed,
+    ftpThumbnailFailed,
+    ftpThumbnailTooLarge,
+    ftpFileRequired
+} = API_ERROR;
+
 /**
  * FTP service
  *
@@ -1034,28 +1058,3 @@ export default class FtpService {
         ApiError.handle([{ condition: true, message, apiError }]);
     }
 }
-
-const {
-    ftpMediaSessionTimeout: MEDIA_SESSION_TIMEOUT,
-    ftpTransferSessionTimeout: TRANSFER_SESSION_TIMEOUT,
-    ftpMaxUploadChunkSize: MAX_UPLOAD_CHUNK_SIZE,
-    ftpMaxThumbnailSize: MAX_THUMBNAIL_SIZE,
-    thumbnailGeneratorUrl
-} = ENV;
-
-const { dir: dirType, file: fileType } = FILE_TYPE;
-const {
-    ftpUploadFailed,
-    ftpUploadChunkTooLarge,
-    ftpUploadSizeExceeded,
-    ftpDownloadFailed,
-    ftpDownloadStale,
-    ftpDirFailed,
-    ftpMkdirFailed,
-    ftpMoveFailed,
-    ftpRenameFailed,
-    ftpDeleteFailed,
-    ftpThumbnailFailed,
-    ftpThumbnailTooLarge,
-    ftpFileRequired
-} = API_ERROR;

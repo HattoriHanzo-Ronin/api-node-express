@@ -1,6 +1,8 @@
 import ApiError from "../utils/error/api-error.js";
 import { API_ERROR } from "../config/errors.js";
 
+const { aclRoleRequired, aclRoleCreateFailed, aclRoleUpdateFailed } = API_ERROR;
+
 /**
  * User roles service
  *
@@ -74,5 +76,3 @@ export default class UserRolesService {
         }
     }
 }
-
-const { aclRoleRequired, aclRoleCreateFailed, aclRoleUpdateFailed } = API_ERROR;

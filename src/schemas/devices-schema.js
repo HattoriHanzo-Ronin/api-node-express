@@ -5,6 +5,71 @@ import ZodUtils from "../utils/zod-utils.js";
 import idSchema from "./common/id-schema.js";
 import macSchema from "./common/mac-schema.js";
 
+const { handleValidationIssues, zodEnumIgnoreCase, useRequiredProperties, withSuperRefine } = ZodUtils;
+const {
+    ERROR_MESSAGES: { typeRequired, typeNotRequired, format, emptyArray, length, invalidEnum },
+    REGEX: { passwordRegex }
+} = ValidateUtils;
+const SAFE_TEXT_REGEX = /^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 -]+$/;
+const CONNECTION_CTYPE = Object.freeze({ wan: "WAN", lan: "LAN", wifi: "WIFI" });
+const connectionsCtype = Object.values(CONNECTION_CTYPE);
+const devicesType = Object.values(DEVICE_TYPE);
+const { router, server } = DEVICE_TYPE;
+const devicesSchema = z.object({
+    name: z
+        .string(typeRequired)
+        .trim()
+        .min(4, length(4, "min"))
+        .max(30, length(30, "max"))
+        .regex(SAFE_TEXT_REGEX, format),
+    connections: z
+        .array(
+            z.object({
+                mac: macSchema.shape.mac,
+                ctype: zodEnumIgnoreCase(z, z.enum(connectionsCtype, invalidEnum(connectionsCtype)), typeRequired)
+            }),
+            typeRequired
+        )
+        .min(1, emptyArray),
+    type: zodEnumIgnoreCase(z, z.enum(devicesType, invalidEnum(devicesType)), typeRequired),
+    model: z
+        .string(typeNotRequired)
+        .trim()
+        .min(8, length(8, "min"))
+        .max(60, length(60, "max"))
+        .regex(SAFE_TEXT_REGEX, format)
+        .nullable()
+        .default(null),
+    ip: z.string(typeNotRequired).trim()
+        .regex(/^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/, format)
+        .nullable()
+        .default(null),
+    ssid: z
+        .string(typeNotRequired)
+        .trim()
+        .min(1, length(1, "min"))
+        .regex(/^[\p{L}\p{N} ._-]+$/u, format)
+        .nullable()
+        .default(null),
+    wifi_pass: z
+        .string(typeNotRequired)
+        .trim()
+        .min(8, length(8, "min"))
+        .max(63, length(63, "max"))
+        .regex(passwordRegex, format)
+        .nullable()
+        .default(null),
+    admin_pass: z
+        .string(typeNotRequired)
+        .trim()
+        .min(8, length(8, "min"))
+        .max(128, length(128, "max"))
+        .regex(passwordRegex, format)
+        .nullable()
+        .default(null),
+    mac_filter: z.boolean(typeNotRequired).nullable().default(null)
+});
+
 /**
  * Devices validation schemas
  *
@@ -125,68 +190,3 @@ export default class DevicesSchema {
         );
     }
 }
-
-const { handleValidationIssues, zodEnumIgnoreCase, useRequiredProperties, withSuperRefine } = ZodUtils;
-const {
-    ERROR_MESSAGES: { typeRequired, typeNotRequired, format, emptyArray, length, invalidEnum },
-    REGEX: { passwordRegex }
-} = ValidateUtils;
-const SAFE_TEXT_REGEX = /^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 -]+$/;
-const CONNECTION_CTYPE = Object.freeze({ wan: "WAN", lan: "LAN", wifi: "WIFI" });
-const connectionsCtype = Object.values(CONNECTION_CTYPE);
-const devicesType = Object.values(DEVICE_TYPE);
-const { router, server } = DEVICE_TYPE;
-const devicesSchema = z.object({
-    name: z
-        .string(typeRequired)
-        .trim()
-        .min(4, length(4, "min"))
-        .max(30, length(30, "max"))
-        .regex(SAFE_TEXT_REGEX, format),
-    connections: z
-        .array(
-            z.object({
-                mac: macSchema.shape.mac,
-                ctype: zodEnumIgnoreCase(z, z.enum(connectionsCtype, invalidEnum(connectionsCtype)), typeRequired)
-            }),
-            typeRequired
-        )
-        .min(1, emptyArray),
-    type: zodEnumIgnoreCase(z, z.enum(devicesType, invalidEnum(devicesType)), typeRequired),
-    model: z
-        .string(typeNotRequired)
-        .trim()
-        .min(8, length(8, "min"))
-        .max(60, length(60, "max"))
-        .regex(SAFE_TEXT_REGEX, format)
-        .nullable()
-        .default(null),
-    ip: z.string(typeNotRequired).trim()
-        .regex(/^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/, format)
-        .nullable()
-        .default(null),
-    ssid: z
-        .string(typeNotRequired)
-        .trim()
-        .min(1, length(1, "min"))
-        .regex(/^[\p{L}\p{N} ._-]+$/u, format)
-        .nullable()
-        .default(null),
-    wifi_pass: z
-        .string(typeNotRequired)
-        .trim()
-        .min(8, length(8, "min"))
-        .max(63, length(63, "max"))
-        .regex(passwordRegex, format)
-        .nullable()
-        .default(null),
-    admin_pass: z
-        .string(typeNotRequired)
-        .trim()
-        .min(8, length(8, "min"))
-        .max(128, length(128, "max"))
-        .regex(passwordRegex, format)
-        .nullable()
-        .default(null),
-    mac_filter: z.boolean(typeNotRequired).nullable().default(null)
-});

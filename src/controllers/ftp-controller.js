@@ -2,6 +2,22 @@ import path from "node:path";
 import FtpSchema from "../schemas/ftp-schema.js";
 import ZodUtils from "../utils/zod-utils.js";
 
+const {
+    getDeleteSchema,
+    getMediaSchema,
+    getThumbnailSchema,
+    getDirSchema,
+    getMoveSchema,
+    getRenameSchema,
+    getCreateDownloadSchema,
+    getCreateUploadSchema,
+    getDownloadEntrySchema,
+    getMakeDirSchema,
+    getTransferSchema,
+    getUploadEntrySchema
+} = FtpSchema;
+const { validateData } = ZodUtils;
+
 /**
  * FTP controller
  *
@@ -107,19 +123,3 @@ export default class FtpController {
         await this.ftpFacade.delete({ dir, entries, authUser, stream: res });
     };
 }
-
-const {
-    getDeleteSchema,
-    getMediaSchema,
-    getThumbnailSchema,
-    getDirSchema,
-    getMoveSchema,
-    getRenameSchema,
-    getCreateDownloadSchema,
-    getCreateUploadSchema,
-    getDownloadEntrySchema,
-    getMakeDirSchema,
-    getTransferSchema,
-    getUploadEntrySchema
-} = FtpSchema;
-const { validateData } = ZodUtils;

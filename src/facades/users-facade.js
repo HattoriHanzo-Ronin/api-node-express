@@ -2,6 +2,9 @@ import ApiError from "../utils/error/api-error.js";
 import { USER_ROLE } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
 
+const { admin } = USER_ROLE;
+const { userNotFound, aclPermissionDenied } = API_ERROR;
+
 /**
  * Users facade
  *
@@ -250,6 +253,3 @@ export default class UsersFacade {
         }]);
     }
 }
-
-const { admin } = USER_ROLE;
-const { userNotFound, aclPermissionDenied } = API_ERROR;

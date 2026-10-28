@@ -1,6 +1,8 @@
 import path from "node:path";
 import { FILE_TYPE } from "../config/constants.js";
 
+const { dir, file } = FILE_TYPE;
+
 /**
  * Maps FTP data to domain representations
  *
@@ -17,13 +19,13 @@ export default class FtpMapper {
      */
     static entriesFromSftp(source) {
         return source.map(({ name, type, size, modifyTime }) => {
-            const normalizedType = type === "d" ? FILE_TYPE.dir : FILE_TYPE.file;
+            const normalizedType = type === "d" ? dir : file;
             return {
                 name,
                 type: normalizedType,
                 size,
                 modifyTime,
-                supportsThumbnail: normalizedType === FILE_TYPE.file && FtpMapper.#MEDIA_EXTENSION.test(path.extname(name))
+                supportsThumbnail: normalizedType === file && FtpMapper.#MEDIA_EXTENSION.test(path.extname(name))
             };
         });
     }
@@ -37,7 +39,7 @@ export default class FtpMapper {
     static entryToDomain(source) {
         const { name, type, supportsThumbnail } = source;
         const entry = { name, type };
-        return type === FILE_TYPE.file ? { ...entry, supportsThumbnail } : entry;
+        return type === file ? { ...entry, supportsThumbnail } : entry;
     }
 
     /**

@@ -16,7 +16,6 @@ const {
     ftpWritePoolMax,
     ftpProtectedUserIds
 } = ENV;
-
 const {
     ftpConfigurationInvalid,
     ftpManagerClosed,
@@ -25,6 +24,7 @@ const {
     ftpPoolRestoreFailed,
     ftpSessionClosed
 } = API_ERROR;
+const { getClient, closeClient: ftpCloseClient } = FtpClient;
 
 /**
  * Manages isolated SFTP connection pools per authenticated user
@@ -651,5 +651,3 @@ export class FtpConnectionManager {
         return !session.expired && Date.now() - session.lastActivity < FtpConnectionManager.#IDLE_TIMEOUT;
     }
 }
-
-const { getClient, closeClient: ftpCloseClient } = FtpClient;

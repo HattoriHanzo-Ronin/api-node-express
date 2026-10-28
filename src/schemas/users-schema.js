@@ -4,6 +4,41 @@ import ValidateUtils from "../utils/validate-utils.js";
 import ZodUtils from "../utils/zod-utils.js";
 import idSchema from "./common/id-schema.js";
 
+const {
+    zodEnumIgnoreCase,
+    useRequiredProperties,
+    withSuperRefine,
+    handleValidationIssues
+} = ZodUtils;
+const {
+    ERROR_MESSAGES: { typeRequired, format, emptyArray, length, invalidEnum },
+    REGEX: { passwordRegex }
+} = ValidateUtils;
+const userRoles = Object.values(USER_ROLE);
+const { admin } = USER_ROLE;
+const rolesArraySchema = z
+    .array(zodEnumIgnoreCase(z, z.enum(userRoles, invalidEnum(userRoles)), typeRequired), typeRequired)
+    .min(1, emptyArray)
+    .optional();
+const passwordSchema = z
+    .string(typeRequired)
+    .trim()
+    .min(12, length(12, "min"))
+    .max(128, length(128, "max"))
+    .regex(passwordRegex, format);
+const usersSchema = z.object({
+    username: z
+        .string(typeRequired)
+        .trim()
+        .min(3, length(3, "min"))
+        .max(30, length(30, "max"))
+        .regex(/^[a-z0-9_-]+$/, format),
+    password: passwordSchema,
+    roles: rolesArraySchema,
+    scope: rolesArraySchema,
+    active: z.boolean(typeRequired)
+});
+
 /**
  * Users validation schemas
  *
@@ -55,38 +90,3 @@ export default class UsersSchema {
         );
     }
 }
-
-const {
-    zodEnumIgnoreCase,
-    useRequiredProperties,
-    withSuperRefine,
-    handleValidationIssues
-} = ZodUtils;
-const {
-    ERROR_MESSAGES: { typeRequired, format, emptyArray, length, invalidEnum },
-    REGEX: { passwordRegex }
-} = ValidateUtils;
-const userRoles = Object.values(USER_ROLE);
-const { admin } = USER_ROLE;
-const rolesArraySchema = z
-    .array(zodEnumIgnoreCase(z, z.enum(userRoles, invalidEnum(userRoles)), typeRequired), typeRequired)
-    .min(1, emptyArray)
-    .optional();
-const passwordSchema = z
-    .string(typeRequired)
-    .trim()
-    .min(12, length(12, "min"))
-    .max(128, length(128, "max"))
-    .regex(passwordRegex, format);
-const usersSchema = z.object({
-    username: z
-        .string(typeRequired)
-        .trim()
-        .min(3, length(3, "min"))
-        .max(30, length(30, "max"))
-        .regex(/^[a-z0-9_-]+$/, format),
-    password: passwordSchema,
-    roles: rolesArraySchema,
-    scope: rolesArraySchema,
-    active: z.boolean(typeRequired)
-});

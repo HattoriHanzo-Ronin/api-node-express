@@ -1,6 +1,10 @@
 import PostgresClient from "../../../utils/connection/postgres/postgres-client.js";
 import whitelistColumns from "./columns.js";
 
+const { getClient, helpers } = PostgresClient;
+const client = getClient();
+const { insert: insertColumns } = whitelistColumns;
+
 /**
  * Whitelist table model
  *
@@ -42,7 +46,3 @@ export default class WhitelistModel {
         );
     }
 }
-
-const { getClient, helpers } = PostgresClient;
-const client = getClient();
-const { insert: insertColumns } = whitelistColumns;

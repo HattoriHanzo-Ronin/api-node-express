@@ -1,6 +1,8 @@
 import ApiError from "../utils/error/api-error.js";
 import { API_ERROR } from "../config/errors.js";
 
+const { deviceNotFound, whitelistRouterNotFound, connectionMacMismatch } = API_ERROR;
+
 /**
  * Whitelist facade
  *
@@ -89,5 +91,3 @@ export default class WhitelistFacade {
         return { id, name, mac };
     }
 }
-
-const { deviceNotFound, whitelistRouterNotFound, connectionMacMismatch } = API_ERROR;

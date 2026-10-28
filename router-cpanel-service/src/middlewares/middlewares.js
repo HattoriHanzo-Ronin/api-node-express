@@ -2,6 +2,8 @@ import express from "express";
 import { API_ERROR } from "../config/errors.js";
 import ApiError from "../utils/error/api-error.js";
 
+const { internalError, routeNotFound } = API_ERROR;
+
 /**
  * Application middleware factory
  *
@@ -59,5 +61,3 @@ export default class Middlewares {
         res.status(status).json({ code, message });
     }
 }
-
-const { internalError, routeNotFound } = API_ERROR;

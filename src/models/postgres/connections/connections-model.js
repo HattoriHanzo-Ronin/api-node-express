@@ -1,6 +1,10 @@
 import PostgresClient from "../../../utils/connection/postgres/postgres-client.js";
 import connectionsColumns from "./columns.js";
 
+const { getClient, helpers } = PostgresClient;
+const client = getClient();
+const { insert: insertColumns } = connectionsColumns;
+
 /**
  * Connections table model
  *
@@ -54,7 +58,3 @@ export default class ConnectionsModel {
         return clientTx.many("delete from connections where mac in ($1:list) returning *", [macs]);
     }
 }
-
-const { getClient, helpers } = PostgresClient;
-const client = getClient();
-const { insert: insertColumns } = connectionsColumns;

@@ -1,6 +1,16 @@
 import { API_ERROR } from "../../../config/errors.js";
 import ApiError from "../api-error.js";
 
+const {
+    whitelistAlreadyAllowed,
+    whitelistKeyGenerationFailed,
+    deviceNameAlreadyExists,
+    deviceIpAlreadyInUse,
+    connectionMacAlreadyExists,
+    userUsernameAlreadyExists,
+    refreshTokenUserNotFound
+} = API_ERROR;
+
 /**
  * Centralizes the translation of PostgreSQL errors into application errors
  *
@@ -115,13 +125,3 @@ export default class PostgresErrors {
         ]);
     }
 }
-
-const {
-    whitelistAlreadyAllowed,
-    whitelistKeyGenerationFailed,
-    deviceNameAlreadyExists,
-    deviceIpAlreadyInUse,
-    connectionMacAlreadyExists,
-    userUsernameAlreadyExists,
-    refreshTokenUserNotFound
-} = API_ERROR;

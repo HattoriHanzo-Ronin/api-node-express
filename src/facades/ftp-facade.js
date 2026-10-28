@@ -5,6 +5,9 @@ import { API_ERROR } from "../config/errors.js";
 import ApiError from "../utils/error/api-error.js";
 import { ENV } from "../config/environment.js";
 
+const { dir: directoryType } = FILE_TYPE;
+const { ftpDirectoryCheckTimeout } = ENV;
+
 /**
  * FTP facade
  *
@@ -519,6 +522,3 @@ export default class FtpFacade {
         });
     }
 }
-
-const { dir: directoryType } = FILE_TYPE;
-const { ftpDirectoryCheckTimeout } = ENV;

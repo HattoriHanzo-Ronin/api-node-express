@@ -1,6 +1,10 @@
 import PostgresClient from "../../../utils/connection/postgres/postgres-client.js";
 import refreshTokensColumns from "./columns.js";
 
+const { getClient, helpers } = PostgresClient;
+const client = getClient();
+const { insert: insertColumns } = refreshTokensColumns;
+
 /**
  * Refresh tokens table model
  *
@@ -39,7 +43,3 @@ export default class RefreshTokensModel {
         return client.none("delete from refresh_tokens WHERE token = encode(digest($1, 'sha256'),'hex')", [token]);
     }
 }
-
-const { getClient, helpers } = PostgresClient;
-const client = getClient();
-const { insert: insertColumns } = refreshTokensColumns;

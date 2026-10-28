@@ -2,6 +2,8 @@ import idSchema from "../schemas/common/id-schema.js";
 import allowedDeviceSchema from "../schemas/whitelist-schema.js";
 import ZodUtils from "../utils/zod-utils.js";
 
+const { validateData } = ZodUtils;
+
 /**
  * Whitelist controller
  *
@@ -27,5 +29,3 @@ export default class WhitelistController {
         return { routerId, allowedDevice: validateData(body, allowedDeviceSchema) };
     }
 }
-
-const { validateData } = ZodUtils;

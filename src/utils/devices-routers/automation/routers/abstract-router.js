@@ -6,6 +6,8 @@ import { ENV } from "../../../../config/environment.js";
 import { API_ERROR } from "../../../../config/errors.js";
 import ApiError from "../../../error/api-error.js";
 
+const { routerImplementationNotFound } = API_ERROR;
+
 /**
  * Base router implementation
  *
@@ -109,5 +111,3 @@ export default class AbstractRouter {
         }
     }
 }
-
-const { routerImplementationNotFound } = API_ERROR;
