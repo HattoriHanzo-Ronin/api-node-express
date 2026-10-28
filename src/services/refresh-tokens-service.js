@@ -1,5 +1,4 @@
-import PostgresErrors from "../utils/error/postgres-errors.js";
-import ValidateUtils from "../utils/validate-utils.js";
+import ApiError from "../utils/error/api-error.js";
 import { API_ERROR } from "../config/errors.js";
 
 /**
@@ -8,8 +7,9 @@ import { API_ERROR } from "../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class RefreshTokensService {
-    constructor({ refreshTokensModel }) {
+    constructor({ refreshTokensModel, entityError }) {
         this.refreshTokensModel = refreshTokensModel;
+        this.entityError = entityError;
     }
 
     /**
@@ -19,7 +19,7 @@ export default class RefreshTokensService {
      */
     async getByToken({ token }) {
         const result = await this.refreshTokensModel.getByToken({ token });
-        handleApiErrors([
+        ApiError.handle([
             { condition: !result, message: "Token no válido", status: 401, apiError: API_ERROR.invalidToken }
         ]);
     }
@@ -34,7 +34,7 @@ export default class RefreshTokensService {
         try {
             await this.refreshTokensModel.insert({ refreshToken: { user_id: userId, token } });
         } catch (err) {
-            postgresError(err);
+            this.entityError(err);
             throw err;
         }
     }
@@ -49,6 +49,3 @@ export default class RefreshTokensService {
         return this.refreshTokensModel.delete({ token });
     }
 }
-
-const { handleApiErrors } = ValidateUtils;
-const { refreshTokens: postgresError } = PostgresErrors;

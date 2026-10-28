@@ -1,10 +1,11 @@
 import { createApp } from "./app.js";
 
-import PostgresClient from "./utils/connection/postgres-client.js";
+import PostgresClient from "./utils/connection/postgres/postgres-client.js";
+import PostgresErrors from "./utils/error/postgres/postgres-errors.js";
 
 import FtpController from "./controllers/ftp-controller.js";
 import FtpService from "./services/ftp-service.js";
-import ftpConnectionManager from "./utils/connection/ftp-connection-manager.js";
+import { FtpConnectionManager } from "./utils/connection/ftp/manager/ftp-connection-manager.js";
 import FtpMapper from "./mappers/ftp-mapper.js";
 import FtpFacade from "./facades/ftp-facade.js";
 import MemoryCache from "./utils/cache/memory-cache.js";
@@ -44,13 +45,23 @@ import { SECRETS } from "./config/secrets.js";
 import JwtTokenProvider from "./utils/token-providers/jwt-token-provider.js";
 
 const tx = PostgresClient.executeTx;
-const { jwtAccessTokenExpiresIn, jwtRefreshTokenExpiresIn } = ENV;
+const { jwtAccessTokenExpiresIn, jwtRefreshTokenExpiresIn, routerCpanelServiceUrl } = ENV;
+const { jwtSecret, refreshJwtSecret } = SECRETS;
+const {
+    connections: connectionsEntityError,
+    devices: devicesEntityError,
+    whitelist: whitelistEntityError,
+    users: usersEntityError,
+    refreshTokens: refreshTokensEntityError
+} = PostgresErrors;
 
 const dataVersionsService = new DataVersionsService({ dataVersionsModel: DataVersionsModel });
 const memoryCache = new MemoryCache();
 const directoryCache = new DirectoryCache();
+const ftpConnectionManager = new FtpConnectionManager();
+const ftpService = new FtpService({ ftpConnectionManager });
 const ftpFacade = new FtpFacade({
-    ftpService: FtpService,
+    ftpService,
     ftpMapper: FtpMapper,
     memoryCache,
     directoryCache
@@ -59,11 +70,11 @@ const ftpController = new FtpController({ ftpFacade });
 const dataVersionsFacade = new DataVersionsFacade({ dataVersionsService, ftpFacade });
 const dataVersionsController = new DataVersionsController({ dataVersionsFacade });
 
-const connectionsService = new ConnectionsService({ connectionsModel: ConnectionsModel });
-const devicesService = new DevicesService({ devicesModel: DevicesModel });
+const connectionsService = new ConnectionsService({ connectionsModel: ConnectionsModel, entityError: connectionsEntityError });
+const devicesService = new DevicesService({ devicesModel: DevicesModel, entityError: devicesEntityError });
 const routerAutomation = RouterAutomation;
 const devicesMapper = new DevicesMapper({ routerAutomation });
-const routerCpanel = new RouterCpanel({ routerCpanelServiceUrl: ENV.routerCpanelServiceUrl });
+const routerCpanel = new RouterCpanel({ routerCpanelServiceUrl });
 const devicesFacade = new DevicesFacade({
     devicesService,
     dataVersionsService,
@@ -74,17 +85,20 @@ const devicesFacade = new DevicesFacade({
     tx
 });
 const devicesController = new DevicesController({ devicesFacade });
-const whitelistService = new WhitelistService({ whitelistModel: WhitelistModel });
+const whitelistService = new WhitelistService({ whitelistModel: WhitelistModel, entityError: whitelistEntityError });
 const whitelistFacade = new WhitelistFacade({ whitelistService, devicesFacade, routerAutomation, tx });
 const whitelistController = new WhitelistController({ whitelistFacade });
 
 const userRolesService = new UserRolesService({ userRolesModel: UserRolesModel });
-const usersService = new UsersService({ usersModel: UsersModel });
+const usersService = new UsersService({ usersModel: UsersModel, entityError: usersEntityError });
 const usersFacade = new UsersFacade({ usersService, dataVersionsService, userRolesService, usersMapper: UsersMapper, tx });
 const usersController = new UsersController({ usersFacade });
-const refreshTokensService = new RefreshTokensService({ refreshTokensModel: RefreshTokensModel });
-const accessTokenProvider = new JwtTokenProvider({ secret: SECRETS.jwtSecret, expiresIn: jwtAccessTokenExpiresIn });
-const refreshTokenProvider = new JwtTokenProvider({ secret: SECRETS.refreshJwtSecret, expiresIn: jwtRefreshTokenExpiresIn });
+const refreshTokensService = new RefreshTokensService({
+    refreshTokensModel: RefreshTokensModel,
+    entityError: refreshTokensEntityError
+});
+const accessTokenProvider = new JwtTokenProvider({ secret: jwtSecret, expiresIn: jwtAccessTokenExpiresIn });
+const refreshTokenProvider = new JwtTokenProvider({ secret: refreshJwtSecret, expiresIn: jwtRefreshTokenExpiresIn });
 const authFacade = new AuthFacade({ usersFacade, refreshTokensService, accessTokenProvider, refreshTokenProvider });
 const authController = new AuthController({ authFacade });
 

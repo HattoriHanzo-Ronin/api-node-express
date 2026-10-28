@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DevicesService from "../../src/services/devices-service.js";
+import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
 
 describe("DevicesService", () => {
     let devicesModel;
@@ -16,7 +17,7 @@ describe("DevicesService", () => {
             update: vi.fn(),
             delete: vi.fn()
         };
-        devicesService = new DevicesService({ devicesModel });
+        devicesService = new DevicesService({ devicesModel, entityError: PostgresErrors.devices });
     });
 
     describe("getAll", () => {

@@ -10,14 +10,14 @@ const { connect, end, SftpClient } = vi.hoisted(() => {
 });
 
 vi.mock("ssh2-sftp-client", () => ({ default: SftpClient }));
-vi.mock("../../../src/config/environment.js", () => ({
+vi.mock("../../../../src/config/environment.js", () => ({
     ENV: { ftpHost: "ftp.example.com", ftpPort: 22 }
 }));
-vi.mock("../../../src/config/secrets.js", () => ({
+vi.mock("../../../../src/config/secrets.js", () => ({
     SECRETS: { sftpKey: "private-key" }
 }));
 
-import FtpClient from "../../../src/utils/connection/ftp-client.js";
+import FtpClient from "../../../../src/utils/connection/ftp/ftp-client.js";
 
 describe("FtpClient", () => {
     beforeEach(() => {

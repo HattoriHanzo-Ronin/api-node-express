@@ -1,4 +1,4 @@
-import ValidateUtils from "../utils/validate-utils.js";
+import ApiError from "../utils/error/api-error.js";
 import { USER_ROLE } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
 
@@ -33,21 +33,21 @@ export default class UserRolesService {
      */
     async createMany({ clientTx, userId, roles, scope }) {
         try {
-            handleApiErrors([
+            ApiError.handle([
                 {
                     condition: !roles,
                     message: "Se debe especificar al menos un rol para el usuario",
                     apiError: aclRoleRequired
                 }
             ]);
-            const userRoles = roles.map((it) => ({
+            const userRoles = roles.map((role) => ({
                 user_id: userId,
-                role: it,
-                scope: it === USER_ROLE.admin ? scope.join(",") : null
+                role,
+                scope: role === USER_ROLE.admin ? scope.join(",") : null
             }));
             return await this.userRolesModel.insertMany({ clientTx, userRoles });
         } catch (err) {
-            handleApiErrors([
+            ApiError.handle([
                 {
                     condition: err.code !== aclRoleRequired,
                     message: "Error al crear los roles del usuario",
@@ -72,7 +72,7 @@ export default class UserRolesService {
             await this.userRolesModel.deleteByUser({ clientTx, userId });
             return await this.createMany({ clientTx, userId, roles, scope });
         } catch (err) {
-            handleApiErrors([
+            ApiError.handle([
                 {
                     condition: err.code !== aclRoleRequired,
                     message: "Error al actualizar los roles del usuario",
@@ -84,5 +84,4 @@ export default class UserRolesService {
     }
 }
 
-const { handleApiErrors } = ValidateUtils;
 const { aclRoleRequired, aclRoleCreateFailed, aclRoleUpdateFailed } = API_ERROR;

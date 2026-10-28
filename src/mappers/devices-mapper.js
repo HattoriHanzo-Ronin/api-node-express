@@ -4,11 +4,6 @@
  * @author HattoriHanzo-Ronin
  */
 export default class DevicesMapper {
-    /**
-     * Creates a devices mapper
-     *
-     * @param {Object} params.routerAutomation Router automation
-     */
     constructor({ routerAutomation }) {
         this.routerAutomation = routerAutomation;
     }
@@ -49,7 +44,7 @@ export default class DevicesMapper {
         connections = connections
             .filter(({ device_id: deviceId }) => deviceId === device.id)
             .map(({ mac, ctype }) => ({ mac, ctype }));
-        device = Object.fromEntries(Object.entries(device).filter(([, it]) => it !== null));
+        device = Object.fromEntries(Object.entries(device).filter(([, value]) => value !== null));
         if (device.mac_filter) {
             const routerImpl = new this.routerAutomation({ router: device });
             device = { ...device, capabilities: routerImpl.getCapabilities() };

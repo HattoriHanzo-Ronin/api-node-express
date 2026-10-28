@@ -8,6 +8,11 @@ import AbstractRouter from "../abstract-router.js";
 export default class TLWDR5620GigabitEditionRouter extends AbstractRouter {
     #client = this.getAxiosClient();
 
+    /**
+     * Returns supported router capabilities
+     *
+     * @returns {{ addAllow: boolean, deleteAllow: boolean }} Router capabilities
+     */
     getCapabilities() {
         return {
             addAllow: true,
@@ -15,7 +20,13 @@ export default class TLWDR5620GigabitEditionRouter extends AbstractRouter {
         };
     }
 
-    generateKey(keys) {
+    /**
+     * Generates a whitelist key
+     *
+     * @param {Object[]} params.keys Existing whitelist keys
+     * @returns {string} Whitelist key
+     */
+    generateKey({ keys }) {
         let num = 0;
         keys.sort((a, b) => {
             const aK = Number(a.key.split("_").pop()),
@@ -31,6 +42,14 @@ export default class TLWDR5620GigabitEditionRouter extends AbstractRouter {
         return `white_list_${num + 1}`;
     }
 
+    /**
+     * Adds a device to the router whitelist
+     *
+     * @param {string} params.key Whitelist key
+     * @param {string} params.mac Device MAC address
+     * @param {string} params.name Device name
+     * @returns {Promise<boolean>} Whether the device was added
+     */
     async addAllow({ key, mac, name }) {
         return this.#postOnRouter({
             method: "add",
@@ -42,6 +61,12 @@ export default class TLWDR5620GigabitEditionRouter extends AbstractRouter {
         });
     }
 
+    /**
+     * Removes a device from the router whitelist
+     *
+     * @param {string} params.key Whitelist key
+     * @returns {Promise<boolean>} Whether the device was removed
+     */
     async deleteAllow({ key }) {
         return this.#postOnRouter({ method: "delete", wlan_access: { name: [key] } });
     }

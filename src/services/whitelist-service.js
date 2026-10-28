@@ -1,5 +1,4 @@
-import PostgresErrors from "../utils/error/postgres-errors.js";
-import ValidateUtils from "../utils/validate-utils.js";
+import ApiError from "../utils/error/api-error.js";
 import { API_ERROR } from "../config/errors.js";
 
 /**
@@ -8,8 +7,9 @@ import { API_ERROR } from "../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class WhitelistService {
-    constructor({ whitelistModel }) {
+    constructor({ whitelistModel, entityError }) {
         this.whitelistModel = whitelistModel;
+        this.entityError = entityError;
     }
 
     /**
@@ -33,7 +33,7 @@ export default class WhitelistService {
         try {
             return await this.whitelistModel.insert({ clientTx, whitelist });
         } catch (err) {
-            postgresError(err);
+            this.entityError(err);
             throw err;
         }
     }
@@ -48,7 +48,7 @@ export default class WhitelistService {
      */
     async delete({ clientTx, routerId, mac }) {
         const result = await this.whitelistModel.delete({ clientTx, routerId, mac });
-        handleApiErrors([
+        ApiError.handle([
             {
                 condition: !result,
                 message: "El dispositivo no se encuentra autorizado",
@@ -59,6 +59,3 @@ export default class WhitelistService {
         return result;
     }
 }
-
-const { handleApiErrors } = ValidateUtils;
-const { whitelist: postgresError } = PostgresErrors;

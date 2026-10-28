@@ -8,6 +8,11 @@ import AbstractRouter from "../abstract-router.js";
 export default class ArcherAX53Router extends AbstractRouter {
     #browser;
 
+    /**
+     * Returns supported router capabilities
+     *
+     * @returns {{ addAllow: boolean, deleteAllow: boolean }} Router capabilities
+     */
     getCapabilities() {
         return {
             addAllow: true,
@@ -15,11 +20,18 @@ export default class ArcherAX53Router extends AbstractRouter {
         };
     }
 
+    /**
+     * Adds a device to the router whitelist
+     *
+     * @param {string} params.name Device name
+     * @param {string} params.mac Device MAC address
+     * @returns {Promise<boolean>} Whether the device was added
+     */
     async addAllow({ name, mac }) {
         try {
             mac = mac.replaceAll(":", "-");
             const page = await this.#openAccessControl();
-            await delay(5000);
+            await this.#delay({ ms: 5000 });
             const buttons = await page.$$('div[role="button"]');
             for (const button of buttons) {
                 const text = await page.evaluate((el) => el.textContent, button);
@@ -45,7 +57,7 @@ export default class ArcherAX53Router extends AbstractRouter {
             await nameInput.type(name);
             let macInputs = await page.$$("input.su-mac-input__partition");
             if (macInputs.length < 6) {
-                await delay(3500);
+                await this.#delay({ ms: 3500 });
                 macInputs = await page.$$("input.su-mac-input__partition");
             }
 
@@ -76,6 +88,12 @@ export default class ArcherAX53Router extends AbstractRouter {
         }
     }
 
+    /**
+     * Removes a device from the router whitelist
+     *
+     * @param {string} params.mac Device MAC address
+     * @returns {Promise<boolean>} Whether the device was removed
+     */
     async deleteAllow({ mac }) {
         try {
             mac = mac.replaceAll(":", "-");
@@ -148,14 +166,14 @@ export default class ArcherAX53Router extends AbstractRouter {
                 })
                 .catch(() => {})
         ]);
-        await delay();
+        await this.#delay({});
         await page.evaluate(() => {
             window.location.hash = "/accessControl";
         });
         return page;
     }
-}
 
-function delay(ms = 1500) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    #delay({ ms = 1500 }) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
 }

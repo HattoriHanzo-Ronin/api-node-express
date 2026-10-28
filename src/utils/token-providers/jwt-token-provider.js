@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import ValidateUtils from "../validate-utils.js";
+import ApiError from "../error/api-error.js";
 import { API_ERROR } from "../../config/errors.js";
 
 /**
@@ -33,7 +33,7 @@ export default class JwtTokenProvider {
         try {
             return jwt.verify(token, this.secret);
         } catch (err) {
-            handleApiErrors([{
+            ApiError.handle([{
                 condition: err instanceof jwt.JsonWebTokenError,
                 message: "Token no válido",
                 status: 401,
@@ -44,5 +44,3 @@ export default class JwtTokenProvider {
         }
     }
 }
-
-const { handleApiErrors } = ValidateUtils;

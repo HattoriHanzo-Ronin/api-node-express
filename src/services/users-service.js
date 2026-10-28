@@ -1,4 +1,4 @@
-import PostgresErrors from "../utils/error/postgres-errors.js";
+import ApiError from "../utils/error/api-error.js";
 import ValidateUtils from "../utils/validate-utils.js";
 import { API_ERROR } from "../config/errors.js";
 
@@ -8,8 +8,9 @@ import { API_ERROR } from "../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class UsersService {
-    constructor({ usersModel }) {
+    constructor({ usersModel, entityError }) {
         this.usersModel = usersModel;
+        this.entityError = entityError;
     }
 
     /**
@@ -29,7 +30,7 @@ export default class UsersService {
      */
     async getById({ id }) {
         const result = await this.usersModel.getById({ id });
-        handleApiErrors([{ condition: !result, message: "El usuario no existe", status: 404, apiError: userNotFound }]);
+        ApiError.handle([{ condition: !result, message: "El usuario no existe", status: 404, apiError: userNotFound }]);
         return result;
     }
 
@@ -43,7 +44,7 @@ export default class UsersService {
     async authenticate({ username, password }) {
         const result = await this.usersModel.authenticate({ username, password });
         const invalidUser = !result || !result.active;
-        handleApiErrors([
+        ApiError.handle([
             {
                 condition: invalidUser,
                 message: "Usuario o contraseña incorrectos",
@@ -62,12 +63,12 @@ export default class UsersService {
      */
     async checkPassword({ id, password }) {
         const result = await this.usersModel.checkPassword({ id, password });
-        handleApiErrors([
+        ApiError.handle([
             {
                 condition: !result,
                 message: "Contraseña incorrecta",
                 status: 401,
-                apiError: API_ERROR.userIncorrectPassword
+                apiError: userIncorrectPassword
             }
         ]);
     }
@@ -83,7 +84,7 @@ export default class UsersService {
         try {
             return await this.usersModel.insert({ clientTx, user });
         } catch (err) {
-            postgresError(err);
+            this.entityError(err);
             throw err;
         }
     }
@@ -98,10 +99,10 @@ export default class UsersService {
      */
     async update({ clientTx, id, data }) {
         try {
-            validateNotEmptyObject(data, userEmptyUpdate);
+            ValidateUtils.validateNotEmptyObject(data, userEmptyUpdate);
             return await this.usersModel.update({ clientTx, id, data });
         } catch (err) {
-            postgresError(err);
+            this.entityError(err);
             throw err;
         }
     }
@@ -117,6 +118,4 @@ export default class UsersService {
     }
 }
 
-const { handleApiErrors, validateNotEmptyObject } = ValidateUtils;
-const { userNotFound, userInvalidCredentials, userEmptyUpdate } = API_ERROR;
-const { users: postgresError } = PostgresErrors;
+const { userNotFound, userInvalidCredentials, userIncorrectPassword, userEmptyUpdate } = API_ERROR;

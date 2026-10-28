@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FtpConnectionManager } from "../../../src/utils/connection/ftp-connection-manager.js";
+import { FtpConnectionManager } from "../../../../../src/utils/connection/ftp/manager/ftp-connection-manager.js";
 
 const testEnvironment = vi.hoisted(() => ({
     ftpMaxConnections: 100,
@@ -15,7 +15,7 @@ const testEnvironment = vi.hoisted(() => ({
     ftpWritePoolMax: 3
 }));
 
-vi.mock("../../../src/config/environment.js", () => ({ ENV: testEnvironment }));
+vi.mock("../../../../../src/config/environment.js", () => ({ ENV: testEnvironment }));
 
 const authUser = { id: "user-id", username: "ronin" };
 
@@ -46,7 +46,7 @@ describe("FtpConnectionManager", () => {
             clients.push(client);
             return client;
         });
-        closeClient = vi.fn(async (client) => client.end());
+        closeClient = vi.fn(async ({ client }) => client.end());
         manager = new FtpConnectionManager({ createClient, closeClient });
     });
 
@@ -58,7 +58,7 @@ describe("FtpConnectionManager", () => {
     it("should open one reserved connection for every pool", async () => {
         await manager.execute({ authUser, pool: "read", callback: async () => undefined });
         expect(createClient).toHaveBeenCalledTimes(3);
-        expect(createClient).toHaveBeenCalledWith(authUser.id);
+        expect(createClient).toHaveBeenCalledWith({ ownerId: authUser.id });
     });
 
     it("should preserve the user session after a username change", async () => {
@@ -69,7 +69,7 @@ describe("FtpConnectionManager", () => {
             callback: async () => undefined
         });
         expect(createClient).toHaveBeenCalledTimes(3);
-        expect(createClient).toHaveBeenCalledWith(authUser.id);
+        expect(createClient).toHaveBeenCalledWith({ ownerId: authUser.id });
     });
 
     it("should keep operations sequential within one connection", async () => {
@@ -458,7 +458,7 @@ describe("FtpConnectionManager", () => {
         await manager.closeAll();
         testEnvironment.ftpProtectedUserIds = authUser.id;
         vi.resetModules();
-        await expect(import("../../../src/utils/connection/ftp-connection-manager.js")).rejects.toMatchObject({
+        await expect(import("../../../../../src/utils/connection/ftp/manager/ftp-connection-manager.js")).rejects.toMatchObject({
             name: "ApiError",
             code: "FTP_CONFIGURATION_INVALID"
         });
@@ -468,7 +468,7 @@ describe("FtpConnectionManager", () => {
         await manager.closeAll();
         testEnvironment.ftpMaxConnections = 2;
         vi.resetModules();
-        await expect(import("../../../src/utils/connection/ftp-connection-manager.js")).rejects.toMatchObject({
+        await expect(import("../../../../../src/utils/connection/ftp/manager/ftp-connection-manager.js")).rejects.toMatchObject({
             name: "ApiError",
             code: "FTP_CONFIGURATION_INVALID"
         });
@@ -479,7 +479,7 @@ async function createConfiguredManager({ createClient, closeClient, environment 
     Object.assign(testEnvironment, environment);
     vi.resetModules();
     const { FtpConnectionManager: ConfiguredFtpConnectionManager } = await import(
-        "../../../src/utils/connection/ftp-connection-manager.js"
+        "../../../../../src/utils/connection/ftp/manager/ftp-connection-manager.js"
     );
     return new ConfiguredFtpConnectionManager({ createClient, closeClient });
 }

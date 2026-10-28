@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import RefreshTokensService from "../../src/services/refresh-tokens-service.js";
+import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
 
 describe("RefreshTokensService", () => {
     let refreshTokensModel;
@@ -7,7 +8,10 @@ describe("RefreshTokensService", () => {
 
     beforeEach(() => {
         refreshTokensModel = { getByToken: vi.fn(), insert: vi.fn(), delete: vi.fn() };
-        refreshTokensService = new RefreshTokensService({ refreshTokensModel });
+        refreshTokensService = new RefreshTokensService({
+            refreshTokensModel,
+            entityError: PostgresErrors.refreshTokens
+        });
     });
 
     describe("getByToken", () => {
