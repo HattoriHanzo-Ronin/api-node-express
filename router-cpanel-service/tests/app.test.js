@@ -31,11 +31,6 @@ describe("router control panel application", () => {
         expect(response.status).toBe(201);
     });
 
-    it("should provide an internal health check", async () => {
-        const response = await fetch(`${url}/health`);
-        expect(response.status).toBe(204);
-    });
-
     it("should return the standard response for unmatched routes", async () => {
         const response = await fetch(`${url}/missing`);
         expect(response.status).toBe(404);

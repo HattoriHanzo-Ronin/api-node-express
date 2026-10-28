@@ -6,6 +6,7 @@ import createRouterSessionRouter from "./routes/router-session-router.js";
 export function createApp({ routerSessionController }) {
     const app = express();
     const { url } = import.meta;
+    const { asyncHandler, json, routeNotFound, errorHandler } = Middlewares;
     const noVncPath = fileURLToPath(new URL("../node_modules/@novnc/novnc", url));
     const viewerPath = fileURLToPath(new URL("../public", url));
 
@@ -17,13 +18,11 @@ export function createApp({ routerSessionController }) {
     app.use("/viewer", express.static(viewerPath));
     app.use("/sessions", createRouterSessionRouter({ routerSessionController }));
 
-    app.post("/vnc/:sessionId/interaction", routerSessionController.markInteraction);
-    app.get("/vnc/:sessionId/status", routerSessionController.streamStatus);
-    app.get("/health", (req, res) => res.status(204).send());
+    app.post("/vnc/:sessionId/interaction", asyncHandler(routerSessionController.markInteraction));
+
+    app.get("/vnc/:sessionId/status", asyncHandler(routerSessionController.streamStatus));
 
     app.use(routeNotFound, errorHandler);
 
     return app;
 }
-
-const { json, routeNotFound, errorHandler } = Middlewares;

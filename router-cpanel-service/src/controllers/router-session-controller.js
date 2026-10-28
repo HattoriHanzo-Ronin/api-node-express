@@ -9,8 +9,7 @@ export default class RouterSessionController {
     }
 
     create = async (req, res) => {
-        const { body } = req;
-        const { ownerId, routerName, routerIp, routerPassword, language, clientType, theme } = body;
+        const { body: { ownerId, routerName, routerIp, routerPassword, language, clientType, theme } } = req;
         res.status(201).json(await this.routerSessionService.create({
             ownerId,
             routerName,
@@ -23,24 +22,19 @@ export default class RouterSessionController {
     };
 
     delete = async (req, res) => {
-        const { params, body } = req;
-        const { sessionId } = params;
-        const { ownerId } = body;
+        const { params: { sessionId }, body: { ownerId } } = req;
         await this.routerSessionService.close({ sessionId, ownerId });
         res.status(204).send();
     };
 
     navigate = async (req, res) => {
-        const { params, body } = req;
-        const { sessionId } = params;
-        const { ownerId, action } = body;
+        const { params: { sessionId }, body: { ownerId, action } } = req;
         await this.routerSessionService.navigate({ sessionId, ownerId, action });
         res.status(204).send();
     };
 
     streamStatus = async (req, res) => {
-        const { sessionId } = req.params;
-        const { token } = req.query;
+        const { params: { sessionId }, query: { token } } = req;
         res.set({ "Cache-Control": "no-cache", Connection: "keep-alive", "Content-Type": "text/event-stream" }).flushHeaders();
         const listener = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
         const unsubscribe = this.routerSessionService.subscribe({ sessionId, token, listener });
@@ -48,8 +42,7 @@ export default class RouterSessionController {
     };
 
     markInteraction = async (req, res) => {
-        const { sessionId } = req.params;
-        const { token } = req.query;
+        const { params: { sessionId }, query: { token } } = req;
         this.routerSessionService.markInteraction({ sessionId, token });
         res.status(204).send();
     };
