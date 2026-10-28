@@ -637,7 +637,7 @@ export default class FtpService {
             clearTimeout(session.timeout);
             transferSessions.delete(id);
             await cleanupTransfer(session);
-            if (err.code === ftpDownloadStale.code) {
+            if (err.code === ftpDownloadStale) {
                 throw err;
             }
 

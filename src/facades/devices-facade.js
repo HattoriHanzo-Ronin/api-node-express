@@ -263,7 +263,7 @@ export default class DevicesFacade {
             } catch (err) {
                 const restoredRouters = [];
                 const { code: errorCode, apiError } = err;
-                const addFailed = errorCode === routerAddFailed.code;
+                const addFailed = errorCode === routerAddFailed;
                 const affectedRouters = addFailed ? [routerName] : [];
                 let message;
                 for (const updatedRouterName of updatedRouters.keys()) {
@@ -291,7 +291,7 @@ export default class DevicesFacade {
                             `Routers afectados: ${affectedRouters.join(", ")}`;
                         handleApiErrors([
                             {
-                                condition: [routerAddFailed.code, routerDeleteFailed.code].includes(err.code),
+                                condition: [routerAddFailed, routerDeleteFailed].includes(err.code),
                                 message,
                                 apiError: routerRollbackFailed
                             }

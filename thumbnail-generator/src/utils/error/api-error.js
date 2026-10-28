@@ -10,7 +10,7 @@ export default class ApiError extends Error {
         super(message);
         this.name = "ApiError";
         this.status = status;
-        this.code = apiError.code;
+        this.code = apiError;
     }
 
     /**
@@ -21,7 +21,7 @@ export default class ApiError extends Error {
      * @param {Function} [errors[].execute] Action executed when the condition matches
      * @param {string} [errors[].message] Error message
      * @param {number} [errors[].status] HTTP status code
-     * @param {{ code: string }} [errors[].apiError] API error
+     * @param {string} [errors[].apiError] API error code
      */
     static handle(errors) {
         for (const error of errors) {

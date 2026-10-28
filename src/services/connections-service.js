@@ -45,7 +45,7 @@ export default class ConnectionsService {
             postgresError(err);
             handleApiErrors([
                 {
-                    condition: err.code !== connectionRequired.code,
+                    condition: err.code !== connectionRequired,
                     message: "Error al crear las conexiones del dispositivo",
                     apiError: connectionCreateFailed
                 }

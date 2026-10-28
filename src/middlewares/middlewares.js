@@ -137,7 +137,7 @@ export default class Middlewares {
         const status = err.status || 500;
         const isApiError = err instanceof ApiError;
         const message = isApiError ? err.message : "Error inesperado";
-        const code = isApiError ? err.code : API_ERROR.internalError.code;
+        const code = isApiError ? err.code : API_ERROR.internalError;
         let result = { code, message };
         if (err.details) {
             result = { ...result, details: err.details };
