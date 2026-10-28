@@ -27,7 +27,10 @@ const validEnvironment = {
     MEMORY_CACHE_INACTIVITY_TIMEOUT: "600000",
     DIRECTORY_CACHE_INACTIVITY_TIMEOUT: "600000",
     JWT_ACCESS_TOKEN_EXPIRES_IN: "30min",
-    JWT_REFRESH_TOKEN_EXPIRES_IN: "60d"
+    JWT_REFRESH_TOKEN_EXPIRES_IN: "60d",
+    SOCKET_MAX_CONNECTIONS: "300",
+    SOCKET_MAX_CONNECTIONS_PER_USER: "3",
+    SOCKET_SESSION_INACTIVITY_TIMEOUT: "900000"
 };
 
 describe("environment", () => {
@@ -44,7 +47,8 @@ describe("environment", () => {
             ftpWritePoolMax: 3,
             jwtAccessTokenExpiresIn: "30min",
             memoryCacheMaxSize: 2147483648,
-            routerCpanelServiceUrl: "http://router-cpanel-service:3000"
+            routerCpanelServiceUrl: "http://router-cpanel-service:3000",
+            socketMaxConnectionsPerUser: 3
         });
     });
 

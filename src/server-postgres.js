@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import { createApp } from "./app.js";
 
 import PostgresClient from "./utils/connection/postgres/postgres-client.js";
@@ -14,7 +15,6 @@ import DataVersionsModel from "./models/postgres/data-versions/data-versions-mod
 import DataVersionsService from "./services/data-versions-service.js";
 import DataVersionsMapper from "./mappers/data-versions-mapper.js";
 import DataVersionsFacade from "./facades/data-versions-facade.js";
-import DataVersionsController from "./controllers/data-versions-controller.js";
 
 import ConnectionsModel from "./models/postgres/connections/connections-model.js";
 import ConnectionsService from "./services/connections-service.js";
@@ -48,6 +48,10 @@ import AuthController from "./controllers/auth-controller.js";
 import { ENV } from "./config/environment.js";
 import { SECRETS } from "./config/secrets.js";
 import JwtTokenProvider from "./utils/token-providers/jwt-token-provider.js";
+import SocketSessionsService from "./services/socket-sessions-service.js";
+import SocketSessionsController from "./controllers/socket-sessions-controller.js";
+import SocketSessionsFacade from "./facades/socket-sessions-facade.js";
+import SocketGateway from "./utils/gateways/socket-gateway.js";
 
 const tx = PostgresClient.executeTx;
 const { jwtAccessTokenExpiresIn, jwtRefreshTokenExpiresIn, routerCpanelServiceUrl } = ENV;
@@ -73,7 +77,6 @@ const dataVersionsFacade = new DataVersionsFacade({
     dataVersionsMapper: DataVersionsMapper,
     ftpFacade
 });
-const dataVersionsController = new DataVersionsController({ dataVersionsFacade });
 
 const connectionsService = new ConnectionsService({
     connectionsModel: ConnectionsModel,
@@ -123,24 +126,40 @@ const refreshTokensService = new RefreshTokensService({
     refreshTokensModel: RefreshTokensModel,
     entityError: refreshTokensEntityError
 });
+
+const socketSessionsService = new SocketSessionsService();
+const socketSessionsFacade = new SocketSessionsFacade({ socketSessionsService, dataVersionsFacade });
+const socketSessionsController = new SocketSessionsController({ socketSessionsFacade });
+
 const accessTokenProvider = new JwtTokenProvider({ secret: jwtSecret, expiresIn: jwtAccessTokenExpiresIn });
 const refreshTokenProvider = new JwtTokenProvider({ secret: refreshJwtSecret, expiresIn: jwtRefreshTokenExpiresIn });
-const authFacade = new AuthFacade({ usersFacade, refreshTokensService, accessTokenProvider, refreshTokenProvider });
+const socketGateway = new SocketGateway({ socketSessionsFacade, accessTokenProvider });
+const authFacade = new AuthFacade({
+    usersFacade,
+    refreshTokensService,
+    accessTokenProvider,
+    refreshTokenProvider
+});
 const authController = new AuthController({ authFacade });
 
-createApp({
-    dataVersionsController,
+const app = createApp({
     ftpController,
     whitelistController,
     devicesController,
     usersController,
     authController,
+    socketSessionsController,
     accessTokenProvider
 });
+const server = createServer(app);
+socketGateway.attach({ server });
+server.listen(ENV.port);
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
     process.once(signal, async () => {
         await ftpConnectionManager.closeAll();
+        socketSessionsService.closeAll();
+        socketGateway.close();
         process.exit(0);
     });
 }

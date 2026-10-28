@@ -1,0 +1,28 @@
+# Socket sessions
+#
+# Execute auth.http first and replace the access token.
+
+@baseUrl = http://localhost:60004/socket-sessions
+@accessToken = PASTE_ACCESS_TOKEN
+@socketSessionId = PASTE_SOCKET_SESSION_ID
+
+### Create a socket session
+POST {{baseUrl}}
+Authorization: Bearer {{accessToken}}
+
+### Refresh a socket session
+POST {{baseUrl}}/{{socketSessionId}}/refresh
+Authorization: Bearer {{accessToken}}
+
+### Close a socket session before logging out this client
+DELETE {{baseUrl}}/{{socketSessionId}}
+Authorization: Bearer {{accessToken}}
+
+### WebSocket protocol
+#
+# Connect to ws://localhost:60004/events/{{socketSessionId}}.
+# Request one or more authorized versions when the client needs them:
+# { "accessToken": "{{accessToken}}", "entities": ["devices", "whitelist"] }
+#
+# FTP directory hash requests use:
+# { "accessToken": "{{accessToken}}", "entities": ["ftp"], "dir": "." }

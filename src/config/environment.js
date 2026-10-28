@@ -33,6 +33,9 @@ const ENV = Object.freeze({
     directoryCacheInactivityTimeout: Number(process.env.DIRECTORY_CACHE_INACTIVITY_TIMEOUT),
     jwtAccessTokenExpiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRES_IN,
     jwtRefreshTokenExpiresIn: process.env.JWT_REFRESH_TOKEN_EXPIRES_IN,
+    socketMaxConnections: Number(process.env.SOCKET_MAX_CONNECTIONS),
+    socketMaxConnectionsPerUser: Number(process.env.SOCKET_MAX_CONNECTIONS_PER_USER),
+    socketSessionInactivityTimeout: Number(process.env.SOCKET_SESSION_INACTIVITY_TIMEOUT),
     chromePath: process.env.CHROME_PATH
 });
 
