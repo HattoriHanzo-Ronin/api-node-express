@@ -2,7 +2,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { FILE_TYPE } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
-import ValidateUtils from "../utils/validate-utils.js";
+import ApiError from "../utils/error/api-error.js";
 import { ENV } from "../config/environment.js";
 
 /**
@@ -83,12 +83,12 @@ export default class FtpFacade {
 
         const thumbnail = bufferMap?.get(name);
         const thumbnailJobs = this.#thumbnailJobs.get(FtpFacade.#getThumbnailJobKey(authUser.id, dir));
-        handleApiErrors([
+        ApiError.handle([
             {
                 condition: thumbnail === undefined && thumbnailJobs?.has(name),
                 message: "La miniatura se está generando",
                 status: 404,
-                apiError: ftpThumbnailPending
+                apiError: API_ERROR.ftpThumbnailPending
             }
         ]);
         return thumbnail ?? null;
@@ -127,7 +127,7 @@ export default class FtpFacade {
                 authUser,
                 onEntry: async (entry, newName) => {
                     completed += 1;
-                    if (entry.type === FILE_TYPE.dir) {
+                    if (entry.type === directoryType) {
                         await this.#moveCachedDirectory(
                             authUser.id,
                             path.posix.join(dir, entry.name),
@@ -135,13 +135,16 @@ export default class FtpFacade {
                         );
                     }
 
-                    await writeProgress(stream, {
-                        event: "entry",
-                        path: entry.name,
-                        targetPath: newName,
-                        type: entry.type,
-                        completed,
-                        total: entries.length
+                    await this.#writeProgress({
+                        stream,
+                        progress: {
+                            event: "entry",
+                            path: entry.name,
+                            targetPath: newName,
+                            type: entry.type,
+                            completed,
+                            total: entries.length
+                        }
                     });
                 },
                 onComplete: async () => {
@@ -149,7 +152,7 @@ export default class FtpFacade {
                     this.#clearDirectoryCache(authUser.id, destination);
                     cacheCleared = true;
                     const { hash } = await this.dir({ dir: destination, authUser });
-                    await writeProgress(stream, { event: "complete", version: hash });
+                    await this.#writeProgress({ stream, progress: { event: "complete", version: hash } });
                     stream.end();
                 }
             });
@@ -172,7 +175,7 @@ export default class FtpFacade {
      */
     async rename({ dir, entry, newName, authUser }) {
         const renamedEntry = await this.ftpService.rename({ dir, entry, newName, authUser });
-        if (entry.type === FILE_TYPE.dir) {
+        if (entry.type === directoryType) {
             await this.#moveCachedDirectory(
                 authUser.id,
                 path.posix.join(dir, entry.name),
@@ -274,23 +277,26 @@ export default class FtpFacade {
                 authUser,
                 onEntry: async (entry) => {
                     completed += 1;
-                    if (entry.type === FILE_TYPE.dir) {
+                    if (entry.type === directoryType) {
                         this.#clearDirectoryCache(authUser.id, path.posix.join(dir, entry.name));
                     }
 
-                    await writeProgress(stream, {
-                        event: "entry",
-                        path: entry.name,
-                        type: entry.type,
-                        completed,
-                        total: entries.length
+                    await this.#writeProgress({
+                        stream,
+                        progress: {
+                            event: "entry",
+                            path: entry.name,
+                            type: entry.type,
+                            completed,
+                            total: entries.length
+                        }
                     });
                 },
                 onComplete: async () => {
                     this.#clearDirectoryCache(authUser.id, dir);
                     cacheCleared = true;
                     const { hash } = await this.dir({ dir, authUser });
-                    await writeProgress(stream, { event: "complete", version: hash });
+                    await this.#writeProgress({ stream, progress: { event: "complete", version: hash } });
                     stream.end();
                 }
             });
@@ -419,7 +425,7 @@ export default class FtpFacade {
         const directoryHash = hash ?? FtpFacade.#hashDirectory(entries);
         this.directoryCache.set(ownerId, dir, { hash: directoryHash });
         if (!watching) {
-            setTimeout(() => this.#checkDirectory(ownerId, dir), DIRECTORY_CHECK_TIMEOUT);
+            setTimeout(() => this.#checkDirectory(ownerId, dir), ftpDirectoryCheckTimeout);
         }
 
         return directoryHash;
@@ -439,7 +445,7 @@ export default class FtpFacade {
             });
             if (!entries) {
                 if (this.ftpService.isSessionActive({ ownerId })) {
-                    setTimeout(() => this.#checkDirectory(ownerId, dir), DIRECTORY_CHECK_TIMEOUT);
+                    setTimeout(() => this.#checkDirectory(ownerId, dir), ftpDirectoryCheckTimeout);
                 } else {
                     this.directoryCache.delete(ownerId, dir);
                 }
@@ -452,7 +458,7 @@ export default class FtpFacade {
         } catch {}
 
         if (this.directoryCache.has(ownerId, dir)) {
-            setTimeout(() => this.#checkDirectory(ownerId, dir), DIRECTORY_CHECK_TIMEOUT);
+            setTimeout(() => this.#checkDirectory(ownerId, dir), ftpDirectoryCheckTimeout);
         }
     }
 
@@ -496,22 +502,21 @@ export default class FtpFacade {
             .join("|");
         return createHash(FtpFacade.#HASH_ALGORITHM).update(source).digest("hex");
     }
-}
 
-const { handleApiErrors } = ValidateUtils;
-const { ftpThumbnailPending } = API_ERROR;
-const { ftpDirectoryCheckTimeout: DIRECTORY_CHECK_TIMEOUT } = ENV;
+    #writeProgress({ stream, progress }) {
+        if (!stream.headersSent) {
+            stream.set?.({
+                "Cache-Control": "no-cache, no-transform",
+                "Content-Type": "application/x-ndjson",
+                "X-Accel-Buffering": "no"
+            });
+        }
 
-function writeProgress(stream, progress) {
-    if (!stream.headersSent) {
-        stream.set?.({
-            "Cache-Control": "no-cache, no-transform",
-            "Content-Type": "application/x-ndjson",
-            "X-Accel-Buffering": "no"
+        return new Promise((resolve, reject) => {
+            stream.write(`${JSON.stringify(progress)}\n`, (error) => error ? reject(error) : resolve());
         });
     }
-
-    return new Promise((resolve, reject) => {
-        stream.write(`${JSON.stringify(progress)}\n`, (error) => error ? reject(error) : resolve());
-    });
 }
+
+const { dir: directoryType } = FILE_TYPE;
+const { ftpDirectoryCheckTimeout } = ENV;

@@ -6,6 +6,8 @@ import { ENV } from "../../config/environment.js";
  * @author HattoriHanzo-Ronin
  */
 export default class DirectoryCache {
+    static #INACTIVITY_TIMEOUT = ENV.directoryCacheInactivityTimeout;
+
     #cache = new Map();
     #clearTimeouts = new Map();
 
@@ -90,9 +92,7 @@ export default class DirectoryCache {
             clearTimeout(previousTimeout);
         }
 
-        const timeout = setTimeout(() => this.delete(ownerId, key), INACTIVITY_TIMEOUT);
+        const timeout = setTimeout(() => this.delete(ownerId, key), DirectoryCache.#INACTIVITY_TIMEOUT);
         clearTimeouts.set(key, timeout);
     }
 }
-
-const { directoryCacheInactivityTimeout: INACTIVITY_TIMEOUT } = ENV;

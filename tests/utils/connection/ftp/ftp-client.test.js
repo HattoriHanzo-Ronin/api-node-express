@@ -25,7 +25,7 @@ describe("FtpClient", () => {
     });
 
     it("should use the owner UUID without hyphens as the SFTP username", async () => {
-        await FtpClient.getClient("550e8400-e29b-41d4-a716-446655440000");
+        await FtpClient.getClient({ ownerId: "550e8400-e29b-41d4-a716-446655440000" });
         expect(connect).toHaveBeenCalledWith({
             host: "ftp.example.com",
             port: 22,
@@ -35,15 +35,15 @@ describe("FtpClient", () => {
     });
 
     it("should preserve an already normalized owner identifier", async () => {
-        await FtpClient.getClient("550e8400e29b41d4a716446655440000");
+        await FtpClient.getClient({ ownerId: "550e8400e29b41d4a716446655440000" });
         expect(connect).toHaveBeenCalledWith(expect.objectContaining({
             username: "550e8400e29b41d4a716446655440000"
         }));
     });
 
     it("should close a connected SFTP client", async () => {
-        const client = await FtpClient.getClient("550e8400-e29b-41d4-a716-446655440000");
-        await FtpClient.closeClient(client);
+        const client = await FtpClient.getClient({ ownerId: "550e8400-e29b-41d4-a716-446655440000" });
+        await FtpClient.closeClient({ client });
         expect(end).toHaveBeenCalledOnce();
     });
 });

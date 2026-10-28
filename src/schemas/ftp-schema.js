@@ -28,11 +28,11 @@ export default class FtpSchema {
     }
 
     static getMoveSchema() {
-        return withSuperRefine(z.object({ dir, entries, destination: dir }), moveCases);
+        return withSuperRefine(z.object({ dir, entries, destination: dir }), FtpSchema.#moveCases);
     }
 
     static getRenameSchema() {
-        return withSuperRefine(z.object({ dir, entry, newName: name }), renameCases);
+        return withSuperRefine(z.object({ dir, entry, newName: name }), FtpSchema.#renameCases);
     }
 
     static getCreateUploadSchema() {
@@ -58,11 +58,24 @@ export default class FtpSchema {
     static getDeleteSchema() {
         return z.object({ dir, entries });
     }
+
+    static #renameCases({ entry, newName }, ctx) {
+        return handleValidationIssues(
+            [{ condition: entry.name === newName, path: ["newName"], message: "El nuevo nombre debe ser diferente" }],
+            ctx
+        );
+    }
+
+    static #moveCases({ dir, destination }, ctx) {
+        return handleValidationIssues(
+            [{ condition: dir === destination, path: ["destination"], message: "El destino debe ser diferente al origen" }],
+            ctx
+        );
+    }
 }
 
 const { handleValidationIssues, zodEnumIgnoreCase, withSuperRefine } = ZodUtils;
-const { ERROR_MESSAGES } = ValidateUtils;
-const { typeRequired, format, emptyArray, emptyString, invalidEnum } = ERROR_MESSAGES;
+const { ERROR_MESSAGES: { typeRequired, format, emptyArray, emptyString, invalidEnum } } = ValidateUtils;
 const fileType = Object.values(FILE_TYPE);
 const { dir } = dirSchema.shape;
 const name = z
@@ -79,17 +92,3 @@ const transferEntry = z.object({
     size: z.number().int().nonnegative().optional()
 });
 const transferEntries = z.array(transferEntry, typeRequired).min(1, emptyArray);
-
-function renameCases({ entry, newName }, ctx) {
-    return handleValidationIssues(
-        [{ condition: entry.name === newName, path: ["newName"], message: "El nuevo nombre debe ser diferente" }],
-        ctx
-    );
-}
-
-function moveCases({ dir, destination }, ctx) {
-    return handleValidationIssues(
-        [{ condition: dir === destination, path: ["destination"], message: "El destino debe ser diferente al origen" }],
-        ctx
-    );
-}
