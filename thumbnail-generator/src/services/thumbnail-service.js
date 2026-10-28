@@ -11,7 +11,6 @@ import ApiError from "../utils/error/api-error.js";
 const {
     apiUrl,
     thumbnailCpuTarget,
-    thumbnailGeneratorUrl,
     thumbnailInitialConcurrency,
     thumbnailMaxOutputSize,
     thumbnailMaxPixels,
@@ -19,6 +18,13 @@ const {
     thumbnailSchedulerInterval,
     thumbnailTimeout
 } = ENV;
+const {
+    thumbnailRequestCancelled,
+    thumbnailGenerationTimeout,
+    thumbnailOutputTooLarge,
+    thumbnailMediaInvalid,
+    thumbnailGenerationFailed
+} = API_ERROR;
 
 /**
  * Streamed media thumbnail generator
@@ -30,7 +36,6 @@ export default class ThumbnailService {
         "avi,asf,bmp_pipe,flv,gif,hevc,jpeg_pipe,matroska,mjpeg,mov,mpeg,mpegts,mpegvideo,ogg,png_pipe,tiff_pipe,webm,webp_pipe";
     static #MAX_ALLOC = 256 * 1024 * 1024;
     static #MAX_OUTPUT_SIZE = thumbnailMaxOutputSize;
-    static #MAX_ERROR_OUTPUT_SIZE = 8 * 1024;
     static #MAX_PIXELS = thumbnailMaxPixels;
     static #TIMEOUT = thumbnailTimeout;
     static #QUEUE = [];
@@ -99,7 +104,7 @@ export default class ThumbnailService {
 
             job.reject(ThumbnailService.#createError({
                 message: "No se pudo generar la miniatura",
-                apiError: API_ERROR.thumbnailGenerationFailed
+                apiError: thumbnailGenerationFailed
             }));
         } finally {
             job.signal?.removeEventListener("abort", job.cancel);
@@ -136,8 +141,6 @@ export default class ThumbnailService {
             ThumbnailService.#DEMUXERS,
             "-max_pixels",
             String(ThumbnailService.#MAX_PIXELS),
-            "-headers",
-            `Origin: ${thumbnailGeneratorUrl}\r\n`,
             "-i",
             mediaUrl,
             "-map",
@@ -154,7 +157,6 @@ export default class ThumbnailService {
         ]);
         const chunks = [];
         let outputSize = 0;
-        let errorOutput = "";
         let timeoutReached = false;
         let cancelled = false;
         const timeout = setTimeout(() => {
@@ -176,14 +178,6 @@ export default class ThumbnailService {
 
             chunks.push(chunk);
         });
-        childProcess.stderr.setEncoding("utf8");
-        childProcess.stderr.on("data", (chunk) => {
-            const remainingSize = ThumbnailService.#MAX_ERROR_OUTPUT_SIZE - errorOutput.length;
-            if (remainingSize > 0) {
-                errorOutput += chunk.slice(0, remainingSize);
-            }
-        });
-
         const completed = new Promise((resolve, reject) => {
             childProcess.once("error", reject);
             childProcess.once("close", (code) => {
@@ -197,7 +191,7 @@ export default class ThumbnailService {
                         ThumbnailService.#createError({
                             message: "Se agotó el tiempo para generar la miniatura",
                             status: 504,
-                            apiError: API_ERROR.thumbnailGenerationTimeout
+                            apiError: thumbnailGenerationTimeout
                         })
                     );
                     return;
@@ -208,22 +202,18 @@ export default class ThumbnailService {
                         ThumbnailService.#createError({
                             message: "La miniatura supera el tamaño permitido",
                             status: 413,
-                            apiError: API_ERROR.thumbnailOutputTooLarge
+                            apiError: thumbnailOutputTooLarge
                         })
                     );
                     return;
                 }
 
                 if (code !== 0 || !outputSize) {
-                    if (errorOutput) {
-                        console.error(errorOutput.trim());
-                    }
-
                     reject(
                         ThumbnailService.#createError({
                             message: "El archivo multimedia no es válido",
                             status: 422,
-                            apiError: API_ERROR.thumbnailMediaInvalid
+                            apiError: thumbnailMediaInvalid
                         })
                     );
                     return;
@@ -382,7 +372,7 @@ export default class ThumbnailService {
         return ThumbnailService.#createError({
             message: "La solicitud fue cancelada",
             status: 499,
-            apiError: API_ERROR.thumbnailRequestCancelled
+            apiError: thumbnailRequestCancelled
         });
     }
 }

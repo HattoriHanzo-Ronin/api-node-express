@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const validEnvironment = {
     PORT: "3001",
     API_URL: "http://api-node-express:60004",
-    THUMBNAIL_GENERATOR_URL: "http://thumbnail-generator:60005",
     THUMBNAIL_INITIAL_CONCURRENCY: "20",
     THUMBNAIL_CPU_TARGET: "80",
     THUMBNAIL_MEMORY_TARGET: "80",

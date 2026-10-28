@@ -10,7 +10,6 @@ import { promisify } from "node:util";
 import ffmpegPath from "ffmpeg-static";
 
 describe("ThumbnailService", () => {
-    const origins = [];
     const paths = [];
     const ranges = [];
     let fixtureDir;
@@ -27,7 +26,6 @@ describe("ThumbnailService", () => {
         const { size } = await stat(fixture);
         server = createServer(async (request, response) => {
             paths.push(request.url);
-            origins.push(request.headers.origin);
             ranges.push(request.headers.range);
             const { start, end, partial } = getRange(request.headers.range, size);
             const headers = { "Accept-Ranges": "bytes", "Content-Length": end - start + 1 };
@@ -46,7 +44,6 @@ describe("ThumbnailService", () => {
         await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
         process.env.PORT = "3000";
         process.env.API_URL = `http://127.0.0.1:${server.address().port}`;
-        process.env.THUMBNAIL_GENERATOR_URL = "http://thumbnail-generator:3000";
         process.env.THUMBNAIL_INITIAL_CONCURRENCY = "20";
         process.env.THUMBNAIL_CPU_TARGET = "80";
         process.env.THUMBNAIL_MEMORY_TARGET = "80";
@@ -68,7 +65,6 @@ describe("ThumbnailService", () => {
         const thumbnail = await service.create({ id: "550e8400-e29b-41d4-a716-446655440000" });
         expect(thumbnail.subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8]));
         expect(ranges.some(Boolean)).toBe(true);
-        expect(origins.every((origin) => origin === "http://thumbnail-generator:3000")).toBe(true);
         expect(paths).toContain("/ftp/media/550e8400-e29b-41d4-a716-446655440000");
     });
 });
