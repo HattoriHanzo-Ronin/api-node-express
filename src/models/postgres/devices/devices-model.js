@@ -2,6 +2,16 @@ import PostgresClient from "../../../utils/connection/postgres/postgres-client.j
 import PostgresDbUtils from "../../../utils/postgres-db-utils.js";
 import devicesColumns from "./columns.js";
 
+const { getClient, helpers } = PostgresClient;
+const client = getClient();
+const {
+    insert: insertColumns,
+    update: updateColumns,
+    allowedInfo: allowedInfoColumns,
+    routerInfo: routerInfoColumns
+} = devicesColumns;
+const { pgPromiseColumnsWithAlias: columnsWithAlias } = PostgresDbUtils;
+
 /**
  * Devices table model
  *
@@ -111,13 +121,3 @@ export default class DevicesModel {
         return client.oneOrNone("delete from devices where id = $1 returning id", [id]);
     }
 }
-
-const { getClient, helpers } = PostgresClient;
-const client = getClient();
-const {
-    insert: insertColumns,
-    update: updateColumns,
-    allowedInfo: allowedInfoColumns,
-    routerInfo: routerInfoColumns
-} = devicesColumns;
-const { pgPromiseColumnsWithAlias: columnsWithAlias } = PostgresDbUtils;

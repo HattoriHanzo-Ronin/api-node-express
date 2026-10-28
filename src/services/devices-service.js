@@ -4,6 +4,10 @@ import ValidateUtils from "../utils/validate-utils.js";
 import ZodUtils from "../utils/zod-utils.js";
 import { API_ERROR } from "../config/errors.js";
 
+const { deviceNotFound, deviceEmptyUpdate } = API_ERROR;
+const { validateNotEmptyObject } = ValidateUtils;
+const { validateData } = ZodUtils;
+
 /**
  * Devices service
  *
@@ -118,8 +122,3 @@ export default class DevicesService {
         return this.devicesModel.delete({ id });
     }
 }
-
-const { deviceNotFound, deviceEmptyUpdate } = API_ERROR;
-
-const { validateNotEmptyObject } = ValidateUtils;
-const { validateData } = ZodUtils;

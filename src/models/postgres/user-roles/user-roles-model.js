@@ -1,6 +1,10 @@
 import PostgresClient from "../../../utils/connection/postgres/postgres-client.js";
 import userRolesColumns from "./columns.js";
 
+const { getClient, helpers } = PostgresClient;
+const client = getClient();
+const { insert: insertColumns } = userRolesColumns;
+
 /**
  * User roles table model
  *
@@ -39,7 +43,3 @@ export default class UserRolesModel {
         return clientTx.none("delete from user_roles where user_id = $1", [userId]);
     }
 }
-
-const { getClient, helpers } = PostgresClient;
-const client = getClient();
-const { insert: insertColumns } = userRolesColumns;

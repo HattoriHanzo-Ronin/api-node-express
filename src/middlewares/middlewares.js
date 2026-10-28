@@ -3,6 +3,8 @@ import busboy from "busboy";
 import ApiError from "../utils/error/api-error.js";
 import { API_ERROR } from "../config/errors.js";
 
+const { routeNotFound, internalError, authenticationRequired, aclPermissionDenied } = API_ERROR;
+
 /**
  * Application middleware factory
  *
@@ -171,5 +173,3 @@ export default class Middlewares {
         };
     }
 }
-
-const { routeNotFound, internalError, authenticationRequired, aclPermissionDenied } = API_ERROR;

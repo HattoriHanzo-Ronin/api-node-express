@@ -1,6 +1,15 @@
 import PostgresClient from "../../../utils/connection/postgres/postgres-client.js";
 import usersColumns from "./columns.js";
 
+const { getClient, helpers } = PostgresClient;
+const client = getClient();
+const {
+    basicInfo: basicInfoColumns,
+    authentication: authenticationColumns,
+    insert: insertColumns,
+    update: updateColumns
+} = usersColumns;
+
 /**
  * Users table model
  *
@@ -88,12 +97,3 @@ export default class UsersModel {
         return client.oneOrNone("delete from users where id = $1 returning id", [id]);
     }
 }
-
-const { getClient, helpers } = PostgresClient;
-const client = getClient();
-const {
-    basicInfo: basicInfoColumns,
-    authentication: authenticationColumns,
-    insert: insertColumns,
-    update: updateColumns
-} = usersColumns;

@@ -21,6 +21,13 @@ const {
     sessionInactivityTimeout,
     vncPortBase
 } = ENV;
+const {
+    routerSessionCapacityReached,
+    routerSessionConnectionCapacityReached,
+    routerSessionFailed,
+    routerSessionInvalid,
+    routerSessionNotFound
+} = API_ERROR;
 
 /**
  * Manages isolated visible browser sessions for router control panels
@@ -92,7 +99,7 @@ export default class RouterSessionService {
         }
 
         try {
-            await cleanupSession(session);
+            await this.#cleanupSession({ session });
         } catch {
             throw new ApiError({
                 message: "No se ha podido cerrar la sesión del panel de router",
@@ -171,7 +178,7 @@ export default class RouterSessionService {
         session.vncConnectionCount += 1;
         this.#scheduleClose({ session });
         try {
-            const vncSocket = await connectVnc({
+            const vncSocket = await RouterSessionService.#connectVnc({
                 port: session.vncPort,
                 attempts: RouterSessionService.#VNC_CONNECTION_ATTEMPTS,
                 delayMs: RouterSessionService.#VNC_CONNECTION_DELAY
@@ -298,7 +305,7 @@ export default class RouterSessionService {
         };
         try {
             session.profileDir = await mkdtemp(path.join(tmpdir(), "router-cpanel-"));
-            session.xvfb = await startProcess({
+            session.xvfb = await RouterSessionService.#startProcess({
                 command: "Xvfb",
                 args: [`:${display}`, "-screen", "0", `${width}x${height}x24`, "-nolisten", "tcp"]
             });
@@ -336,7 +343,7 @@ export default class RouterSessionService {
                 session.initialUrl = page.url();
             }
 
-            session.vnc = await startProcess({
+            session.vnc = await RouterSessionService.#startProcess({
                 command: "x11vnc",
                 args: ["-display", `:${display}`, "-localhost", "-forever", "-shared", "-rfbport", String(vncPort)]
             });
@@ -352,11 +359,11 @@ export default class RouterSessionService {
 
             return {
                 id,
-                url: getViewerUrl({ id, token, routerName, language, clientType, theme }),
+                url: RouterSessionService.#getViewerUrl({ id, token, routerName, language, clientType, theme }),
                 expiresAt: new Date(Date.now() + sessionInactivityTimeout).toISOString()
             };
         } catch {
-            await cleanupSession(session).catch(() => {});
+            await this.#cleanupSession({ session }).catch(() => {});
             throw new ApiError({
                 message: "No se ha podido crear la sesión del panel de router",
                 apiError: routerSessionFailed
@@ -491,68 +498,60 @@ export default class RouterSessionService {
     #markInteraction({ session }) {
         session.loadingUntil = Date.now() + RouterSessionService.#LOADING_INTERACTION_TIMEOUT;
     }
-}
 
-const {
-    routerSessionCapacityReached,
-    routerSessionConnectionCapacityReached,
-    routerSessionFailed,
-    routerSessionInvalid,
-    routerSessionNotFound
-} = API_ERROR;
+    static async #startProcess({ command, args }) {
+        const childProcess = spawn(command, args, { stdio: "ignore" });
+        await Promise.race([
+            once(childProcess, "spawn"),
+            once(childProcess, "error").then(([error]) => Promise.reject(error))
+        ]);
+        return childProcess;
+    }
 
-async function startProcess({ command, args }) {
-    const childProcess = spawn(command, args, { stdio: "ignore" });
-    await Promise.race([
-        once(childProcess, "spawn"),
-        once(childProcess, "error").then(([error]) => Promise.reject(error))
-    ]);
-    return childProcess;
-}
+    static async #connectVnc({ port, attempts, delayMs }) {
+        let error;
+        for (let attempt = 0; attempt < attempts; attempt += 1) {
+            let socket;
+            try {
+                socket = createConnection({ host: "127.0.0.1", port });
+                await once(socket, "connect");
+                return socket;
+            } catch (err) {
+                socket?.destroy();
+                error = err;
+                await delay(delayMs);
+            }
+        }
 
-async function connectVnc({ port, attempts, delayMs }) {
-    let error;
-    for (let attempt = 0; attempt < attempts; attempt += 1) {
-        let socket;
-        try {
-            socket = createConnection({ host: "127.0.0.1", port });
-            await once(socket, "connect");
-            return socket;
-        } catch (err) {
-            socket?.destroy();
-            error = err;
-            await delay(delayMs);
+        throw error;
+    }
+
+    async #cleanupSession({ session }) {
+        clearTimeout(session.timeout);
+        clearTimeout(session.loadingTimeout);
+        session.autoLoginAbort?.abort();
+        await session.browser?.close().catch(() => {});
+        session.vnc?.kill("SIGKILL");
+        session.xvfb?.kill("SIGKILL");
+        if (session.profileDir) {
+            await rm(session.profileDir, { recursive: true, force: true });
         }
     }
 
-    throw error;
-}
+    static #getViewerUrl({ id, token, routerName, language, clientType, theme }) {
+        const query = new URLSearchParams({
+            autoconnect: "true",
+            path: `/vnc/${id}/socket?token=${token}`,
+            status: `/vnc/${id}/status?token=${token}`,
+            resize: "remote",
+            title: routerName,
+            client: clientType,
+            theme: theme ?? "dark"
+        });
+        if (language) {
+            query.set("language", language);
+        }
 
-async function cleanupSession(session) {
-    clearTimeout(session.timeout);
-    clearTimeout(session.loadingTimeout);
-    session.autoLoginAbort?.abort();
-    await session.browser?.close().catch(() => {});
-    session.vnc?.kill("SIGKILL");
-    session.xvfb?.kill("SIGKILL");
-    if (session.profileDir) {
-        await rm(session.profileDir, { recursive: true, force: true });
+        return new URL(`/viewer/?${query}`, publicUrl).href;
     }
-}
-
-function getViewerUrl({ id, token, routerName, language, clientType, theme }) {
-    const query = new URLSearchParams({
-        autoconnect: "true",
-        path: `/vnc/${id}/socket?token=${token}`,
-        status: `/vnc/${id}/status?token=${token}`,
-        resize: "remote",
-        title: routerName,
-        client: clientType,
-        theme: theme ?? "dark"
-    });
-    if (language) {
-        query.set("language", language);
-    }
-
-    return new URL(`/viewer/?${query}`, publicUrl).href;
 }

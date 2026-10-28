@@ -1,6 +1,8 @@
 import ApiError from "../../error/api-error.js";
 import { API_ERROR } from "../../../config/errors.js";
 
+const { routerCpanelServiceUnavailable, routerCpanelSessionFailed } = API_ERROR;
+
 /**
  * Communicates with the router control panel service
  *
@@ -80,5 +82,3 @@ export default class RouterCpanel {
         });
     }
 }
-
-const { routerCpanelServiceUnavailable, routerCpanelSessionFailed } = API_ERROR;

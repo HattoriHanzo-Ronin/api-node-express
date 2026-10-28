@@ -1,6 +1,8 @@
 import ApiError from "../utils/error/api-error.js";
 import { API_ERROR } from "../config/errors.js";
 
+const { connectionRequired, connectionCreateFailed, connectionUpdateFailed } = API_ERROR;
+
 /**
  * Connections service
  *
@@ -114,5 +116,3 @@ export default class ConnectionsService {
         }
     }
 }
-
-const { connectionRequired, connectionCreateFailed, connectionUpdateFailed } = API_ERROR;

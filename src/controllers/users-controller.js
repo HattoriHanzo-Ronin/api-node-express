@@ -2,6 +2,9 @@ import ZodUtils from "../utils/zod-utils.js";
 import UsersSchema from "../schemas/users-schema.js";
 import idSchema from "../schemas/common/id-schema.js";
 
+const { validateData } = ZodUtils;
+const { getValidatedSchema, getPartialSchema, getChangePasswordSchema } = UsersSchema;
+
 /**
  * Controller for Users
  *
@@ -45,6 +48,3 @@ export default class UsersController {
         res.json(await this.usersFacade.delete({ authUser, id }));
     };
 }
-
-const { validateData } = ZodUtils;
-const { getValidatedSchema, getPartialSchema, getChangePasswordSchema } = UsersSchema;

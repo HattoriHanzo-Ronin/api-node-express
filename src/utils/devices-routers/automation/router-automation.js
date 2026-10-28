@@ -3,6 +3,8 @@ import { API_ERROR } from "../../../config/errors.js";
 import ArcherAX53Router from "./routers/tp-link/archer-ax53.js";
 import TLWDR5620GigabitEditionRouter from "./routers/tp-link/tl-wdr5620-gigabit-edition.js";
 
+const { routerImplementationNotFound, routerAddFailed, routerDeleteFailed } = API_ERROR;
+
 /**
  * Router automation
  *
@@ -87,5 +89,3 @@ export default class RouterAutomation {
         }]);
     }
 }
-
-const { routerImplementationNotFound, routerAddFailed, routerDeleteFailed } = API_ERROR;

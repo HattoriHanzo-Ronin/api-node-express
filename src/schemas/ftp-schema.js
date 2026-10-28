@@ -5,6 +5,25 @@ import { FILE_TYPE } from "../config/constants.js";
 import dirSchema, { pathSchema } from "./common/dir-schema.js";
 import idSchema from "./common/id-schema.js";
 
+const { handleValidationIssues, zodEnumIgnoreCase, withSuperRefine } = ZodUtils;
+const { ERROR_MESSAGES: { typeRequired, format, emptyArray, emptyString, invalidEnum } } = ValidateUtils;
+const fileType = Object.values(FILE_TYPE);
+const { dir } = dirSchema.shape;
+const name = z
+    .string(typeRequired)
+    .trim()
+    .min(1, emptyString)
+    .regex(/^[^\p{Cc}/\\]+$/u, format);
+const entry = z.object({ type: zodEnumIgnoreCase(z, z.enum(fileType, invalidEnum(fileType)), typeRequired), name });
+const entries = z.array(entry, typeRequired).min(1, emptyArray);
+const offset = z.coerce.number().int().nonnegative().optional();
+const transferEntry = z.object({
+    type: zodEnumIgnoreCase(z, z.enum(fileType, invalidEnum(fileType)), typeRequired),
+    path: pathSchema,
+    size: z.number().int().nonnegative().optional()
+});
+const transferEntries = z.array(transferEntry, typeRequired).min(1, emptyArray);
+
 /**
  * Factory for FTP validation schemas
  *
@@ -73,22 +92,3 @@ export default class FtpSchema {
         );
     }
 }
-
-const { handleValidationIssues, zodEnumIgnoreCase, withSuperRefine } = ZodUtils;
-const { ERROR_MESSAGES: { typeRequired, format, emptyArray, emptyString, invalidEnum } } = ValidateUtils;
-const fileType = Object.values(FILE_TYPE);
-const { dir } = dirSchema.shape;
-const name = z
-    .string(typeRequired)
-    .trim()
-    .min(1, emptyString)
-    .regex(/^[^\p{Cc}/\\]+$/u, format);
-const entry = z.object({ type: zodEnumIgnoreCase(z, z.enum(fileType, invalidEnum(fileType)), typeRequired), name });
-const entries = z.array(entry, typeRequired).min(1, emptyArray);
-const offset = z.coerce.number().int().nonnegative().optional();
-const transferEntry = z.object({
-    type: zodEnumIgnoreCase(z, z.enum(fileType, invalidEnum(fileType)), typeRequired),
-    path: pathSchema,
-    size: z.number().int().nonnegative().optional()
-});
-const transferEntries = z.array(transferEntry, typeRequired).min(1, emptyArray);
