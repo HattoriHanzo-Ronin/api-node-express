@@ -1,5 +1,3 @@
-import { USER_ROLE } from "../config/constants.js";
-
 /**
  * Maps user data between persistence and domain representations
  *
@@ -9,29 +7,22 @@ export default class UsersMapper {
     /**
      * Maps persisted user data to the domain representation
      *
-     * @param {Object} source Persisted user data
+     * @param {Object} params.source Persisted user data
+     * @param {Object} params.acl User ACL data
      * @returns {Object} User domain representation
      */
-    static userToDomain(source) {
-        const { roles, ...user } = source;
-        const userRoles = roles.filter(({ user_id: userId }) => userId === user.id);
-        return { ...user, ...UsersMapper.#mapRolesToDomain(userRoles) };
+    static userToDomain({ source, acl }) {
+        return { ...source, ...acl };
     }
 
     /**
      * Maps multiple persisted users to domain representations
      *
-     * @param {Object} source Source data
+     * @param {Object[]} params.users Persisted users
+     * @param {Map<string, Object>} params.aclByUser User ACL data by identifier
      * @returns {Object[]} User domain representations
      */
-    static usersToDomain(source) {
-        const { users, roles } = source;
-        return users.map((user) => UsersMapper.userToDomain({ ...user, roles }));
-    }
-
-    static #mapRolesToDomain(roles) {
-        const adminRole = roles.find(({ role }) => role === USER_ROLE.admin);
-        const userRoles = roles.map(({ role }) => role);
-        return adminRole ? { roles: userRoles, scope: adminRole.scope.split(",") } : { roles: userRoles };
+    static usersToDomain({ users, aclByUser }) {
+        return users.map((user) => UsersMapper.userToDomain({ source: user, acl: aclByUser.get(user.id) }));
     }
 }

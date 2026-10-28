@@ -79,9 +79,9 @@ describe("FtpService", () => {
                 { name: "photo.jpg", type: "-", size: 256, modifyTime }
             ]);
             await expect(ftpService.dir({ dir: "files", authUser })).resolves.toEqual([
-                { name: "docs", type: "DIR", size: 0, modifyTime, supportsThumbnail: false },
-                { name: "file.txt", type: "FILE", size: 128, modifyTime, supportsThumbnail: false },
-                { name: "photo.jpg", type: "FILE", size: 256, modifyTime, supportsThumbnail: true }
+                { name: "docs", type: "d", size: 0, modifyTime },
+                { name: "file.txt", type: "-", size: 128, modifyTime },
+                { name: "photo.jpg", type: "-", size: 256, modifyTime }
             ]);
             expect(FtpClient.getClient).toHaveBeenCalledWith({ ownerId: authUser.id });
             expect(mockClient.list).toHaveBeenCalledWith("files");

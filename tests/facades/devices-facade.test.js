@@ -4,9 +4,9 @@ import DevicesMapper from "../../src/mappers/devices-mapper.js";
 
 describe("DevicesFacade", () => {
     let devicesService;
-    let dataVersionsService;
+    let dataVersionsFacade;
     let devicesMapper;
-    let connectionsService;
+    let connectionsFacade;
     let routerAutomation;
     let routerCpanel;
     let devicesFacade;
@@ -24,16 +24,25 @@ describe("DevicesFacade", () => {
             update: vi.fn(),
             delete: vi.fn()
         };
-        dataVersionsService = {
-            getById: vi.fn(({ id }) => Promise.resolve({ version: id === "devices" ? "2" : "3" }))
+        dataVersionsFacade = {
+            getById: vi.fn(({ id }) => {
+                if (Array.isArray(id)) {
+                    return Promise.resolve({ devices: "2", whitelist: "3" });
+                }
+                return Promise.resolve({ version: id === "devices" ? "2" : "3" });
+            })
         };
         devicesMapper = {
             createDeviceSource: vi.fn((source) => source),
-            deviceToDomain: vi.fn((source) => source),
-            devicesToDomain: vi.fn((source) => source.devices)
+            deviceToDomain: vi.fn(({ source, connections }) => ({ ...source, connections })),
+            devicesToDomain: vi.fn((source) => source.devices),
+            routersToAutomation: vi.fn((source) => source)
         };
-        connectionsService = {
-            getByDevices: vi.fn(),
+        connectionsFacade = {
+            getByDevices: vi.fn().mockResolvedValue(new Map()),
+            connectionsByDeviceToDomain: vi.fn(({ source }) =>
+                new Map(source.map(({ device_id: deviceId, mac, ctype }) => [deviceId, [{ mac, ctype }]]))
+            ),
             createMany: vi.fn(),
             update: vi.fn()
         };
@@ -43,9 +52,9 @@ describe("DevicesFacade", () => {
         routerCpanel = { create: vi.fn(), navigate: vi.fn(), close: vi.fn() };
         devicesFacade = new DevicesFacade({
             devicesService,
-            dataVersionsService,
+            dataVersionsFacade,
             devicesMapper,
-            connectionsService,
+            connectionsFacade,
             routerAutomation,
             routerCpanel,
             tx
@@ -53,18 +62,19 @@ describe("DevicesFacade", () => {
     });
 
     it("should get all devices and map their connections", async () => {
-        const connection = { device_id: "device-1", mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" };
         devicesService.getAll.mockResolvedValue([{ id: "device-1", name: "Desktop" }]);
-        connectionsService.getByDevices.mockResolvedValue([connection]);
+        connectionsFacade.getByDevices.mockResolvedValue(
+            new Map([["device-1", [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }]]])
+        );
 
         await expect(devicesFacade.getAll()).resolves.toEqual({
             version: "2",
             data: [{ id: "device-1", name: "Desktop" }]
         });
-        expect(connectionsService.getByDevices).toHaveBeenCalledWith({ devicesId: ["device-1"] });
+        expect(connectionsFacade.getByDevices).toHaveBeenCalledWith({ devicesId: ["device-1"] });
         expect(devicesMapper.devicesToDomain).toHaveBeenCalledWith({
             devices: [{ id: "device-1", name: "Desktop" }],
-            connections: [connection]
+            connectionsByDevice: new Map([["device-1", [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }]]])
         });
     });
 
@@ -76,9 +86,9 @@ describe("DevicesFacade", () => {
         devicesService[method].mockResolvedValue(rows);
         devicesFacade = new DevicesFacade({
             devicesService,
-            dataVersionsService,
+            dataVersionsFacade,
             devicesMapper: new DevicesMapper({ routerAutomation }),
-            connectionsService,
+            connectionsFacade,
             routerAutomation,
             routerCpanel,
             tx
@@ -96,29 +106,27 @@ describe("DevicesFacade", () => {
             ]
         });
         expect(devicesService[method]).toHaveBeenCalledWith({ routerId: "router-1" });
-        expect(dataVersionsService.getById).toHaveBeenCalledWith({ id: "devices" });
-        expect(dataVersionsService.getById).toHaveBeenCalledWith({ id: "whitelist" });
+        expect(dataVersionsFacade.getById).toHaveBeenCalledWith({ id: ["devices", "whitelist"] });
     });
 
     it("should create a device with its connections in a transaction", async () => {
-        const connection = { device_id: "device-1", mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" };
         const device = {
             name: "Desktop",
             type: "CLIENT",
             connections: [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }]
         };
         devicesService.create.mockResolvedValue({ id: "device-1", name: "Desktop", type: "CLIENT" });
-        connectionsService.createMany.mockResolvedValue([connection]);
+        connectionsFacade.createMany.mockResolvedValue([{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }]);
         const deviceData = { name: device.name, type: device.type };
 
         await expect(devicesFacade.create({ device })).resolves.toEqual({
             id: "device-1",
             name: "Desktop",
             type: "CLIENT",
-            connections: [connection]
+            connections: [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }]
         });
         expect(devicesService.create).toHaveBeenCalledWith({ clientTx: {}, device: deviceData });
-        expect(connectionsService.createMany).toHaveBeenCalledWith({
+        expect(connectionsFacade.createMany).toHaveBeenCalledWith({
             clientTx: {},
             deviceId: "device-1",
             connections: [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }]

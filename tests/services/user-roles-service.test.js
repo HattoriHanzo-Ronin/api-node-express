@@ -27,22 +27,23 @@ describe("UserRolesService", () => {
         it("should create user roles", async () => {
             const createdRoles = [{ user_id: "1", role: "FTP", scope: null }];
             userRolesModel.insertMany.mockResolvedValue(createdRoles);
-            const result = await userRolesService.createMany({ clientTx: {}, userId: "1", roles: ["FTP"] });
+            const result = await userRolesService.createMany({ clientTx: {}, userRoles: createdRoles });
             expect(result).toEqual(createdRoles);
             expect(userRolesModel.insertMany).toHaveBeenCalledWith({ clientTx: {}, userRoles: createdRoles });
         });
 
-        it("should create admin role with scope", async () => {
+        it("should create persistence role assignments", async () => {
+            const userRoles = [{ user_id: "1", role: "ADMIN", scope: "FTP,NET" }];
             userRolesModel.insertMany.mockResolvedValue([]);
-            await userRolesService.createMany({ clientTx: {}, userId: "1", roles: ["ADMIN"], scope: ["FTP", "NET"] });
+            await userRolesService.createMany({ clientTx: {}, userRoles });
             expect(userRolesModel.insertMany).toHaveBeenCalledWith({
                 clientTx: {},
-                userRoles: [{ user_id: "1", role: "ADMIN", scope: "FTP,NET" }]
+                userRoles
             });
         });
 
         it("should fail if roles are not defined", async () => {
-            await expect(userRolesService.createMany({ clientTx: {}, userId: "1" })).rejects.toThrow(
+            await expect(userRolesService.createMany({ clientTx: {} })).rejects.toThrow(
                 "Se debe especificar al menos un rol para el usuario"
             );
         });
@@ -52,7 +53,7 @@ describe("UserRolesService", () => {
         it("should replace user roles", async () => {
             const createdRoles = [{ user_id: "1", role: "FTP", scope: null }];
             userRolesModel.insertMany.mockResolvedValue(createdRoles);
-            const result = await userRolesService.replace({ clientTx: {}, userId: "1", roles: ["FTP"] });
+            const result = await userRolesService.replace({ clientTx: {}, userId: "1", userRoles: createdRoles });
             expect(userRolesModel.deleteByUser).toHaveBeenCalledWith({ clientTx: {}, userId: "1" });
             expect(result).toEqual(createdRoles);
         });

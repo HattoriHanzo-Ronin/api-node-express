@@ -12,11 +12,14 @@ import MemoryCache from "./utils/cache/memory-cache.js";
 import DirectoryCache from "./utils/cache/directory-cache.js";
 import DataVersionsModel from "./models/postgres/data-versions/data-versions-model.js";
 import DataVersionsService from "./services/data-versions-service.js";
+import DataVersionsMapper from "./mappers/data-versions-mapper.js";
 import DataVersionsFacade from "./facades/data-versions-facade.js";
 import DataVersionsController from "./controllers/data-versions-controller.js";
 
 import ConnectionsModel from "./models/postgres/connections/connections-model.js";
 import ConnectionsService from "./services/connections-service.js";
+import ConnectionsMapper from "./mappers/connections-mapper.js";
+import ConnectionsFacade from "./facades/connections-facade.js";
 import DevicesModel from "./models/postgres/devices/devices-model.js";
 import DevicesService from "./services/devices-service.js";
 import DevicesMapper from "./mappers/devices-mapper.js";
@@ -31,6 +34,8 @@ import WhitelistController from "./controllers/whitelist-controller.js";
 
 import UserRolesModel from "./models/postgres/user-roles/user-roles-model.js";
 import UserRolesService from "./services/user-roles-service.js";
+import UserRolesMapper from "./mappers/user-roles-mapper.js";
+import UserRolesFacade from "./facades/user-roles-facade.js";
 import UsersModel from "./models/postgres/users/users-model.js";
 import UsersMapper from "./mappers/users-mapper.js";
 import UsersService from "./services/users-service.js";
@@ -60,26 +65,32 @@ const memoryCache = new MemoryCache();
 const directoryCache = new DirectoryCache();
 const ftpConnectionManager = new FtpConnectionManager();
 const ftpService = new FtpService({ ftpConnectionManager });
-const ftpFacade = new FtpFacade({
-    ftpService,
-    ftpMapper: FtpMapper,
-    memoryCache,
-    directoryCache
-});
+const ftpFacade = new FtpFacade({ ftpService, ftpMapper: FtpMapper, memoryCache, directoryCache });
 const ftpController = new FtpController({ ftpFacade });
-const dataVersionsFacade = new DataVersionsFacade({ dataVersionsService, ftpFacade });
+const dataVersionsFacade = new DataVersionsFacade({
+    dataVersionsService,
+    dataVersionsMapper: DataVersionsMapper,
+    ftpFacade
+});
 const dataVersionsController = new DataVersionsController({ dataVersionsFacade });
 
-const connectionsService = new ConnectionsService({ connectionsModel: ConnectionsModel, entityError: connectionsEntityError });
+const connectionsService = new ConnectionsService({
+    connectionsModel: ConnectionsModel,
+    entityError: connectionsEntityError
+});
+const connectionsFacade = new ConnectionsFacade({
+    connectionsService,
+    connectionsMapper: ConnectionsMapper
+});
 const devicesService = new DevicesService({ devicesModel: DevicesModel, entityError: devicesEntityError });
 const routerAutomation = RouterAutomation;
 const devicesMapper = new DevicesMapper({ routerAutomation });
 const routerCpanel = new RouterCpanel({ routerCpanelServiceUrl });
 const devicesFacade = new DevicesFacade({
     devicesService,
-    dataVersionsService,
+    dataVersionsFacade,
     devicesMapper,
-    connectionsService,
+    connectionsFacade,
     routerAutomation,
     routerCpanel,
     tx
@@ -90,8 +101,18 @@ const whitelistFacade = new WhitelistFacade({ whitelistService, devicesFacade, r
 const whitelistController = new WhitelistController({ whitelistFacade });
 
 const userRolesService = new UserRolesService({ userRolesModel: UserRolesModel });
+const userRolesFacade = new UserRolesFacade({
+    userRolesService,
+    userRolesMapper: UserRolesMapper
+});
 const usersService = new UsersService({ usersModel: UsersModel, entityError: usersEntityError });
-const usersFacade = new UsersFacade({ usersService, dataVersionsService, userRolesService, usersMapper: UsersMapper, tx });
+const usersFacade = new UsersFacade({
+    usersService,
+    dataVersionsFacade,
+    userRolesFacade,
+    usersMapper: UsersMapper,
+    tx
+});
 const usersController = new UsersController({ usersFacade });
 const refreshTokensService = new RefreshTokensService({
     refreshTokensModel: RefreshTokensModel,

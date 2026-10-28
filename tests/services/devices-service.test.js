@@ -62,8 +62,8 @@ describe("DevicesService", () => {
     });
 
     describe("getRoutersByAllowedDevice", () => {
-        it("should group router rows by router", async () => {
-            devicesModel.getRoutersByAllowedDevice.mockResolvedValue([
+        it("should return persistence router rows", async () => {
+            const rows = [
                 {
                     id: "router-1",
                     name: "Router",
@@ -80,18 +80,9 @@ describe("DevicesService", () => {
                     mac: "AA:BB:CC:DD:EE:02",
                     key: "white_list_2"
                 }
-            ]);
-            await expect(devicesService.getRoutersByAllowedDevice({ allowedDeviceId: "device-1" })).resolves.toEqual([
-                {
-                    id: "router-1",
-                    name: "Router",
-                    model: "TP-Link Archer AX53",
-                    connections: [
-                        { ctype: "LAN", mac: "AA:BB:CC:DD:EE:01", key: "white_list_1" },
-                        { ctype: "WIFI", mac: "AA:BB:CC:DD:EE:02", key: "white_list_2" }
-                    ]
-                }
-            ]);
+            ];
+            devicesModel.getRoutersByAllowedDevice.mockResolvedValue(rows);
+            await expect(devicesService.getRoutersByAllowedDevice({ allowedDeviceId: "device-1" })).resolves.toEqual(rows);
         });
     });
 

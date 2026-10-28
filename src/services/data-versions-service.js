@@ -11,16 +11,20 @@ export default class DataVersionsService {
     /**
      * Returns a data version by its resource identifier
      *
-     * @param {string | string[]} params.id Resource identifier or identifiers
-     * @returns {Promise<{ version: string } | Object<string, string> | null>} Data version
+     * @param {string} params.id Resource identifier
+     * @returns {Promise<{ version: string } | null>} Data version
      */
     async getById({ id }) {
-        if (Array.isArray(id)) {
-            const dataVersions = await this.dataVersionsModel.getByIds({ ids: id });
-            return Object.fromEntries(dataVersions.map(({ id: entity, version }) => [entity, version]));
-        }
-
         return this.dataVersionsModel.getById({ id });
     }
 
+    /**
+     * Returns data versions by resource identifiers
+     *
+     * @param {string[]} params.ids Resource identifiers
+     * @returns {Promise<{ id: string, version: string }[]>} Data versions
+     */
+    async getByIds({ ids }) {
+        return this.dataVersionsModel.getByIds({ ids });
+    }
 }

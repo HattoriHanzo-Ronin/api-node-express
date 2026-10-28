@@ -19,16 +19,14 @@ describe("DataVersionsService", () => {
             expect(dataVersionsModel.getById).toHaveBeenCalledWith({ id: "devices" });
         });
 
-        it("should return data versions keyed by resource identifier", async () => {
-            dataVersionsModel.getByIds.mockResolvedValue([
+        it("should return data versions by resource identifiers", async () => {
+            const versions = [
                 { id: "users", version: "4" },
                 { id: "devices", version: "2" }
-            ]);
+            ];
+            dataVersionsModel.getByIds.mockResolvedValue(versions);
 
-            await expect(dataVersionsService.getById({ id: ["users", "devices"] })).resolves.toEqual({
-                users: "4",
-                devices: "2"
-            });
+            await expect(dataVersionsService.getByIds({ ids: ["users", "devices"] })).resolves.toEqual(versions);
             expect(dataVersionsModel.getByIds).toHaveBeenCalledWith({ ids: ["users", "devices"] });
         });
     });
