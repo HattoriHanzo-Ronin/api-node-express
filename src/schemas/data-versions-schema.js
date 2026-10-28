@@ -1,9 +1,10 @@
 import z from "zod";
 import ValidateUtils from "../utils/validate-utils.js";
 
-const { ERROR_MESSAGES, ALLOW_ENUMS } = ValidateUtils;
+const { ERROR_MESSAGES } = ValidateUtils;
 const { typeRequired, invalidEnum } = ERROR_MESSAGES;
-const { dataVersions } = ALLOW_ENUMS;
+const DATA_VERSION = Object.freeze({ devices: "devices", whitelist: "whitelist", users: "users" });
+const dataVersions = Object.values(DATA_VERSION);
 const entity = z.enum(dataVersions, invalidEnum(dataVersions));
 const id = z
     .string(typeRequired)

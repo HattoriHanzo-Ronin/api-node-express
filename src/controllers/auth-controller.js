@@ -1,5 +1,5 @@
 import { authLoginSchema, authRefreshTokenSchema } from "../schemas/auth-schema.js";
-import ValidateUtils from "../utils/validate-utils.js";
+import ZodUtils from "../utils/zod-utils.js";
 
 /**
  * Controller for Authentication
@@ -28,4 +28,4 @@ export default class AuthController {
     };
 }
 
-const { validateData } = ValidateUtils;
+const { validateData } = ZodUtils;

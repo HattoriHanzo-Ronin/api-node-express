@@ -1,6 +1,6 @@
 import path from "node:path";
 import FtpSchema from "../schemas/ftp-schema.js";
-import ValidateUtils from "../utils/validate-utils.js";
+import ZodUtils from "../utils/zod-utils.js";
 
 /**
  * FTP controller
@@ -122,4 +122,4 @@ const {
     getTransferSchema,
     getUploadEntrySchema
 } = FtpSchema;
-const { validateData } = ValidateUtils;
+const { validateData } = ZodUtils;

@@ -1,6 +1,7 @@
 import z from "zod";
 import { USER_ROLE } from "../config/constants.js";
 import ValidateUtils from "../utils/validate-utils.js";
+import ZodUtils from "../utils/zod-utils.js";
 import idSchema from "./common/id-schema.js";
 
 /**
@@ -32,11 +33,11 @@ const {
     useRequiredProperties,
     withSuperRefine,
     handleValidationIssues
-} = ValidateUtils;
-const { ERROR_MESSAGES, REGEX, ALLOW_ENUMS } = ValidateUtils;
+} = ZodUtils;
+const { ERROR_MESSAGES, REGEX } = ValidateUtils;
 const { typeRequired, format, emptyArray, length, invalidEnum } = ERROR_MESSAGES;
 const { passwordRegex } = REGEX;
-const { userRoles } = ALLOW_ENUMS;
+const userRoles = Object.values(USER_ROLE);
 const { admin } = USER_ROLE;
 const rolesArraySchema = z
     .array(zodEnumIgnoreCase(z, z.enum(userRoles, invalidEnum(userRoles)), typeRequired), typeRequired)

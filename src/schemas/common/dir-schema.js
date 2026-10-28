@@ -1,11 +1,12 @@
 import z from "zod";
 import path from "node:path";
 import ValidateUtils from "../../utils/validate-utils.js";
+import ZodUtils from "../../utils/zod-utils.js";
 
-const { handleValidationIssues, withSuperRefine } = ValidateUtils;
-const { ERROR_MESSAGES, REGEX } = ValidateUtils;
+const { handleValidationIssues, withSuperRefine } = ZodUtils;
+const { ERROR_MESSAGES } = ValidateUtils;
 const { typeRequired, format, emptyString } = ERROR_MESSAGES;
-const { pathRegex } = REGEX;
+const pathRegex = /^[^\p{Cc}\\]+$/u;
 const pathSchema = withSuperRefine(
     z.string(typeRequired).trim().min(1, emptyString).regex(pathRegex, format),
     pathCases

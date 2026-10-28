@@ -1,6 +1,7 @@
 import DevicesSchema from "../schemas/devices-schema.js";
 import PostgresErrors from "../utils/error/postgres-errors.js";
 import ValidateUtils from "../utils/validate-utils.js";
+import ZodUtils from "../utils/zod-utils.js";
 import { API_ERROR } from "../config/errors.js";
 
 /**
@@ -131,6 +132,7 @@ export default class DevicesService {
     }
 }
 
-const { handleApiErrors, validateNotEmptyObject, validateData } = ValidateUtils;
+const { handleApiErrors, validateNotEmptyObject } = ValidateUtils;
+const { validateData } = ZodUtils;
 const { deviceNotFound, deviceEmptyUpdate } = API_ERROR;
 const { devices: postgresError } = PostgresErrors;
