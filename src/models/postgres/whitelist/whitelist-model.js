@@ -1,5 +1,5 @@
-import PostgresClient from "../../utils/connection/postgres-client.js";
-import whitelistColumns from "./whitelist-columns.js";
+import PostgresClient from "../../../utils/connection/postgres-client.js";
+import whitelistColumns from "./columns.js";
 
 /**
  * Whitelist table model

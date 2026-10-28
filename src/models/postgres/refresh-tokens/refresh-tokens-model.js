@@ -1,5 +1,5 @@
-import PostgresClient from "../../utils/connection/postgres-client.js";
-import refreshTokensColumns from "./refresh-tokens-columns.js";
+import PostgresClient from "../../../utils/connection/postgres-client.js";
+import refreshTokensColumns from "./columns.js";
 
 /**
  * Refresh tokens table model

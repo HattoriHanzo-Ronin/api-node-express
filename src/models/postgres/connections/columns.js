@@ -1,7 +1,7 @@
-import DbUtils from "../../utils/db-utils.js";
+import PostgresDbUtils from "../../../utils/postgres-db-utils.js";
 
 const connectionsColumns = {
-    insert: DbUtils.createColumnSet(
+    insert: PostgresDbUtils.createColumnSet(
         [{ name: "device_id", cast: "uuid" }, { name: "mac" }, { name: "ctype", cast: "connection_ctype_enum" }],
         "connections"
     )

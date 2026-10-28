@@ -1,5 +1,5 @@
-import PostgresClient from "../../utils/connection/postgres-client.js";
-import userRolesColumns from "./user-roles-columns.js";
+import PostgresClient from "../../../utils/connection/postgres-client.js";
+import userRolesColumns from "./columns.js";
 
 /**
  * User roles table model

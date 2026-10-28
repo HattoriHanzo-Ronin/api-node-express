@@ -1,11 +1,11 @@
 import PostgresClient from "./connection/postgres-client.js";
 
 /**
- * Database utility helpers, provides reusable database helper methods
+ * PostgreSQL database utilities
  *
  * @author HattoriHanzo-Ronin
  */
-export default class DbUtils {
+export default class PostgresDbUtils {
     /**
      * pg-promise ColumnSet skip callback
      *
