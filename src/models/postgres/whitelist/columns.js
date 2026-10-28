@@ -1,7 +1,7 @@
-import DbUtils from "../../utils/db-utils.js";
+import PostgresDbUtils from "../../../utils/postgres-db-utils.js";
 
 const whitelistColumns = {
-    insert: DbUtils.createColumnSet(
+    insert: PostgresDbUtils.createColumnSet(
         [{ name: "router_id", cast: "uuid" }, { name: "connection_mac" }, { name: "key" }],
         "whitelist"
     )

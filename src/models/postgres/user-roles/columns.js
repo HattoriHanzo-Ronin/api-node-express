@@ -1,6 +1,6 @@
-import DbUtils from "../../utils/db-utils.js";
+import PostgresDbUtils from "../../../utils/postgres-db-utils.js";
 
-const { createColumnSet } = DbUtils;
+const { createColumnSet } = PostgresDbUtils;
 const userRolesColumns = {
     insert: createColumnSet([{ name: "user_id" }, { name: "role", cast: "user_role_enum" }, { name: "scope" }], "user_roles")
 };

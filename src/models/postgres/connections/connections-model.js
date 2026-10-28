@@ -1,5 +1,5 @@
-import PostgresClient from "../../utils/connection/postgres-client.js";
-import connectionsColumns from "./connections-columns.js";
+import PostgresClient from "../../../utils/connection/postgres-client.js";
+import connectionsColumns from "./columns.js";
 
 /**
  * Connections table model

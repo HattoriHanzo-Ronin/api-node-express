@@ -1,6 +1,6 @@
-import PostgresClient from "../../utils/connection/postgres-client.js";
-import DbUtils from "../../utils/db-utils.js";
-import devicesColumns from "./devices-columns.js";
+import PostgresClient from "../../../utils/connection/postgres-client.js";
+import PostgresDbUtils from "../../../utils/postgres-db-utils.js";
+import devicesColumns from "./columns.js";
 
 /**
  * Devices table model
@@ -120,4 +120,4 @@ const {
     allowedInfo: allowedInfoColumns,
     routerInfo: routerInfoColumns
 } = devicesColumns;
-const { pgPromiseColumnsWithAlias: columnsWithAlias } = DbUtils;
+const { pgPromiseColumnsWithAlias: columnsWithAlias } = PostgresDbUtils;

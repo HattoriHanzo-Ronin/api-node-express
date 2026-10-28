@@ -1,6 +1,6 @@
-import DbUtils from "../../utils/db-utils.js";
+import PostgresDbUtils from "../../../utils/postgres-db-utils.js";
 
-const { createColumnSet } = DbUtils;
+const { createColumnSet } = PostgresDbUtils;
 const refreshTokensColumns = {
     insert: createColumnSet(["user_id", "token"], "refresh_tokens")
 };

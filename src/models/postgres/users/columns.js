@@ -1,6 +1,6 @@
-import DbUtils from "../../utils/db-utils.js";
+import PostgresDbUtils from "../../../utils/postgres-db-utils.js";
 
-const { skipNullOrUndefined, createColumnSet } = DbUtils;
+const { skipNullOrUndefined, createColumnSet } = PostgresDbUtils;
 const TABLE = "users";
 const commonColumns = [{ name: "username" }, { name: "active" }];
 const infoCommonColumns = [{ name: "id" }, ...commonColumns];
