@@ -9,8 +9,18 @@ import { setTimeout as delay } from "node:timers/promises";
 import puppeteer from "puppeteer-core";
 import { ENV } from "../config/environment.js";
 import { API_ERROR } from "../config/errors.js";
-import JWTUtils from "../utils/jwt-utils.js";
 import ApiError from "../utils/error/api-error.js";
+
+const {
+    chromePath,
+    displayBase,
+    maxActiveUsers,
+    maxSessionsPerUser,
+    maxVncConnectionsPerSession,
+    publicUrl,
+    sessionInactivityTimeout,
+    vncPortBase
+} = ENV;
 
 /**
  * Manages isolated visible browser sessions for router control panels
@@ -33,7 +43,11 @@ export default class RouterSessionService {
     #ownerSessions = new Map();
     #ownerLocks = new Map();
     #pendingOwners = new Set();
-    #nextDisplay = DISPLAY_BASE;
+    #nextDisplay = displayBase;
+
+    constructor({ tokenProvider }) {
+        this.tokenProvider = tokenProvider;
+    }
 
     /**
      * Creates a temporary router control panel session
@@ -67,7 +81,7 @@ export default class RouterSessionService {
             condition: ownerId !== undefined && session.ownerId !== ownerId,
             message: "La sesión de panel de router no existe",
             status: 404,
-            apiError: ROUTER_SESSION_NOT_FOUND
+            apiError: routerSessionNotFound
         }]);
 
         this.#sessions.delete(sessionId);
@@ -82,7 +96,7 @@ export default class RouterSessionService {
         } catch {
             throw new ApiError({
                 message: "No se ha podido cerrar la sesión del panel de router",
-                apiError: ROUTER_SESSION_FAILED
+                apiError: routerSessionFailed
             });
         }
     }
@@ -100,7 +114,7 @@ export default class RouterSessionService {
             condition: !session || session.ownerId !== ownerId,
             message: "La sesión de panel de router no existe",
             status: 404,
-            apiError: ROUTER_SESSION_NOT_FOUND
+            apiError: routerSessionNotFound
         }]);
 
         try {
@@ -119,7 +133,7 @@ export default class RouterSessionService {
         } catch {
             throw new ApiError({
                 message: "No se ha podido navegar en el panel de router",
-                apiError: ROUTER_SESSION_FAILED
+                apiError: routerSessionFailed
             });
         }
     }
@@ -148,10 +162,10 @@ export default class RouterSessionService {
     async openVncSocket({ sessionId, token }) {
         const session = this.#getSession({ sessionId, token });
         ApiError.handle([{
-            condition: session.vncConnectionCount >= MAX_VNC_CONNECTIONS_PER_SESSION,
+            condition: session.vncConnectionCount >= maxVncConnectionsPerSession,
             message: "La sesión de panel de router ya tiene el máximo de conexiones VNC",
             status: 429,
-            apiError: ROUTER_SESSION_CONNECTION_CAPACITY_REACHED
+            apiError: routerSessionConnectionCapacityReached
         }]);
 
         session.vncConnectionCount += 1;
@@ -168,7 +182,7 @@ export default class RouterSessionService {
             session.vncConnectionCount -= 1;
             throw new ApiError({
                 message: "No se ha podido abrir la conexión VNC",
-                apiError: ROUTER_SESSION_FAILED
+                apiError: routerSessionFailed
             });
         }
     }
@@ -228,13 +242,13 @@ export default class RouterSessionService {
             const ownerSessions = this.#ownerSessions.get(ownerId) ?? new Set();
             const activeOwners = new Set([...this.#ownerSessions.keys(), ...this.#pendingOwners]);
             ApiError.handle([{
-                condition: ownerSessions.size === 0 && activeOwners.size >= MAX_ACTIVE_USERS,
+                condition: ownerSessions.size === 0 && activeOwners.size >= maxActiveUsers,
                 message: "Se ha alcanzado el número máximo de sesiones activas",
                 status: 429,
-                apiError: ROUTER_SESSION_CAPACITY_REACHED
+                apiError: routerSessionCapacityReached
             }]);
             this.#pendingOwners.add(ownerId);
-            if (ownerSessions.size >= MAX_SESSIONS_PER_USER) {
+            if (ownerSessions.size >= maxSessionsPerUser) {
                 await Promise.all([...ownerSessions].map((sessionId) => this.close({ sessionId })));
             }
 
@@ -262,10 +276,10 @@ export default class RouterSessionService {
      */
     async #createSession({ ownerId, routerName, routerIp, routerPassword, language, clientType, theme }) {
         const id = randomUUID();
-        const token = JWTUtils.generateAccessToken({ sid: id });
+        const token = this.tokenProvider.create({ payload: { sid: id } });
         const display = this.#nextDisplay;
         this.#nextDisplay += 1;
-        const vncPort = VNC_PORT_BASE + display - DISPLAY_BASE;
+        const vncPort = vncPortBase + display - displayBase;
         const { width, height } = RouterSessionService.#VIEWPORTS[clientType] ?? RouterSessionService.#VIEWPORTS.desktop;
         const session = {
             id,
@@ -289,7 +303,7 @@ export default class RouterSessionService {
                 args: [`:${display}`, "-screen", "0", `${width}x${height}x24`, "-nolisten", "tcp"]
             });
             session.browser = await puppeteer.launch({
-                executablePath: CHROME_PATH,
+                executablePath: chromePath,
                 headless: false,
                 ignoreDefaultArgs: ["--enable-automation"],
                 userDataDir: session.profileDir,
@@ -339,20 +353,20 @@ export default class RouterSessionService {
             return {
                 id,
                 url: getViewerUrl({ id, token, routerName, language, clientType, theme }),
-                expiresAt: new Date(Date.now() + SESSION_INACTIVITY_TIMEOUT).toISOString()
+                expiresAt: new Date(Date.now() + sessionInactivityTimeout).toISOString()
             };
         } catch {
             await cleanupSession(session).catch(() => {});
             throw new ApiError({
                 message: "No se ha podido crear la sesión del panel de router",
-                apiError: ROUTER_SESSION_FAILED
+                apiError: routerSessionFailed
             });
         }
     }
 
     #scheduleClose({ session }) {
         clearTimeout(session.timeout);
-        const timeout = setTimeout(() => void this.close({ sessionId: session.id }).catch(() => {}), SESSION_INACTIVITY_TIMEOUT);
+        const timeout = setTimeout(() => void this.close({ sessionId: session.id }).catch(() => {}), sessionInactivityTimeout);
         timeout.unref();
         session.timeout = timeout;
     }
@@ -428,13 +442,13 @@ export default class RouterSessionService {
     }
 
     #getSession({ sessionId, token }) {
-        const { sid } = JWTUtils.verifyAccessToken(token);
+        const { sid } = this.tokenProvider.verify({ token });
         const session = this.#sessions.get(sid);
         ApiError.handle([{
             condition: !session || sid !== sessionId,
             message: "La sesión de panel de router no es válida",
             status: 401,
-            apiError: ROUTER_SESSION_INVALID
+            apiError: routerSessionInvalid
         }]);
         return session;
     }
@@ -478,6 +492,14 @@ export default class RouterSessionService {
         session.loadingUntil = Date.now() + RouterSessionService.#LOADING_INTERACTION_TIMEOUT;
     }
 }
+
+const {
+    routerSessionCapacityReached,
+    routerSessionConnectionCapacityReached,
+    routerSessionFailed,
+    routerSessionInvalid,
+    routerSessionNotFound
+} = API_ERROR;
 
 async function startProcess({ command, args }) {
     const childProcess = spawn(command, args, { stdio: "ignore" });
@@ -532,23 +554,5 @@ function getViewerUrl({ id, token, routerName, language, clientType, theme }) {
         query.set("language", language);
     }
 
-    return new URL(`/viewer/?${query}`, PUBLIC_URL).href;
+    return new URL(`/viewer/?${query}`, publicUrl).href;
 }
-
-const {
-    chromePath: CHROME_PATH,
-    displayBase: DISPLAY_BASE,
-    maxActiveUsers: MAX_ACTIVE_USERS,
-    maxSessionsPerUser: MAX_SESSIONS_PER_USER,
-    maxVncConnectionsPerSession: MAX_VNC_CONNECTIONS_PER_SESSION,
-    publicUrl: PUBLIC_URL,
-    sessionInactivityTimeout: SESSION_INACTIVITY_TIMEOUT,
-    vncPortBase: VNC_PORT_BASE
-} = ENV;
-const {
-    routerSessionCapacityReached: ROUTER_SESSION_CAPACITY_REACHED,
-    routerSessionConnectionCapacityReached: ROUTER_SESSION_CONNECTION_CAPACITY_REACHED,
-    routerSessionFailed: ROUTER_SESSION_FAILED,
-    routerSessionInvalid: ROUTER_SESSION_INVALID,
-    routerSessionNotFound: ROUTER_SESSION_NOT_FOUND
-} = API_ERROR;

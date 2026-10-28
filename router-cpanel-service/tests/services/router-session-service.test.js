@@ -23,16 +23,17 @@ vi.mock("../../src/config/environment.js", () => ({
     }
 }));
 
-vi.mock("../../src/config/secrets.js", () => ({ SECRETS: { jwtSecret: "router-cpanel-jwt-secret" } }));
 vi.mock("node:fs/promises", () => ({ mkdtemp: mocks.mkdtemp, rm: mocks.rm }));
 vi.mock("node:net", () => ({ createConnection: mocks.createConnection }));
 vi.mock("node:child_process", () => ({ spawn: mocks.spawn }));
 vi.mock("puppeteer-core", () => ({ default: { launch: mocks.launch } }));
 
 import RouterSessionService from "../../src/services/router-session-service.js";
-import JWTUtils from "../../src/utils/jwt-utils.js";
+import JwtTokenProvider from "../../src/utils/token-providers/jwt-token-provider.js";
 
 describe("RouterSessionService", () => {
+    let tokenProvider;
+
     beforeEach(() => {
         const page = { on: vi.fn(), setViewport: vi.fn(), goto: vi.fn(), url: vi.fn(() => "http://router.local"), frames: vi.fn(() => []), goBack: vi.fn(), reload: vi.fn() };
         const browser = { pages: vi.fn().mockResolvedValue([page]), newPage: vi.fn().mockResolvedValue(page), close: vi.fn().mockResolvedValue() };
@@ -43,6 +44,7 @@ describe("RouterSessionService", () => {
         mocks.launch.mockResolvedValue(browser);
         mocks.createConnection.mockImplementation(() => createVncSocket());
         mocks.spawn.mockImplementation(() => createChildProcess());
+        tokenProvider = new JwtTokenProvider({ secret: "router-cpanel-jwt-secret", expiresIn: "30min" });
     });
 
     afterEach(() => {
@@ -51,7 +53,7 @@ describe("RouterSessionService", () => {
     });
 
     it("should create a mobile viewer session", async () => {
-        const service = new RouterSessionService();
+        const service = createService({ tokenProvider });
         const session = await service.create({
             ownerId: "user-id",
             routerName: "Router principal",
@@ -71,7 +73,7 @@ describe("RouterSessionService", () => {
         expect(mocks.page.setViewport).toHaveBeenCalledWith({ width: 900, height: 1600 });
         expect(mocks.browser.newPage).not.toHaveBeenCalled();
         const token = new URL(viewerUrl.searchParams.get("path"), "ws://router-cpanel.example").searchParams.get("token");
-        expect(JWTUtils.verifyAccessToken(token)).toMatchObject({ sid: session.id });
+        expect(tokenProvider.verify({ token })).toMatchObject({ sid: session.id });
         await service.close({ sessionId: session.id });
         await expect(service.openVncSocket({ sessionId: session.id, token })).rejects.toMatchObject({
             code: "ROUTER_SESSION_INVALID",
@@ -82,7 +84,7 @@ describe("RouterSessionService", () => {
     it("should autofill the router password through a browser frame", async () => {
         const frame = { evaluate: vi.fn().mockResolvedValue(true) };
         mocks.page.frames.mockReturnValue([frame]);
-        const service = new RouterSessionService();
+        const service = createService({ tokenProvider });
         const session = await service.create({
             ownerId: "user-id",
             routerName: "Router principal",
@@ -100,7 +102,7 @@ describe("RouterSessionService", () => {
         const frame = { evaluate: vi.fn().mockResolvedValue(true) };
         mocks.page.url.mockReturnValue("https://external.example");
         mocks.page.frames.mockReturnValue([frame]);
-        const service = new RouterSessionService();
+        const service = createService({ tokenProvider });
         const session = await service.create({
             ownerId: "user-id",
             routerName: "Router principal",
@@ -114,7 +116,7 @@ describe("RouterSessionService", () => {
     });
 
     it("should navigate an active browser session", async () => {
-        const service = new RouterSessionService();
+        const service = createService({ tokenProvider });
         const session = await service.create({
             ownerId: "user-id",
             routerName: "Router principal",
@@ -131,7 +133,7 @@ describe("RouterSessionService", () => {
     });
 
     it("should not navigate back from the initial router route", async () => {
-        const service = new RouterSessionService();
+        const service = createService({ tokenProvider });
         const session = await service.create({ ownerId: "user-id", routerName: "Router principal", routerIp: "router.local", clientType: "desktop" });
         await service.navigate({ sessionId: session.id, ownerId: "user-id", action: "back" });
         expect(mocks.page.goBack).not.toHaveBeenCalled();
@@ -139,7 +141,7 @@ describe("RouterSessionService", () => {
     });
 
     it("should reject navigation for a missing browser session", async () => {
-        const service = new RouterSessionService();
+        const service = createService({ tokenProvider });
         await expect(service.navigate({ sessionId: "missing", ownerId: "user-id", action: "back" })).rejects.toMatchObject({
             code: "ROUTER_SESSION_NOT_FOUND",
             status: 404
@@ -147,7 +149,7 @@ describe("RouterSessionService", () => {
     });
 
     it("should reject an action from a different session owner", async () => {
-        const service = new RouterSessionService();
+        const service = createService({ tokenProvider });
         const session = await service.create({ ownerId: "user-id", routerName: "Router", routerIp: "router.local" });
         await expect(service.navigate({ sessionId: session.id, ownerId: "other-user-id", action: "back" })).rejects.toMatchObject({
             code: "ROUTER_SESSION_NOT_FOUND",
@@ -158,7 +160,7 @@ describe("RouterSessionService", () => {
 
     it("should translate profile creation errors", async () => {
         mocks.mkdtemp.mockRejectedValue(new Error("No space left on device"));
-        const service = new RouterSessionService();
+        const service = createService({ tokenProvider });
         await expect(service.create({ ownerId: "user-id", routerName: "Router", routerIp: "router.local" })).rejects.toMatchObject({
             code: "ROUTER_SESSION_FAILED",
             status: 500
@@ -166,7 +168,7 @@ describe("RouterSessionService", () => {
     });
 
     it("should replace an owner's active session", async () => {
-        const service = new RouterSessionService();
+        const service = createService({ tokenProvider });
         const firstSession = await service.create({ ownerId: "user-id", routerName: "Router", routerIp: "router.local" });
         const secondSession = await service.create({ ownerId: "user-id", routerName: "Router", routerIp: "router.local" });
         expect(secondSession.id).not.toBe(firstSession.id);
@@ -179,7 +181,7 @@ describe("RouterSessionService", () => {
     });
 
     it("should reject a new owner when the active user capacity is reached", async () => {
-        const service = new RouterSessionService();
+        const service = createService({ tokenProvider });
         const session = await service.create({ ownerId: "user-id", routerName: "Router", routerIp: "router.local" });
         await expect(service.create({ ownerId: "other-user-id", routerName: "Other router", routerIp: "router.local" })).rejects.toMatchObject({
             code: "ROUTER_SESSION_CAPACITY_REACHED",
@@ -190,7 +192,7 @@ describe("RouterSessionService", () => {
 
     it("should close a session after ten inactive minutes", async () => {
         vi.useFakeTimers();
-        const service = new RouterSessionService();
+        const service = createService({ tokenProvider });
         const session = await service.create({ ownerId: "user-id", routerName: "Router", routerIp: "router.local" });
         await vi.advanceTimersByTimeAsync(600_000);
         await expect(service.openVncSocket({ sessionId: session.id, token: "token" })).rejects.toMatchObject({
@@ -201,7 +203,7 @@ describe("RouterSessionService", () => {
 
     it("should renew the inactivity timeout when the session is used", async () => {
         vi.useFakeTimers();
-        const service = new RouterSessionService();
+        const service = createService({ tokenProvider });
         const session = await service.create({ ownerId: "user-id", routerName: "Router", routerIp: "router.local" });
         await vi.advanceTimersByTimeAsync(599_999);
         service.refresh({ sessionId: session.id });
@@ -213,7 +215,7 @@ describe("RouterSessionService", () => {
     });
 
     it("should limit VNC connections for a browser session", async () => {
-        const service = new RouterSessionService();
+        const service = createService({ tokenProvider });
         const session = await service.create({ ownerId: "user-id", routerName: "Router", routerIp: "router.local", clientType: "desktop" });
         const token = getViewerToken(session.url);
         const firstSocket = await service.openVncSocket({ sessionId: session.id, token });
@@ -226,6 +228,10 @@ describe("RouterSessionService", () => {
         await service.close({ sessionId: session.id });
     });
 });
+
+function createService({ tokenProvider }) {
+    return new RouterSessionService({ tokenProvider });
+}
 
 function getViewerToken(url) {
     const viewerUrl = new URL(url);
