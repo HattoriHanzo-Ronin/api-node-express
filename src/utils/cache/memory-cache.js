@@ -1,11 +1,17 @@
 import { ENV } from "../../config/environment.js";
 
+const { memoryCacheMaxSize, memoryCacheMaxSizePerOwner, memoryCacheInactivityTimeout } = ENV;
+
 /**
  * Manages a size-limited two-level memory cache
  *
  * @author HattoriHanzo-Ronin
  */
 export default class MemoryCache {
+    static #MAX_SIZE = memoryCacheMaxSize;
+    static #MAX_SIZE_PER_OWNER = memoryCacheMaxSizePerOwner;
+    static #INACTIVITY_TIMEOUT = memoryCacheInactivityTimeout;
+
     #cache = new Map();
     #clearTimeouts = new Map();
     #size = 0;
@@ -27,14 +33,14 @@ export default class MemoryCache {
         this.#refreshOwner(ownerId, entry);
 
         if (this.has(ownerId, key)) {
-            const previousSize = getValueSize(entry.values.get(key));
+            const previousSize = this.#getValueSize(entry.values.get(key));
             entry.size -= previousSize;
             this.#size -= previousSize;
             entry.values.delete(key);
         }
 
         entry.values.set(key, value);
-        const size = getValueSize(value);
+        const size = this.#getValueSize(value);
         entry.size += size;
         this.#size += size;
         this.#enforceLimits(ownerId);
@@ -89,7 +95,7 @@ export default class MemoryCache {
 
         const entry = this.#cache.get(ownerId);
         const value = entry.values.get(key);
-        const size = getValueSize(value);
+        const size = this.#getValueSize(value);
         entry.size -= size;
         this.#size -= size;
         entry.values.delete(key);
@@ -122,12 +128,12 @@ export default class MemoryCache {
 
     #enforceLimits(ownerId) {
         const entry = this.#cache.get(ownerId);
-        if (entry?.size > MAX_SIZE_PER_OWNER) {
+        if (entry?.size > MemoryCache.#MAX_SIZE_PER_OWNER) {
             this.delete(ownerId, entry.values.keys().next().value);
         }
 
-        while (this.#size > MAX_SIZE) {
-            const oldestMultiple = [...this.#cache].find(([, it]) => it.values.size > 1);
+        while (this.#size > MemoryCache.#MAX_SIZE) {
+            const oldestMultiple = [...this.#cache].find(([, entry]) => entry.values.size > 1);
             if (oldestMultiple) {
                 const [oldestOwnerId, oldestEntry] = oldestMultiple;
                 this.delete(oldestOwnerId, oldestEntry.values.keys().next().value);
@@ -143,21 +149,15 @@ export default class MemoryCache {
             clearTimeout(previousTimeout);
         }
 
-        const timeout = setTimeout(() => this.#deleteOwner(ownerId), INACTIVITY_TIMEOUT);
+        const timeout = setTimeout(() => this.#deleteOwner(ownerId), MemoryCache.#INACTIVITY_TIMEOUT);
         this.#clearTimeouts.set(ownerId, timeout);
     }
-}
 
-const {
-    memoryCacheMaxSize: MAX_SIZE,
-    memoryCacheMaxSizePerOwner: MAX_SIZE_PER_OWNER,
-    memoryCacheInactivityTimeout: INACTIVITY_TIMEOUT
-} = ENV;
-
-function getValueSize(value) {
-    let size = 0;
-    for (const buffer of value.values()) {
-        size += buffer?.length ?? 0;
+    #getValueSize(value) {
+        let size = 0;
+        for (const buffer of value.values()) {
+            size += buffer?.length ?? 0;
+        }
+        return size;
     }
-    return size;
 }

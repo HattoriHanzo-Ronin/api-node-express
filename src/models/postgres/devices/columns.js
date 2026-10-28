@@ -19,7 +19,7 @@ const devicesColumns = {
     routerInfo: createColumnSet([...infoCommonColumns, ...routerColumns], TABLE),
     insert: createColumnSet(insertionColumns, TABLE),
     update: createColumnSet(
-        insertionColumns.map((it) => ({ ...it, skip: (c) => c.value === undefined })),
+        insertionColumns.map((column) => ({ ...column, skip: ({ value }) => value === undefined })),
         TABLE
     )
 };

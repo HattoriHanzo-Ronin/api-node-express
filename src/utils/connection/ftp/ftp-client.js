@@ -2,8 +2,6 @@ import SftpClient from "ssh2-sftp-client";
 import { ENV } from "../../../config/environment.js";
 import { SECRETS } from "../../../config/secrets.js";
 
-const { ftpHost, ftpPort } = ENV;
-
 /**
  * Handles SFTP client connections through the FTP service contract
  *
@@ -13,10 +11,11 @@ export default class FtpClient {
     /**
      * Returns a connected SFTP client
      *
-     * @param {string} ownerId User identifier
+     * @param {string} params.ownerId User identifier
      * @returns {Promise<SftpClient>} Connected SFTP client
      */
-    static async getClient(ownerId) {
+    static async getClient({ ownerId }) {
+        const { ftpHost, ftpPort } = ENV;
         const client = new SftpClient();
         await client.connect({
             host: ftpHost,
@@ -27,18 +26,18 @@ export default class FtpClient {
         return client;
     }
 
-    static #normalizeUsername(ownerId) {
-        return ownerId.replaceAll("-", "");
-    }
-
     /**
      * Closes an SFTP client
      *
-     * @param {SftpClient | undefined} client SFTP client
+     * @param {SftpClient | undefined} params.client SFTP client
      */
-    static async closeClient(client) {
+    static async closeClient({ client }) {
         if (client) {
             await client.end();
         }
+    }
+
+    static #normalizeUsername(ownerId) {
+        return ownerId.replaceAll("-", "");
     }
 }

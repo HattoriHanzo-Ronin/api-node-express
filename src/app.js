@@ -19,8 +19,8 @@ export function createApp({
     accessTokenProvider
 }) {
     const app = express();
-    const { cors, json, errorHandler, routeNotFound } = Middlewares;
-    const requireAuth = Middlewares.requireAuth({ accessTokenProvider });
+    const { cors, json, errorHandler, routeNotFound, requireAuth: createRequireAuth } = Middlewares;
+    const requireAuth = createRequireAuth({ accessTokenProvider });
 
     app.disable("x-powered-by");
 

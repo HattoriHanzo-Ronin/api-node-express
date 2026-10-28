@@ -1,8 +1,7 @@
 import z from "zod";
 import ValidateUtils from "../../utils/validate-utils.js";
 
-const { ERROR_MESSAGES } = ValidateUtils;
-const { emptyString } = ERROR_MESSAGES;
+const { ERROR_MESSAGES: { emptyString } } = ValidateUtils;
 const invalidId = "UUID no válido";
 
 const idSchema = z.object({

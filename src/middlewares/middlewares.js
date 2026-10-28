@@ -28,7 +28,7 @@ export default class Middlewares {
                     return callback(new ApiError({
                         message: "Origen no permitido",
                         status: 403,
-                        apiError: API_ERROR.corsOriginNotAllowed
+                        apiError: corsOriginNotAllowed
                     }));
                 }
                 return callback(null, true);
@@ -117,7 +117,7 @@ export default class Middlewares {
      * @param {import("express").NextFunction} next Express next function
      */
     static routeNotFound(req, res, next) {
-        next(new ApiError({ message: "Page not found", status: 404, apiError: API_ERROR.routeNotFound }));
+        next(new ApiError({ message: "Page not found", status: 404, apiError: routeNotFound }));
     }
 
     /**
@@ -137,7 +137,7 @@ export default class Middlewares {
         const status = err.status || 500;
         const isApiError = err instanceof ApiError;
         const message = isApiError ? err.message : "Error inesperado";
-        const code = isApiError ? err.code : API_ERROR.internalError;
+        const code = isApiError ? err.code : internalError;
         let result = { code, message };
         if (err.details) {
             result = { ...result, details: err.details };
@@ -160,7 +160,7 @@ export default class Middlewares {
                     throw new ApiError({
                         message: "No hay sesión",
                         status: 401,
-                        apiError: API_ERROR.authenticationRequired
+                        apiError: authenticationRequired
                     });
                 }
 
@@ -183,11 +183,11 @@ export default class Middlewares {
         return (req, res, next) => {
             try {
                 const { roles: userRoles } = req.user;
-                if (!roles.some((it) => userRoles.includes(it))) {
+                if (!roles.some((role) => userRoles.includes(role))) {
                     throw new ApiError({
                         message: "No tiene permisos para realizar esa acción",
                         status: 403,
-                        apiError: API_ERROR.aclPermissionDenied
+                        apiError: aclPermissionDenied
                     });
                 }
 
@@ -198,3 +198,5 @@ export default class Middlewares {
         };
     }
 }
+
+const { corsOriginNotAllowed, routeNotFound, internalError, authenticationRequired, aclPermissionDenied } = API_ERROR;

@@ -4,6 +4,8 @@ import { USER_ROLE } from "../config/constants.js";
 
 export default function createDevicesRouter({ devicesController, requireAuth }) {
     const devicesRouter = Router();
+    const { net } = USER_ROLE;
+    const { asyncHandler, authorizedRoles, routeNotFound } = Middlewares;
 
     devicesRouter.get("/", requireAuth, authorizedRoles([net]), asyncHandler(devicesController.getAll));
     devicesRouter.get("/allowed/:id", requireAuth, authorizedRoles([net]), asyncHandler(devicesController.getAllowedDevices));
@@ -15,11 +17,12 @@ export default function createDevicesRouter({ devicesController, requireAuth }) 
 
     devicesRouter.put("/", requireAuth, authorizedRoles([net]), asyncHandler(devicesController.update));
 
+    devicesRouter.patch("/", requireAuth, authorizedRoles([net]), asyncHandler(devicesController.update));
+
     devicesRouter.delete("/:id", requireAuth, authorizedRoles([net]), asyncHandler(devicesController.delete));
     devicesRouter.delete("/cpanel/:sessionId", requireAuth, authorizedRoles([net]), asyncHandler(devicesController.closeRouterCpanel));
 
+    devicesRouter.use(routeNotFound);
+
     return devicesRouter;
 }
-
-const { net } = USER_ROLE;
-const { asyncHandler, authorizedRoles } = Middlewares;

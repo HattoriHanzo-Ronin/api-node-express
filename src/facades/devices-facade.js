@@ -1,4 +1,4 @@
-import ValidateUtils from "../utils/validate-utils.js";
+import ApiError from "../utils/error/api-error.js";
 import { DEVICE_TYPE } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
 
@@ -84,11 +84,11 @@ export default class DevicesFacade {
      */
     async createRouterCpanel({ authUser, routerId, language, clientType, theme }) {
         const router = await this.getById({ id: routerId });
-        handleApiErrors([{
+        ApiError.handle([{
             condition: router.type !== DEVICE_TYPE.router,
             message: "El dispositivo no es un router",
             status: 400,
-            apiError: API_ERROR.routerCpanelNotRouter
+            apiError: routerCpanelNotRouter
         }]);
 
         return this.routerCpanel.create({
@@ -157,14 +157,15 @@ export default class DevicesFacade {
     async update({ data }) {
         const { id, connections, ...newData } = data;
         const { name: newDataName } = newData;
-        let { connections: oldConnections, ...oldDevice } = await this.getById({
+        const { connections: currentConnections, ...oldDevice } = await this.getById({
             id
         });
+        let oldConnections = currentConnections;
         const { name: oldDeviceName } = oldDevice;
         const isNameUpdated = newDataName && newDataName !== oldDeviceName;
         const result = await this.tx(async (clientTx) => {
             let device;
-            const onlyUpdateConnections = Object.values(newData).every((it) => it === null) && connections;
+            const onlyUpdateConnections = Object.values(newData).every((value) => value === null) && connections;
             const result = onlyUpdateConnections
                 ? oldDevice
                 : await this.devicesService.update({ clientTx, id, data: newData });
@@ -207,7 +208,7 @@ export default class DevicesFacade {
             }
 
             if (isNameUpdated) {
-                await updateRouterWhitelist(oldConnections.map((it) => ({ device_id: id, ...it })));
+                await updateRouterWhitelist(oldConnections.map((connection) => ({ device_id: id, ...connection })));
             }
 
             return result;
@@ -289,7 +290,7 @@ export default class DevicesFacade {
                         message =
                             `Error al tratar de recuperar la mac ${currentUpdatedMac} en el router ${updatedRouterName}\n` +
                             `Routers afectados: ${affectedRouters.join(", ")}`;
-                        handleApiErrors([
+                        ApiError.handle([
                             {
                                 condition: [routerAddFailed, routerDeleteFailed].includes(err.code),
                                 message,
@@ -302,7 +303,7 @@ export default class DevicesFacade {
                 message =
                     `Error al actualizar la mac ${currentMac}, ha quedado eliminada de la lista en el router ${routerName}` +
                     ` debe restaurarla de forma manual`;
-                handleApiErrors([{ condition: addFailed, message, apiError }]);
+                ApiError.handle([{ condition: addFailed, message, apiError }]);
                 throw err;
             }
         }
@@ -344,5 +345,4 @@ export default class DevicesFacade {
     }
 }
 
-const { handleApiErrors } = ValidateUtils;
-const { routerAddFailed, routerDeleteFailed, routerRollbackFailed } = API_ERROR;
+const { routerCpanelNotRouter, routerAddFailed, routerDeleteFailed, routerRollbackFailed } = API_ERROR;

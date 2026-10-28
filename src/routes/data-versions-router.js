@@ -4,12 +4,13 @@ import Middlewares from "../middlewares/middlewares.js";
 
 export default function createDataVersionsRouter({ dataVersionsController, requireAuth }) {
     const dataVersionsRouter = Router();
+    const { ftp } = USER_ROLE;
+    const { asyncHandler, authorizedRoles, routeNotFound } = Middlewares;
 
     dataVersionsRouter.get("/", requireAuth, asyncHandler(dataVersionsController.getById));
     dataVersionsRouter.get("/ftp", requireAuth, authorizedRoles([ftp]), asyncHandler(dataVersionsController.getFtp));
 
+    dataVersionsRouter.use(routeNotFound);
+
     return dataVersionsRouter;
 }
-
-const { ftp } = USER_ROLE;
-const { asyncHandler, authorizedRoles } = Middlewares;

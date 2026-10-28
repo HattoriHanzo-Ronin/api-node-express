@@ -24,13 +24,13 @@ export default class DevicesController {
     };
 
     getAllowedDevices = async (req, res) => {
-        const routerId = validateRouterId(req);
+        const routerId = this.#validateRouterId(req);
         const { version, data } = await this.devicesFacade.getAllowedDevices({ routerId });
         res.set({ "Devices-Version": version.devices, "Whitelist-Version": version.whitelist }).json(data);
     };
 
     getNotAllowedDevices = async (req, res) => {
-        const routerId = validateRouterId(req);
+        const routerId = this.#validateRouterId(req);
         const { version, data } = await this.devicesFacade.getNotAllowedDevices({ routerId });
         res.set({ "Devices-Version": version.devices, "Whitelist-Version": version.whitelist }).json(data);
     };
@@ -71,11 +71,11 @@ export default class DevicesController {
         await this.devicesFacade.closeRouterCpanel({ authUser, sessionId });
         res.status(204).send();
     };
-}
 
-function validateRouterId({ params }) {
-    const { id: routerId } = validateData(params, idSchema);
-    return routerId;
+    #validateRouterId({ params }) {
+        const { id: routerId } = validateData(params, idSchema);
+        return routerId;
+    }
 }
 
 const { validateData } = ZodUtils;

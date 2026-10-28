@@ -13,19 +13,19 @@ export default class WhitelistController {
     }
 
     create = async (req, res) => {
-        const whitelist = validateRequest(req);
+        const whitelist = this.#validateRequest(req);
         res.json(await this.whitelistFacade.create(whitelist));
     };
 
     delete = async (req, res) => {
-        const whitelist = validateRequest(req);
+        const whitelist = this.#validateRequest(req);
         res.json(await this.whitelistFacade.delete(whitelist));
     };
+
+    #validateRequest({ params, body }) {
+        const { id: routerId } = validateData(params, idSchema);
+        return { routerId, allowedDevice: validateData(body, allowedDeviceSchema) };
+    }
 }
 
 const { validateData } = ZodUtils;
-
-function validateRequest({ params, body }) {
-    const { id: routerId } = validateData(params, idSchema);
-    return { routerId, allowedDevice: validateData(body, allowedDeviceSchema) };
-}

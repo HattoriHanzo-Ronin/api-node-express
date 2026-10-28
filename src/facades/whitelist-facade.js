@@ -1,4 +1,4 @@
-import ValidateUtils from "../utils/validate-utils.js";
+import ApiError from "../utils/error/api-error.js";
 import { API_ERROR } from "../config/errors.js";
 
 /**
@@ -26,7 +26,7 @@ export default class WhitelistFacade {
         const routerImpl = await this.#getRouterImpl(routerId);
         const key = await this.whitelistService.getKey({
             routerId,
-            generateKey: (keys) => routerImpl.generateKey(keys)
+            generateKey: (keys) => routerImpl.generateKey({ keys })
         });
         return this.tx(async (clientTx) => {
             await this.whitelistService.create({
@@ -64,7 +64,7 @@ export default class WhitelistFacade {
             const router = await this.devicesFacade.getById({ id });
             return new this.routerAutomation({ router });
         } catch (err) {
-            handleApiErrors([
+            ApiError.handle([
                 {
                     condition: err.code === deviceNotFound,
                     message: "El router no existe",
@@ -78,7 +78,7 @@ export default class WhitelistFacade {
 
     async #resolveAllowedDevice({ id, mac }) {
         const { name, connections } = await this.devicesFacade.getById({ id });
-        handleApiErrors([
+        ApiError.handle([
             {
                 condition: !connections.some(({ mac: connectionMac }) => connectionMac === mac),
                 message: "La mac no pertenece al dispositivo especificado",
@@ -90,5 +90,4 @@ export default class WhitelistFacade {
     }
 }
 
-const { handleApiErrors } = ValidateUtils;
 const { deviceNotFound, whitelistRouterNotFound, connectionMacMismatch } = API_ERROR;
