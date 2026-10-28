@@ -4,9 +4,9 @@ import { USER_ROLE } from "../config/constants.js";
 const { admin } = USER_ROLE;
 import Middlewares from "../middlewares/middlewares.js";
 
-export default function createUsersRouter({ usersController }) {
+export default function createUsersRouter({ usersController, requireAuth }) {
     const router = Router();
-    const { asyncHandler, authorizedRoles, requireAuth } = Middlewares;
+    const { asyncHandler, authorizedRoles } = Middlewares;
 
     router.get("/", requireAuth, authorizedRoles([admin]), asyncHandler(usersController.getAll));
     router.get("/:id", requireAuth, authorizedRoles([admin]), asyncHandler(usersController.getById));

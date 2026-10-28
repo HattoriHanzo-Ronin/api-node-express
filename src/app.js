@@ -15,22 +15,24 @@ export function createApp({
     whitelistController,
     devicesController,
     usersController,
-    authController
+    authController,
+    accessTokenProvider
 }) {
     const app = express();
     const { cors, json, errorHandler, routeNotFound } = Middlewares;
+    const requireAuth = Middlewares.requireAuth({ accessTokenProvider });
 
     app.disable("x-powered-by");
 
     app.use(cors(), json());
 
-    app.use("/auth", createAuthRouter({ authController }));
-    app.use("/ftp", createFtpRouter({ ftpController }));
+    app.use("/auth", createAuthRouter({ authController, requireAuth }));
+    app.use("/ftp", createFtpRouter({ ftpController, requireAuth }));
 
-    app.use("/data-versions", createDataVersionsRouter({ dataVersionsController }));
-    app.use("/whitelist", createWhitelistRouter({ whitelistController }));
-    app.use("/devices", createDevicesRouter({ devicesController }));
-    app.use("/users", createUsersRouter({ usersController }));
+    app.use("/data-versions", createDataVersionsRouter({ dataVersionsController, requireAuth }));
+    app.use("/whitelist", createWhitelistRouter({ whitelistController, requireAuth }));
+    app.use("/devices", createDevicesRouter({ devicesController, requireAuth }));
+    app.use("/users", createUsersRouter({ usersController, requireAuth }));
 
     app.use(routeNotFound, errorHandler);
 

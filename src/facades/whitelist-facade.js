@@ -1,4 +1,3 @@
-import RouterResolver from "../devices-routers/router-resolver.js";
 import ValidateUtils from "../utils/validate-utils.js";
 import { API_ERROR } from "../config/errors.js";
 
@@ -8,9 +7,10 @@ import { API_ERROR } from "../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class WhitelistFacade {
-    constructor({ whitelistService, devicesFacade, tx }) {
+    constructor({ whitelistService, devicesFacade, routerAutomation, tx }) {
         this.whitelistService = whitelistService;
         this.devicesFacade = devicesFacade;
+        this.routerAutomation = routerAutomation;
         this.tx = tx;
     }
 
@@ -62,7 +62,7 @@ export default class WhitelistFacade {
     async #getRouterImpl(id) {
         try {
             const router = await this.devicesFacade.getById({ id });
-            return new RouterResolver(router);
+            return new this.routerAutomation({ router });
         } catch (err) {
             handleApiErrors([
                 {

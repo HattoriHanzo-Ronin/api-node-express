@@ -1,5 +1,4 @@
 import ValidateUtils from "../utils/validate-utils.js";
-import RouterResolver from "../devices-routers/router-resolver.js";
 import { DEVICE_TYPE } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
 
@@ -9,11 +8,12 @@ import { API_ERROR } from "../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class DevicesFacade {
-    constructor({ devicesService, dataVersionsService, devicesMapper, connectionsService, routerCpanel, tx }) {
+    constructor({ devicesService, dataVersionsService, devicesMapper, connectionsService, routerAutomation, routerCpanel, tx }) {
         this.devicesService = devicesService;
         this.dataVersionsService = dataVersionsService;
         this.devicesMapper = devicesMapper;
         this.connectionsService = connectionsService;
+        this.routerAutomation = routerAutomation;
         this.routerCpanel = routerCpanel;
         this.tx = tx;
     }
@@ -243,7 +243,7 @@ export default class DevicesFacade {
         for (const router of routers) {
             const { name: routerName, connections: oldConnections } = router;
             try {
-                const routerImpl = new RouterResolver(router);
+                const routerImpl = new this.routerAutomation({ router });
                 for (const { mac: oldMac, key, ctype } of oldConnections) {
                     const allowedDevice = connections.find(({ ctype: connectionCtype }) => connectionCtype === ctype);
                     if (allowedDevice) {

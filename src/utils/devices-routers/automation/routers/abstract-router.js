@@ -2,9 +2,9 @@ import { wrapper } from "axios-cookiejar-support";
 import { CookieJar } from "tough-cookie";
 import axios from "axios";
 import puppeteer from "puppeteer-core";
-import { ENV } from "../config/environment.js";
-import { API_ERROR } from "../config/errors.js";
-import ApiError from "../utils/error/api-error.js";
+import { ENV } from "../../../../config/environment.js";
+import { API_ERROR } from "../../../../config/errors.js";
+import ApiError from "../../../error/api-error.js";
 
 /**
  * Base router implementation
@@ -12,7 +12,7 @@ import ApiError from "../utils/error/api-error.js";
  * @author HattoriHanzo-Ronin
  */
 export default class AbstractRouter {
-    constructor(router) {
+    constructor({ router }) {
         this.router = router;
     }
 

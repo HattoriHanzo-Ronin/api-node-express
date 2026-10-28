@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import busboy from "busboy";
 import ApiError from "../utils/error/api-error.js";
-import JWTUtils from "../utils/jwt-utils.js";
 import { API_ERROR } from "../config/errors.js";
 
 /**
@@ -150,27 +149,28 @@ export default class Middlewares {
     /**
      * Requires a valid bearer access token
      *
-     * @param {import("express").Request} req Express request
-     * @param {import("express").Response} res Express response
-     * @param {import("express").NextFunction} next Express next function
+     * @param {Object} params.accessTokenProvider Access token provider
+     * @returns {import("express").RequestHandler} Express middleware
      */
-    static requireAuth(req, res, next) {
-        try {
-            const { authorization } = req.headers;
-            if (!authorization?.startsWith("Bearer ")) {
-                throw new ApiError({
-                    message: "No hay sesión",
-                    status: 401,
-                    apiError: API_ERROR.authenticationRequired
-                });
-            }
+    static requireAuth({ accessTokenProvider }) {
+        return (req, res, next) => {
+            try {
+                const { authorization } = req.headers;
+                if (!authorization?.startsWith("Bearer ")) {
+                    throw new ApiError({
+                        message: "No hay sesión",
+                        status: 401,
+                        apiError: API_ERROR.authenticationRequired
+                    });
+                }
 
-            const token = authorization.split(" ")[1];
-            req.user = JWTUtils.verifyAccessToken(token);
-            next();
-        } catch (err) {
-            next(err);
-        }
+                const token = authorization.split(" ")[1];
+                req.user = accessTokenProvider.verify({ token });
+                next();
+            } catch (err) {
+                next(err);
+            }
+        };
     }
 
     /**

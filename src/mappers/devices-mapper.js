@@ -1,5 +1,3 @@
-import RouterResolver from "../devices-routers/router-resolver.js";
-
 /**
  * Maps device data between persistence and domain representations
  *
@@ -7,12 +5,21 @@ import RouterResolver from "../devices-routers/router-resolver.js";
  */
 export default class DevicesMapper {
     /**
+     * Creates a devices mapper
+     *
+     * @param {Object} params.routerAutomation Router automation
+     */
+    constructor({ routerAutomation }) {
+        this.routerAutomation = routerAutomation;
+    }
+
+    /**
      * Creates a device source from persistence source
      *
      * @param {Object[]} source Persistence source
      * @returns {{ devices: Object[], connections: Object[] }} Devices source
      */
-    static createDeviceSource(source) {
+    createDeviceSource(source) {
         const connections = [];
         const deviceIds = new Set();
         const devices = source
@@ -37,14 +44,14 @@ export default class DevicesMapper {
      * @param {Object} source Persistence device
      * @returns {Object} Domain device
      */
-    static deviceToDomain(source) {
+    deviceToDomain(source) {
         let { connections, ...device } = source;
         connections = connections
             .filter(({ device_id: deviceId }) => deviceId === device.id)
             .map(({ mac, ctype }) => ({ mac, ctype }));
         device = Object.fromEntries(Object.entries(device).filter(([, it]) => it !== null));
         if (device.mac_filter) {
-            const routerImpl = new RouterResolver(device);
+            const routerImpl = new this.routerAutomation({ router: device });
             device = { ...device, capabilities: routerImpl.getCapabilities() };
         }
 
@@ -57,8 +64,8 @@ export default class DevicesMapper {
      * @param {{ devices: Object[], connections: Object[] }} source Persistence devices and connections
      * @returns {Object[]} Domain devices
      */
-    static devicesToDomain(source) {
+    devicesToDomain(source) {
         const { devices, connections } = source;
-        return devices.map((device) => DevicesMapper.deviceToDomain({ ...device, connections }));
+        return devices.map((device) => this.deviceToDomain({ ...device, connections }));
     }
 }

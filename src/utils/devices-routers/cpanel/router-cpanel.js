@@ -1,5 +1,5 @@
-import ApiError from "../../utils/error/api-error.js";
-import { API_ERROR } from "../../config/errors.js";
+import ApiError from "../../error/api-error.js";
+import { API_ERROR } from "../../../config/errors.js";
 
 /**
  * Communicates with the router control panel service

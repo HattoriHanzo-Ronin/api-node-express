@@ -1,9 +1,9 @@
 import { Router } from "express";
 import Middlewares from "../middlewares/middlewares.js";
 
-export default function createAuthRouter({ authController }) {
+export default function createAuthRouter({ authController, requireAuth }) {
     const router = Router();
-    const { asyncHandler, requireAuth, routeNotFound } = Middlewares;
+    const { asyncHandler, routeNotFound } = Middlewares;
 
     router.post("/", asyncHandler(authController.login));
     router.post("/refresh", asyncHandler(authController.refresh));

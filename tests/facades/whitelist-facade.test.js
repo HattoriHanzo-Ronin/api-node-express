@@ -1,19 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import RouterResolver from "../../src/devices-routers/router-resolver.js";
 import WhitelistFacade from "../../src/facades/whitelist-facade.js";
-
-const routerResolverMock = vi.hoisted(() => ({
-    impl: { generateKey: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    resolver: vi.fn()
-}));
-
-vi.mock("../../src/devices-routers/router-resolver.js", () => ({
-    default: routerResolverMock.resolver
-}));
 
 describe("WhitelistFacade", () => {
     let whitelistService;
     let devicesFacade;
+    let routerAutomation;
     let whitelistFacade;
     const tx = async (cb) => cb({});
 
@@ -21,9 +12,11 @@ describe("WhitelistFacade", () => {
         vi.clearAllMocks();
         whitelistService = { getKey: vi.fn(), create: vi.fn(), delete: vi.fn() };
         devicesFacade = { getById: vi.fn() };
-        routerResolverMock.resolver.mockImplementation(class { constructor() { return routerResolverMock.impl; } });
-        routerResolverMock.impl.generateKey.mockReturnValue("white_list_1");
-        whitelistFacade = new WhitelistFacade({ whitelistService, devicesFacade, tx });
+        const routerImpl = { generateKey: vi.fn(() => "white_list_1"), create: vi.fn(), delete: vi.fn() };
+        routerAutomation = vi.fn(function RouterAutomation() {
+            return routerImpl;
+        });
+        whitelistFacade = new WhitelistFacade({ whitelistService, devicesFacade, routerAutomation, tx });
     });
 
     it("should create whitelist entry and synchronize router", async () => {
@@ -42,7 +35,9 @@ describe("WhitelistFacade", () => {
         });
 
         expect(result).toEqual({ id: "device-1", mac: "AA:BB:CC:DD:EE:01" });
-        expect(RouterResolver).toHaveBeenCalledWith({ id: "router-1", name: "Router", model: "TP-Link Archer AX53" });
+        expect(routerAutomation).toHaveBeenCalledWith({
+            router: { id: "router-1", name: "Router", model: "TP-Link Archer AX53" }
+        });
         expect(whitelistService.getKey).toHaveBeenCalledWith({
             routerId: "router-1",
             generateKey: expect.any(Function)
@@ -51,7 +46,7 @@ describe("WhitelistFacade", () => {
             clientTx: {},
             whitelist: { router_id: "router-1", connection_mac: "AA:BB:CC:DD:EE:01", key: "white_list_1" }
         });
-        expect(routerResolverMock.impl.create).toHaveBeenCalledWith({
+        expect(routerAutomation.mock.results[0].value.create).toHaveBeenCalledWith({
             key: "white_list_1",
             name: "Desktop",
             mac: "AA:BB:CC:DD:EE:01"
@@ -79,7 +74,7 @@ describe("WhitelistFacade", () => {
             routerId: "router-1",
             mac: "AA:BB:CC:DD:EE:01"
         });
-        expect(routerResolverMock.impl.delete).toHaveBeenCalledWith({ key: "white_list_1", mac: "AA:BB:CC:DD:EE:01" });
+        expect(routerAutomation.mock.results[0].value.delete).toHaveBeenCalledWith({ key: "white_list_1", mac: "AA:BB:CC:DD:EE:01" });
     });
 
     it("should fail when mac does not belong to allowed device", async () => {
