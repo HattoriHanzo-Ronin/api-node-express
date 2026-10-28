@@ -38,7 +38,7 @@ export default class AuthFacade {
             await this.refreshTokensService.delete({ token: refreshToken });
             return this.#createPayload(user);
         } catch (err) {
-            if (err.code === API_ERROR.invalidToken.code) {
+            if (err.code === API_ERROR.invalidToken) {
                 await this.refreshTokensService.delete({ token: refreshToken });
             }
 

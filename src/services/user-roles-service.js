@@ -49,7 +49,7 @@ export default class UserRolesService {
         } catch (err) {
             handleApiErrors([
                 {
-                    condition: err.code !== aclRoleRequired.code,
+                    condition: err.code !== aclRoleRequired,
                     message: "Error al crear los roles del usuario",
                     apiError: aclRoleCreateFailed
                 }
@@ -74,7 +74,7 @@ export default class UserRolesService {
         } catch (err) {
             handleApiErrors([
                 {
-                    condition: err.code !== aclRoleRequired.code,
+                    condition: err.code !== aclRoleRequired,
                     message: "Error al actualizar los roles del usuario",
                     apiError: aclRoleUpdateFailed
                 }

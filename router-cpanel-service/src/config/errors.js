@@ -1,12 +1,12 @@
 const API_ERROR = Object.freeze({
-    internalError: { code: "INTERNAL_ERROR" },
-    routeNotFound: { code: "ROUTE_NOT_FOUND" },
-    configurationInvalid: { code: "CONFIGURATION_INVALID" },
-    routerSessionInvalid: { code: "ROUTER_SESSION_INVALID" },
-    routerSessionNotFound: { code: "ROUTER_SESSION_NOT_FOUND" },
-    routerSessionCapacityReached: { code: "ROUTER_SESSION_CAPACITY_REACHED" },
-    routerSessionConnectionCapacityReached: { code: "ROUTER_SESSION_CONNECTION_CAPACITY_REACHED" },
-    routerSessionFailed: { code: "ROUTER_SESSION_FAILED" }
+    internalError: "INTERNAL_ERROR",
+    routeNotFound: "ROUTE_NOT_FOUND",
+    configurationInvalid: "CONFIGURATION_INVALID",
+    routerSessionInvalid: "ROUTER_SESSION_INVALID",
+    routerSessionNotFound: "ROUTER_SESSION_NOT_FOUND",
+    routerSessionCapacityReached: "ROUTER_SESSION_CAPACITY_REACHED",
+    routerSessionConnectionCapacityReached: "ROUTER_SESSION_CONNECTION_CAPACITY_REACHED",
+    routerSessionFailed: "ROUTER_SESSION_FAILED"
 });
 
 export { API_ERROR };

@@ -35,7 +35,7 @@ export default class Middlewares {
      * @param {import("express").NextFunction} next Express next function
      */
     static routeNotFound(req, res, next) {
-        next(new ApiError({ message: "Page not found", status: 404, apiError: API_ERROR.routeNotFound }));
+        next(new ApiError({ message: "Page not found", status: 404, apiError: routeNotFound }));
     }
 
     /**
@@ -55,7 +55,9 @@ export default class Middlewares {
         const status = err.status ?? 500;
         const isApiError = err instanceof ApiError;
         const message = isApiError ? err.message : "Error inesperado";
-        const code = isApiError ? err.code : API_ERROR.internalError.code;
+        const code = isApiError ? err.code : internalError;
         res.status(status).json({ code, message });
     }
 }
+
+const { internalError, routeNotFound } = API_ERROR;

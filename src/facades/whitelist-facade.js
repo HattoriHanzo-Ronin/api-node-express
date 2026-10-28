@@ -66,7 +66,7 @@ export default class WhitelistFacade {
         } catch (err) {
             handleApiErrors([
                 {
-                    condition: err.code === deviceNotFound.code,
+                    condition: err.code === deviceNotFound,
                     message: "El router no existe",
                     status: 404,
                     apiError: whitelistRouterNotFound

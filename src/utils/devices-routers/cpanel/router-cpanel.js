@@ -76,7 +76,7 @@ export default class RouterCpanel {
         throw new ApiError({
             message: data.message ?? "No se ha podido gestionar la sesión del panel de router",
             status: response.status,
-            apiError: { code: data.code ?? routerCpanelSessionFailed.code }
+            apiError: data.code ?? routerCpanelSessionFailed
         });
     }
 }
