@@ -1,4 +1,4 @@
-import ValidateUtils from "../../validate-utils.js";
+import ApiError from "../../error/api-error.js";
 import { API_ERROR } from "../../../config/errors.js";
 import ArcherAX53Router from "./routers/tp-link/archer-ax53.js";
 import TLWDR5620GigabitEditionRouter from "./routers/tp-link/tl-wdr5620-gigabit-edition.js";
@@ -9,16 +9,16 @@ import TLWDR5620GigabitEditionRouter from "./routers/tp-link/tl-wdr5620-gigabit-
  * @author HattoriHanzo-Ronin
  */
 export default class RouterAutomation {
+    static #IMPLEMENTATIONS = Object.freeze({
+        "TP-Link TL-WDR5620 Gigabit Edition": TLWDR5620GigabitEditionRouter,
+        "TP-Link Archer AX53": ArcherAX53Router
+    });
+
     #router;
 
-    /**
-     * Creates router automation
-     *
-     * @param {Object} params.router Router data
-     */
     constructor({ router }) {
-        const RouterImplementation = ROUTER_IMPLEMENTATIONS[router.model];
-        handleApiErrors([{
+        const RouterImplementation = RouterAutomation.#IMPLEMENTATIONS[router.model];
+        ApiError.handle([{
             condition: !RouterImplementation,
             message: `${router.name} no tiene implementación disponible`,
             apiError: routerImplementationNotFound,
@@ -28,7 +28,7 @@ export default class RouterAutomation {
     }
 
     /**
-     * Retrieves router capabilities
+     * Returns router capabilities
      *
      * @returns {{ addAllow: boolean, deleteAllow: boolean }} Router capabilities
      */
@@ -39,11 +39,11 @@ export default class RouterAutomation {
     /**
      * Generates a router whitelist key
      *
-     * @param {Object[]} keys Current router whitelist keys
+     * @param {Object[]} params.keys Current router whitelist keys
      * @returns {string | null} Generated whitelist key
      */
-    generateKey(keys) {
-        return this.#router.generateKey(keys);
+    generateKey({ keys }) {
+        return this.#router.generateKey({ keys });
     }
 
     /**
@@ -59,11 +59,11 @@ export default class RouterAutomation {
         }
 
         const added = await this.#router.addAllow({ key, mac, name });
-        handleApiErrors([{
+        ApiError.handle([{
             condition: !added,
             message: "Error al insertar el dispositivo en el router",
-            apiError: routerAddFailed,
-            status: 400
+            status: 400,
+            apiError: routerAddFailed
         }]);
     }
 
@@ -79,18 +79,13 @@ export default class RouterAutomation {
         }
 
         const deleted = await this.#router.deleteAllow({ key, mac });
-        handleApiErrors([{
+        ApiError.handle([{
             condition: !deleted,
             message: "Error al eliminar el dispositivo del router",
-            apiError: routerDeleteFailed,
-            status: 400
+            status: 400,
+            apiError: routerDeleteFailed
         }]);
     }
 }
 
-const { handleApiErrors } = ValidateUtils;
 const { routerImplementationNotFound, routerAddFailed, routerDeleteFailed } = API_ERROR;
-const ROUTER_IMPLEMENTATIONS = Object.freeze({
-    "TP-Link TL-WDR5620 Gigabit Edition": TLWDR5620GigabitEditionRouter,
-    "TP-Link Archer AX53": ArcherAX53Router
-});

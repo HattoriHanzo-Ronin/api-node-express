@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import ConnectionsService from "../../src/services/connections-service.js";
+import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
 
 describe("ConnectionsService getByDevices", () => {
     it("should return device connections", async () => {
@@ -133,7 +134,10 @@ describe("ConnectionsService update combined operations and errors", () => {
 
 function setup() {
     const connectionsModel = { getByDevices: vi.fn(), insertMany: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() };
-    return { connectionsModel, connectionsService: new ConnectionsService({ connectionsModel }) };
+    return {
+        connectionsModel,
+        connectionsService: new ConnectionsService({ connectionsModel, entityError: PostgresErrors.connections })
+    };
 }
 
 function connection({ mac = "AA:BB:CC:DD:EE:01", ctype = "LAN" } = {}) {

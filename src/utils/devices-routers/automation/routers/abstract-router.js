@@ -31,39 +31,33 @@ export default class AbstractRouter {
     /**
      * Generates a router whitelist key
      *
-     * @param {string[]} keys Current router whitelist keys
      * @returns {string | null} Generated whitelist key
      */
-    generateKey(keys) {
+    generateKey() {
         return null;
     }
 
     /**
      * Adds a device to the router whitelist
      *
-     * @param {string | null} params.key Router whitelist key
-     * @param {string} params.mac Device MAC address
-     * @param {string} params.name Device name
      * @returns {Promise<boolean>} Returns true when the operation succeeds, otherwise false
      */
-    async addAllow({ key, mac, name }) {
+    async addAllow() {
         throw new ApiError({
             message: "La inserción en el router no está implementada",
-            apiError: API_ERROR.routerImplementationNotFound
+            apiError: routerImplementationNotFound
         });
     }
 
     /**
      * Removes a device from the router whitelist
      *
-     * @param {string | null} params.key Router whitelist key
-     * @param {string} params.mac Device MAC address
      * @returns {Promise<boolean>} Returns true when the operation succeeds, otherwise false
      */
-    async deleteAllow({ key, mac }) {
+    async deleteAllow() {
         throw new ApiError({
             message: "El borrado en el router no está implementado",
-            apiError: API_ERROR.routerImplementationNotFound
+            apiError: routerImplementationNotFound
         });
     }
 
@@ -115,3 +109,5 @@ export default class AbstractRouter {
         }
     }
 }
+
+const { routerImplementationNotFound } = API_ERROR;

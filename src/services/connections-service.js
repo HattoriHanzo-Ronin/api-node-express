@@ -1,5 +1,4 @@
-import PostgresErrors from "../utils/error/postgres-errors.js";
-import ValidateUtils from "../utils/validate-utils.js";
+import ApiError from "../utils/error/api-error.js";
 import { API_ERROR } from "../config/errors.js";
 
 /**
@@ -8,8 +7,9 @@ import { API_ERROR } from "../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class ConnectionsService {
-    constructor({ connectionsModel }) {
+    constructor({ connectionsModel, entityError }) {
         this.connectionsModel = connectionsModel;
+        this.entityError = entityError;
     }
 
     /**
@@ -32,18 +32,18 @@ export default class ConnectionsService {
      */
     async createMany({ clientTx, deviceId, connections }) {
         try {
-            handleApiErrors([
+            ApiError.handle([
                 {
                     condition: !connections,
                     message: "Se debe especificar al menos una conexión para el dispositivo",
                     apiError: connectionRequired
                 }
             ]);
-            connections = connections.map((it) => ({ device_id: deviceId, ...it }));
+            connections = connections.map((connection) => ({ device_id: deviceId, ...connection }));
             return await this.connectionsModel.insertMany({ clientTx, connections });
         } catch (err) {
-            postgresError(err);
-            handleApiErrors([
+            this.entityError(err);
+            ApiError.handle([
                 {
                     condition: err.code !== connectionRequired,
                     message: "Error al crear las conexiones del dispositivo",
@@ -69,8 +69,8 @@ export default class ConnectionsService {
      */
     async update({ clientTx, deviceId, connections, oldConnections }) {
         try {
-            connections = connections.map((it) => ({ device_id: deviceId, ...it }));
-            oldConnections = oldConnections.map((it) => ({ device_id: deviceId, ...it }));
+            connections = connections.map((connection) => ({ device_id: deviceId, ...connection }));
+            oldConnections = oldConnections.map((connection) => ({ device_id: deviceId, ...connection }));
             let result = {};
             const deleteConnections = oldConnections
                 .filter(({ ctype }) => !connections.some(({ ctype: connectionCtype }) => connectionCtype === ctype))
@@ -108,8 +108,8 @@ export default class ConnectionsService {
 
             return result;
         } catch (err) {
-            postgresError(err);
-            handleApiErrors([
+            this.entityError(err);
+            ApiError.handle([
                 {
                     condition: true,
                     message: "Error al actualizar las conexiones del dispositivo",
@@ -120,6 +120,4 @@ export default class ConnectionsService {
     }
 }
 
-const { handleApiErrors } = ValidateUtils;
 const { connectionRequired, connectionCreateFailed, connectionUpdateFailed } = API_ERROR;
-const { connections: postgresError } = PostgresErrors;

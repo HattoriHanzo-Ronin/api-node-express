@@ -1,7 +1,30 @@
-import FtpClient from "./ftp-client.js";
-import { ENV } from "../../config/environment.js";
-import { API_ERROR } from "../../config/errors.js";
-import ApiError from "../error/api-error.js";
+import FtpClient from "../ftp-client.js";
+import { ENV } from "../../../../config/environment.js";
+import { API_ERROR } from "../../../../config/errors.js";
+import ApiError from "../../../error/api-error.js";
+
+const {
+    ftpMaxConnections,
+    ftpMaxTransfers,
+    ftpIdleTimeout,
+    ftpScaleWait,
+    ftpInternalPoolMin,
+    ftpInternalPoolMax,
+    ftpReadPoolMin,
+    ftpReadPoolMax,
+    ftpWritePoolMin,
+    ftpWritePoolMax,
+    ftpProtectedUserIds
+} = ENV;
+
+const {
+    ftpConfigurationInvalid,
+    ftpManagerClosed,
+    ftpPoolScaleFailed,
+    ftpConnectionCloseFailed,
+    ftpPoolRestoreFailed,
+    ftpSessionClosed
+} = API_ERROR;
 
 /**
  * Manages isolated SFTP connection pools per authenticated user
@@ -9,6 +32,34 @@ import ApiError from "../error/api-error.js";
  * @author HattoriHanzo-Ronin
  */
 export class FtpConnectionManager {
+    static #MAX_CONNECTIONS = ftpMaxConnections;
+    static #MAX_TRANSFERS = ftpMaxTransfers;
+    static #IDLE_TIMEOUT = ftpIdleTimeout;
+    static #SCALE_WAIT = ftpScaleWait;
+    static #POOL_CONFIG = Object.freeze({
+        internal: { min: ftpInternalPoolMin, max: ftpInternalPoolMax },
+        read: { min: ftpReadPoolMin, max: ftpReadPoolMax },
+        write: { min: ftpWritePoolMin, max: ftpWritePoolMax }
+    });
+    static #MIN_CONNECTIONS_PER_USER = Object.values(FtpConnectionManager.#POOL_CONFIG)
+        .reduce((total, { min }) => total + min, 0);
+    static #MAX_CONNECTIONS_PER_USER = Object.values(FtpConnectionManager.#POOL_CONFIG)
+        .reduce((total, { max }) => total + max, 0);
+    static #PROTECTED_USER_IDS;
+
+    static {
+        FtpConnectionManager.#validateConfiguration();
+        FtpConnectionManager.#PROTECTED_USER_IDS = FtpConnectionManager.#parseProtectedUserIds(ftpProtectedUserIds);
+        const reservedConnections = [...FtpConnectionManager.#PROTECTED_USER_IDS.values()]
+            .reduce((total, reserved) => total + reserved, 0);
+        if (reservedConnections > FtpConnectionManager.#MAX_CONNECTIONS) {
+            throw new ApiError({
+                message: "Las reservas SFTP superan el límite global de conexiones",
+                apiError: ftpConfigurationInvalid
+            });
+        }
+    }
+
     #sessions = new Map();
     #totalConnections = 0;
     #activeTransfers = 0;
@@ -17,8 +68,8 @@ export class FtpConnectionManager {
     #allocationTail = Promise.resolve();
 
     constructor({
-        createClient = FtpClient.getClient,
-        closeClient = FtpClient.closeClient
+        createClient = getClient,
+        closeClient = ftpCloseClient
     } = {}) {
         this.createClient = createClient;
         this.closeClient = closeClient;
@@ -76,7 +127,7 @@ export class FtpConnectionManager {
 
             return await callback({ client: await connection.clientPromise });
         } catch (error) {
-            if (connection && isConnectionError(error)) {
+            if (connection && this.#isConnectionError(error)) {
                 await this.#removeConnection(session, pool, connection);
                 connection = undefined;
                 await this.#restorePool(session, pool);
@@ -165,7 +216,7 @@ export class FtpConnectionManager {
     }
 
     #acquireTransfer() {
-        if (this.#activeTransfers < MAX_TRANSFERS) {
+        if (this.#activeTransfers < FtpConnectionManager.#MAX_TRANSFERS) {
             this.#activeTransfers += 1;
             return Promise.resolve(() => this.#releaseTransfer());
         }
@@ -190,7 +241,7 @@ export class FtpConnectionManager {
         session = {
             ownerId: authUser.id,
             lastActivity: Date.now(),
-            pools: Object.fromEntries(Object.keys(POOL_CONFIG)
+            pools: Object.fromEntries(Object.keys(FtpConnectionManager.#POOL_CONFIG)
                 .map((type) => [type, { connections: [], queue: [] }])),
             lockedPaths: new Map(),
             lockedTrees: new Set(),
@@ -199,7 +250,7 @@ export class FtpConnectionManager {
             closing: false
         };
         this.#sessions.set(authUser.id, session);
-        session.initializing = Promise.allSettled(Object.keys(POOL_CONFIG)
+        session.initializing = Promise.allSettled(Object.keys(FtpConnectionManager.#POOL_CONFIG)
             .map((pool) => this.#addConnection(session, pool)))
             .then((results) => {
                 const rejected = results.find((result) => result.status === "rejected");
@@ -225,7 +276,7 @@ export class FtpConnectionManager {
             return connection;
         }
 
-        if (pool.connections.length < POOL_CONFIG[type].min) {
+        if (pool.connections.length < FtpConnectionManager.#POOL_CONFIG[type].min) {
             const newConnection = await this.#addConnection(session, type);
             newConnection.busy = true;
             return newConnection;
@@ -234,10 +285,10 @@ export class FtpConnectionManager {
         return new Promise((resolve, reject) => {
             const pending = { resolve, reject };
             pool.queue.push(pending);
-            if (type === "read" && pool.connections.length < POOL_CONFIG.read.max) {
+            if (type === "read" && pool.connections.length < FtpConnectionManager.#POOL_CONFIG.read.max) {
                 void this.#scale(session, type, pending);
-            } else if (type === "write" && pool.connections.length < POOL_CONFIG.write.max) {
-                pending.scaleTimeout = setTimeout(() => void this.#scale(session, type, pending), SCALE_WAIT);
+            } else if (type === "write" && pool.connections.length < FtpConnectionManager.#POOL_CONFIG.write.max) {
+                pending.scaleTimeout = setTimeout(() => void this.#scale(session, type, pending), FtpConnectionManager.#SCALE_WAIT);
                 pending.scaleTimeout.unref();
             }
         });
@@ -246,7 +297,7 @@ export class FtpConnectionManager {
     async #scale(session, type, pending) {
         const pool = session.pools[type];
         if (!pool.queue.includes(pending)
-            || pool.connections.length >= POOL_CONFIG[type].max) {
+            || pool.connections.length >= FtpConnectionManager.#POOL_CONFIG[type].max) {
             return;
         }
         try {
@@ -303,7 +354,7 @@ export class FtpConnectionManager {
                 type,
                 busy: false,
                 lastUsed: Date.now(),
-                clientPromise: Promise.resolve().then(() => this.createClient(session.ownerId))
+                clientPromise: Promise.resolve().then(() => this.createClient({ ownerId: session.ownerId }))
             };
             session.pools[type].connections.push(connection);
             this.#totalConnections += 1;
@@ -341,12 +392,12 @@ export class FtpConnectionManager {
     #hasCapacity(requestSession) {
         const projectedCounts = new Map();
         for (const session of this.#sessions.values()) {
-            projectedCounts.set(session.ownerId, countConnections(session));
+            projectedCounts.set(session.ownerId, this.#countConnections(session));
         }
         projectedCounts.set(requestSession.ownerId, (projectedCounts.get(requestSession.ownerId) ?? 0) + 1);
-        const unclaimedReservations = [...PROTECTED_USER_IDS].reduce((total, [ownerId, reserved]) =>
+        const unclaimedReservations = [...FtpConnectionManager.#PROTECTED_USER_IDS].reduce((total, [ownerId, reserved]) =>
             total + Math.max(0, reserved - (projectedCounts.get(ownerId) ?? 0)), 0);
-        return this.#totalConnections + 1 + unclaimedReservations <= MAX_CONNECTIONS;
+        return this.#totalConnections + 1 + unclaimedReservations <= FtpConnectionManager.#MAX_CONNECTIONS;
     }
 
     #getEvictionCandidate(excludedOwnerId) {
@@ -354,7 +405,7 @@ export class FtpConnectionManager {
         for (const session of sessions.sort((a, b) => a.lastActivity - b.lastActivity)) {
             for (const type of ["write", "read"]) {
                 const pool = session.pools[type];
-                const minimum = POOL_CONFIG[type].min;
+                const minimum = FtpConnectionManager.#POOL_CONFIG[type].min;
                 const connection = pool.connections.find((item, index) => index >= minimum && !item.busy);
                 if (connection) {
                     return { session, type, connection };
@@ -363,7 +414,7 @@ export class FtpConnectionManager {
         }
         return sessions
             .filter((session) => session.ownerId !== excludedOwnerId)
-            .filter((session) => !PROTECTED_USER_IDS.has(session.ownerId) && isSessionIdle(session))
+            .filter((session) => !FtpConnectionManager.#PROTECTED_USER_IDS.has(session.ownerId) && this.#isSessionIdle(session))
             .map((session) => ({ session }))
             .at(0);
     }
@@ -382,7 +433,7 @@ export class FtpConnectionManager {
             return;
         }
         try {
-            await this.closeClient(result[0].value);
+            await this.closeClient({ client: result[0].value });
         } catch {
             throw new ApiError({
                 message: "No se ha podido cerrar la conexión SFTP",
@@ -396,7 +447,7 @@ export class FtpConnectionManager {
             return;
         }
         const pool = session.pools[type];
-        if (pool.connections.length >= POOL_CONFIG[type].min && !pool.queue.length) {
+        if (pool.connections.length >= FtpConnectionManager.#POOL_CONFIG[type].min && !pool.queue.length) {
             return;
         }
         try {
@@ -414,16 +465,16 @@ export class FtpConnectionManager {
         session.lastActivity = Date.now();
         session.expired = false;
         clearTimeout(session.idleTimeout);
-        session.idleTimeout = setTimeout(() => void this.#expire(session), IDLE_TIMEOUT);
+        session.idleTimeout = setTimeout(() => void this.#expire(session), FtpConnectionManager.#IDLE_TIMEOUT);
         session.idleTimeout.unref();
     }
 
     async #expire(session) {
         session.expired = true;
-        if (!isSessionIdle(session)) {
+        if (!this.#isSessionIdle(session)) {
             return;
         }
-        if (PROTECTED_USER_IDS.has(session.ownerId)) {
+        if (FtpConnectionManager.#PROTECTED_USER_IDS.has(session.ownerId)) {
             await this.#trimProtectedSession(session);
             return;
         }
@@ -433,14 +484,14 @@ export class FtpConnectionManager {
     async #trimProtectedSession(session) {
         for (const type of ["read", "write"]) {
             const pool = session.pools[type];
-            while (pool.connections.length > POOL_CONFIG[type].min) {
+            while (pool.connections.length > FtpConnectionManager.#POOL_CONFIG[type].min) {
                 await this.#removeConnection(session, type, pool.connections.at(-1));
             }
         }
     }
 
     async #closeSession(session, force = false) {
-        if (session.closing || (!force && !isSessionIdle(session))) {
+        if (session.closing || (!force && !this.#isSessionIdle(session))) {
             return;
         }
         session.closing = true;
@@ -461,12 +512,12 @@ export class FtpConnectionManager {
     }
 
     async #lockPaths(session, paths, sharedPaths, treePaths) {
-        const request = normalizeLockRequest(paths, sharedPaths, treePaths);
+        const request = this.#normalizeLockRequest(paths, sharedPaths, treePaths);
         const queuedRequest = {
             ...request,
             sharedPaths: request.sharedPaths.filter((path) => !session.lockedPaths.get(path)?.shared)
         };
-        const release = !session.lockQueue.some((pending) => !pending.treePaths.length && lockRequestsConflict(queuedRequest, pending))
+        const release = !session.lockQueue.some((pending) => !pending.treePaths.length && this.#lockRequestsConflict(queuedRequest, pending))
             && this.#tryLockPaths(session, request.paths, request.sharedPaths, request.treePaths);
         if (release) {
             return release;
@@ -479,11 +530,11 @@ export class FtpConnectionManager {
         if (paths.some((path) => session.lockedPaths.has(path))
             || sharedPaths.some((path) => session.lockedPaths.get(path)?.exclusive)
             || [...paths, ...sharedPaths, ...treePaths].some((path) =>
-                [...session.lockedTrees].some((tree) => isWithinPath(path, tree)))
-            || paths.some((path) => [...session.lockedTrees].some((tree) => isWithinPath(tree, path)))
+                [...session.lockedTrees].some((tree) => this.#isWithinPath(path, tree)))
+            || paths.some((path) => [...session.lockedTrees].some((tree) => this.#isWithinPath(tree, path)))
             || treePaths.some((tree) => [...session.lockedPaths.keys(), ...session.lockedTrees]
-                .some((path) => isWithinPath(path, tree) ||
-                    (session.lockedPaths.get(path)?.exclusive && isWithinPath(tree, path))))) {
+                .some((path) => this.#isWithinPath(path, tree) ||
+                    (session.lockedPaths.get(path)?.exclusive && this.#isWithinPath(tree, path))))) {
             return null;
         }
 
@@ -511,7 +562,7 @@ export class FtpConnectionManager {
     #dispatchLocks(session) {
         for (let index = 0; index < session.lockQueue.length;) {
             const pending = session.lockQueue[index];
-            if (session.lockQueue.slice(0, index).some((earlier) => !earlier.treePaths.length && lockRequestsConflict(earlier, pending))) {
+            if (session.lockQueue.slice(0, index).some((earlier) => !earlier.treePaths.length && this.#lockRequestsConflict(earlier, pending))) {
                 index += 1;
                 continue;
             }
@@ -527,116 +578,78 @@ export class FtpConnectionManager {
         }
     }
 
-    #isActive(session) {
-        return !session.expired && Date.now() - session.lastActivity < IDLE_TIMEOUT;
-    }
-}
+    static #parseProtectedUserIds(source) {
+        return new Map(source.split(",").filter(Boolean).map((entry) => {
+            const [ownerId, reservedSource] = entry.trim().split(":");
+            const reserved = Number(reservedSource);
+            if (!ownerId || !Number.isInteger(reserved)
+                || reserved < FtpConnectionManager.#MIN_CONNECTIONS_PER_USER
+                || reserved > FtpConnectionManager.#MAX_CONNECTIONS_PER_USER) {
+                throw new ApiError({
+                    message: `Reserva SFTP no válida: ${entry}`,
+                    apiError: ftpConfigurationInvalid
+                });
+            }
 
-function parseProtectedUserIds(source) {
-    return new Map(source.split(",").filter(Boolean).map((entry) => {
-        const [ownerId, reservedSource] = entry.trim().split(":");
-        const reserved = Number(reservedSource);
-        if (!ownerId || !Number.isInteger(reserved)
-            || reserved < MIN_CONNECTIONS_PER_USER || reserved > MAX_CONNECTIONS_PER_USER) {
+            return [ownerId, reserved];
+        }));
+    }
+
+    static #validateConfiguration() {
+        const validPools = Object.values(FtpConnectionManager.#POOL_CONFIG).every(({ min, max }) => min <= max);
+        if (!validPools || FtpConnectionManager.#MIN_CONNECTIONS_PER_USER > FtpConnectionManager.#MAX_CONNECTIONS) {
             throw new ApiError({
-                message: `Reserva SFTP no válida: ${entry}`,
+                message: "La configuración de los pools SFTP no es válida",
                 apiError: ftpConfigurationInvalid
             });
         }
+    }
 
-        return [ownerId, reserved];
-    }));
-}
+    #countConnections(session) {
+        return Object.values(session.pools).reduce((total, pool) => total + pool.connections.length, 0);
+    }
 
-function validateConfiguration() {
-    const validPools = Object.values(POOL_CONFIG).every(({ min, max }) => min <= max);
-    if (!validPools || MIN_CONNECTIONS_PER_USER > MAX_CONNECTIONS) {
-        throw new ApiError({
-            message: "La configuración de los pools SFTP no es válida",
-            apiError: ftpConfigurationInvalid
-        });
+    #isSessionIdle(session) {
+        return session.transferLocks === 0 && session.lockQueue.length === 0 && Object.values(session.pools).every((pool) =>
+            pool.queue.length === 0 && pool.connections.every((connection) => !connection.busy)
+        );
+    }
+
+    #isConnectionError(error) {
+        return ["ECONNRESET", "ECONNREFUSED", "EPIPE", "ETIMEDOUT"].includes(error?.code)
+            || /connection|socket|channel|not connected/i.test(error?.message ?? "");
+    }
+
+    #normalizeLockRequest(paths, sharedPaths, treePaths = []) {
+        const normalizedPaths = [...new Set(paths)].sort();
+        const exclusivePaths = new Set(normalizedPaths);
+        return {
+            paths: normalizedPaths,
+            sharedPaths: [...new Set(sharedPaths)].filter((path) => !exclusivePaths.has(path)).sort(),
+            treePaths: [...new Set(treePaths)].sort()
+        };
+    }
+
+    #lockRequestsConflict(first, second) {
+        const secondExclusive = new Set(second.paths);
+        const secondShared = new Set(second.sharedPaths);
+        return first.paths.some((path) => secondExclusive.has(path) || secondShared.has(path))
+            || first.sharedPaths.some((path) => secondExclusive.has(path))
+            || first.treePaths.some((tree) => [...second.paths, ...second.sharedPaths, ...second.treePaths]
+                .some((path) => this.#isWithinPath(path, tree)))
+            || second.treePaths.some((tree) => [...first.paths, ...first.sharedPaths, ...first.treePaths]
+                .some((path) => this.#isWithinPath(tree, path)))
+            || first.treePaths.some((tree) => second.paths.some((path) => this.#isWithinPath(tree, path)))
+            || second.treePaths.some((tree) => first.paths.some((path) => this.#isWithinPath(tree, path)));
+    }
+
+    #isWithinPath(path, tree) {
+        return path === tree || path.startsWith(`${tree}/`) || tree === ".";
+    }
+
+    #isActive(session) {
+        return !session.expired && Date.now() - session.lastActivity < FtpConnectionManager.#IDLE_TIMEOUT;
     }
 }
 
-function countConnections(session) {
-    return Object.values(session.pools).reduce((total, pool) => total + pool.connections.length, 0);
-}
-
-function isSessionIdle(session) {
-    return session.transferLocks === 0 && session.lockQueue.length === 0 && Object.values(session.pools).every((pool) =>
-        pool.queue.length === 0 && pool.connections.every((connection) => !connection.busy)
-    );
-}
-
-function isConnectionError(error) {
-    return ["ECONNRESET", "ECONNREFUSED", "EPIPE", "ETIMEDOUT"].includes(error?.code)
-        || /connection|socket|channel|not connected/i.test(error?.message ?? "");
-}
-
-function normalizeLockRequest(paths, sharedPaths, treePaths = []) {
-    const normalizedPaths = [...new Set(paths)].sort();
-    const exclusivePaths = new Set(normalizedPaths);
-    return {
-        paths: normalizedPaths,
-        sharedPaths: [...new Set(sharedPaths)].filter((path) => !exclusivePaths.has(path)).sort(),
-        treePaths: [...new Set(treePaths)].sort()
-    };
-}
-
-function lockRequestsConflict(first, second) {
-    const secondExclusive = new Set(second.paths);
-    const secondShared = new Set(second.sharedPaths);
-    return first.paths.some((path) => secondExclusive.has(path) || secondShared.has(path))
-        || first.sharedPaths.some((path) => secondExclusive.has(path))
-        || first.treePaths.some((tree) => [...second.paths, ...second.sharedPaths, ...second.treePaths]
-            .some((path) => isWithinPath(path, tree)))
-        || second.treePaths.some((tree) => [...first.paths, ...first.sharedPaths, ...first.treePaths]
-            .some((path) => isWithinPath(path, tree)))
-        || first.treePaths.some((tree) => second.paths.some((path) => isWithinPath(tree, path)))
-        || second.treePaths.some((tree) => first.paths.some((path) => isWithinPath(tree, path)));
-}
-
-function isWithinPath(path, tree) {
-    return path === tree || path.startsWith(`${tree}/`) || tree === ".";
-}
-
-const {
-    ftpMaxConnections: MAX_CONNECTIONS,
-    ftpMaxTransfers: MAX_TRANSFERS,
-    ftpIdleTimeout: IDLE_TIMEOUT,
-    ftpScaleWait: SCALE_WAIT,
-    ftpProtectedUserIds: PROTECTED_USER_IDS_SOURCE,
-    ftpInternalPoolMin: INTERNAL_POOL_MIN,
-    ftpInternalPoolMax: INTERNAL_POOL_MAX,
-    ftpReadPoolMin: READ_POOL_MIN,
-    ftpReadPoolMax: READ_POOL_MAX,
-    ftpWritePoolMin: WRITE_POOL_MIN,
-    ftpWritePoolMax: WRITE_POOL_MAX
-} = ENV;
-const {
-    ftpConfigurationInvalid,
-    ftpConnectionCloseFailed,
-    ftpManagerClosed,
-    ftpPoolRestoreFailed,
-    ftpPoolScaleFailed,
-    ftpSessionClosed
-} = API_ERROR;
-const POOL_CONFIG = Object.freeze({
-    internal: { min: INTERNAL_POOL_MIN, max: INTERNAL_POOL_MAX },
-    read: { min: READ_POOL_MIN, max: READ_POOL_MAX },
-    write: { min: WRITE_POOL_MIN, max: WRITE_POOL_MAX }
-});
-const MIN_CONNECTIONS_PER_USER = Object.values(POOL_CONFIG).reduce((total, { min }) => total + min, 0);
-const MAX_CONNECTIONS_PER_USER = Object.values(POOL_CONFIG).reduce((total, { max }) => total + max, 0);
-validateConfiguration();
-const PROTECTED_USER_IDS = parseProtectedUserIds(PROTECTED_USER_IDS_SOURCE);
-const RESERVED_CONNECTIONS = [...PROTECTED_USER_IDS.values()].reduce((total, reserved) => total + reserved, 0);
-
-if (RESERVED_CONNECTIONS > MAX_CONNECTIONS) {
-    throw new ApiError({
-        message: "Las reservas SFTP superan el límite global de conexiones",
-        apiError: ftpConfigurationInvalid
-    });
-}
-
-export default new FtpConnectionManager();
+const { getClient, closeClient: ftpCloseClient } = FtpClient;

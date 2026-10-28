@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import UsersService from "../../src/services/users-service.js";
+import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
 
 describe("UsersService", () => {
     let usersModel;
@@ -15,7 +16,7 @@ describe("UsersService", () => {
             update: vi.fn(),
             delete: vi.fn()
         };
-        usersService = new UsersService({ usersModel });
+        usersService = new UsersService({ usersModel, entityError: PostgresErrors.users });
     });
 
     describe("getAll", () => {

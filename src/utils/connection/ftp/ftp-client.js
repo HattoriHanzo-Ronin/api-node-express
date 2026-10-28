@@ -1,6 +1,6 @@
 import SftpClient from "ssh2-sftp-client";
-import { ENV } from "../../config/environment.js";
-import { SECRETS } from "../../config/secrets.js";
+import { ENV } from "../../../config/environment.js";
+import { SECRETS } from "../../../config/secrets.js";
 
 const { ftpHost, ftpPort } = ENV;
 

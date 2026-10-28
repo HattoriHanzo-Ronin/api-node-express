@@ -1,4 +1,4 @@
-import PostgresClient from "../../../utils/connection/postgres-client.js";
+import PostgresClient from "../../../utils/connection/postgres/postgres-client.js";
 import usersColumns from "./columns.js";
 
 /**

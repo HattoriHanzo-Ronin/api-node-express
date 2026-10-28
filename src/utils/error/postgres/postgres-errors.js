@@ -1,5 +1,5 @@
-import { API_ERROR } from "../../config/errors.js";
-import ValidateUtils from "../validate-utils.js";
+import { API_ERROR } from "../../../config/errors.js";
+import ApiError from "../api-error.js";
 
 /**
  * Centralizes the translation of PostgreSQL errors into application errors
@@ -16,11 +16,11 @@ export default class PostgresErrors {
      * @param {Object} err PostgreSQL error
      */
     static whitelist(err) {
-        handleApiErrors([
+        ApiError.handle([
             {
                 condition: err.code === PostgresErrors.#UNIQUE_VIOLATION,
                 execute: () => {
-                    handleApiErrors([
+                    ApiError.handle([
                         {
                             condition: err.constraint === "whitelist_pk",
                             message: "El dispositivo ya se encuentra autorizado",
@@ -44,11 +44,11 @@ export default class PostgresErrors {
      * @param {Object} err PostgreSQL error
      */
     static devices(err) {
-        handleApiErrors([
+        ApiError.handle([
             {
                 condition: err.code === PostgresErrors.#UNIQUE_VIOLATION,
                 execute: () => {
-                    handleApiErrors([
+                    ApiError.handle([
                         {
                             condition: err.constraint === "devices_name_unique",
                             message: "El nombre del dispositivo ya está en uso",
@@ -73,7 +73,7 @@ export default class PostgresErrors {
      * @param {Object} err PostgreSQL error
      */
     static connections(err) {
-        handleApiErrors([
+        ApiError.handle([
             {
                 condition: err.code === PostgresErrors.#UNIQUE_VIOLATION,
                 message: "La mac ya está en uso",
@@ -89,7 +89,7 @@ export default class PostgresErrors {
      * @param {Object} err PostgreSQL error
      */
     static users(err) {
-        handleApiErrors([
+        ApiError.handle([
             {
                 condition: err.code === PostgresErrors.#UNIQUE_VIOLATION,
                 message: "El nombre de usuario ya está en uso",
@@ -105,7 +105,7 @@ export default class PostgresErrors {
      * @param {Object} err PostgreSQL error
      */
     static refreshTokens(err) {
-        handleApiErrors([
+        ApiError.handle([
             {
                 condition: err.code === PostgresErrors.#FOREIGN_KEY_VIOLATION,
                 message: "El usuario no existe",
@@ -125,4 +125,3 @@ const {
     userUsernameAlreadyExists,
     refreshTokenUserNotFound
 } = API_ERROR;
-const { handleApiErrors } = ValidateUtils;

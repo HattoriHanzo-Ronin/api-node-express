@@ -1,5 +1,5 @@
 import DevicesSchema from "../schemas/devices-schema.js";
-import PostgresErrors from "../utils/error/postgres-errors.js";
+import ApiError from "../utils/error/api-error.js";
 import ValidateUtils from "../utils/validate-utils.js";
 import ZodUtils from "../utils/zod-utils.js";
 import { API_ERROR } from "../config/errors.js";
@@ -10,8 +10,9 @@ import { API_ERROR } from "../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class DevicesService {
-    constructor({ devicesModel }) {
+    constructor({ devicesModel, entityError }) {
         this.devicesModel = devicesModel;
+        this.entityError = entityError;
     }
 
     /**
@@ -31,7 +32,7 @@ export default class DevicesService {
      */
     async getById({ id }) {
         const result = await this.devicesModel.getById({ id });
-        handleApiErrors([
+        ApiError.handle([
             {
                 condition: !result,
                 message: "El dispositivo no existe",
@@ -97,7 +98,7 @@ export default class DevicesService {
         try {
             return await this.devicesModel.insert({ clientTx, device });
         } catch (err) {
-            postgresError(err);
+            this.entityError(err);
             throw err;
         }
     }
@@ -116,7 +117,7 @@ export default class DevicesService {
             const result = await this.devicesModel.update({ clientTx, id, data });
             return validateData(result, DevicesSchema.getDeviceSchema());
         } catch (err) {
-            postgresError(err);
+            this.entityError(err);
             throw err;
         }
     }
@@ -132,7 +133,7 @@ export default class DevicesService {
     }
 }
 
-const { handleApiErrors, validateNotEmptyObject } = ValidateUtils;
-const { validateData } = ZodUtils;
 const { deviceNotFound, deviceEmptyUpdate } = API_ERROR;
-const { devices: postgresError } = PostgresErrors;
+
+const { validateNotEmptyObject } = ValidateUtils;
+const { validateData } = ZodUtils;

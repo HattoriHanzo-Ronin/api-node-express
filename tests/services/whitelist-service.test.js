@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import WhitelistService from "../../src/services/whitelist-service.js";
+import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
 
 describe("WhitelistService", () => {
     let whitelistModel;
@@ -7,7 +8,7 @@ describe("WhitelistService", () => {
 
     beforeEach(() => {
         whitelistModel = { getKeys: vi.fn(), insert: vi.fn(), delete: vi.fn() };
-        whitelistService = new WhitelistService({ whitelistModel });
+        whitelistService = new WhitelistService({ whitelistModel, entityError: PostgresErrors.whitelist });
     });
 
     describe("getKey", () => {

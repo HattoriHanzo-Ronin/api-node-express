@@ -1,6 +1,6 @@
 import pgPromise from "pg-promise";
-import { ENV } from "../../config/environment.js";
-import { SECRETS } from "../../config/secrets.js";
+import { ENV } from "../../../config/environment.js";
+import { SECRETS } from "../../../config/secrets.js";
 
 /**
  * PostgreSQL client utilities

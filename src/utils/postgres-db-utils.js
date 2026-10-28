@@ -1,4 +1,4 @@
-import PostgresClient from "./connection/postgres-client.js";
+import PostgresClient from "./connection/postgres/postgres-client.js";
 
 /**
  * PostgreSQL database utilities
