@@ -3,6 +3,7 @@ import Middlewares from "../middlewares/middlewares.js";
 
 export default function createThumbnailRouter({ thumbnailController }) {
     const router = Router();
+    const { asyncHandler, routeNotFound } = Middlewares;
 
     router.post("/:id", asyncHandler(thumbnailController.create));
 
@@ -10,5 +11,3 @@ export default function createThumbnailRouter({ thumbnailController }) {
 
     return router;
 }
-
-const { asyncHandler, routeNotFound } = Middlewares;

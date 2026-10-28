@@ -5,7 +5,6 @@ import ApiError from "../utils/error/api-error.js";
 const ENV = Object.freeze({
     port: Number(process.env.PORT),
     apiUrl: process.env.API_URL,
-    thumbnailGeneratorUrl: process.env.THUMBNAIL_GENERATOR_URL,
     thumbnailInitialConcurrency: Number(process.env.THUMBNAIL_INITIAL_CONCURRENCY),
     thumbnailCpuTarget: Number(process.env.THUMBNAIL_CPU_TARGET),
     thumbnailMemoryTarget: Number(process.env.THUMBNAIL_MEMORY_TARGET),
@@ -29,7 +28,7 @@ function validateConfiguration(environment) {
         environment.thumbnailTimeout
     ].every((value) => Number.isInteger(value) && value > 0);
     const validTargets = environment.thumbnailCpuTarget <= 100 && environment.thumbnailMemoryTarget <= 100;
-    const validUrls = [environment.apiUrl, environment.thumbnailGeneratorUrl].every((value) => typeof value === "string" && value.length > 0);
+    const validUrls = typeof environment.apiUrl === "string" && environment.apiUrl.length > 0;
     ApiError.handle([{
         condition: !validNumbers || !validTargets || !validUrls,
         message: "La configuración del generador de miniaturas no es válida",

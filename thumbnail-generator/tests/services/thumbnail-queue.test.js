@@ -22,7 +22,6 @@ describe("ThumbnailService queue", () => {
         resourceUsage = { cpu: 0, memory: 100 };
         vi.stubEnv("PORT", "3000");
         vi.stubEnv("API_URL", "http://127.0.0.1:59998");
-        vi.stubEnv("THUMBNAIL_GENERATOR_URL", "http://thumbnail-generator:3000");
         vi.stubEnv("THUMBNAIL_INITIAL_CONCURRENCY", "2");
         vi.stubEnv("THUMBNAIL_CPU_TARGET", "80");
         vi.stubEnv("THUMBNAIL_MEMORY_TARGET", "80");
