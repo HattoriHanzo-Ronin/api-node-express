@@ -21,7 +21,8 @@ import DevicesService from "./services/devices-service.js";
 import DevicesMapper from "./mappers/devices-mapper.js";
 import DevicesFacade from "./facades/devices-facade.js";
 import DevicesController from "./controllers/devices-controller.js";
-import RouterCpanel from "./devices-routers/cpanel/router-cpanel.js";
+import RouterAutomation from "./utils/devices-routers/automation/router-automation.js";
+import RouterCpanel from "./utils/devices-routers/cpanel/router-cpanel.js";
 import WhitelistModel from "./models/postgres/whitelist-model.js";
 import WhitelistService from "./services/whitelist-service.js";
 import WhitelistFacade from "./facades/whitelist-facade.js";
@@ -39,8 +40,11 @@ import RefreshTokensService from "./services/refresh-tokens-service.js";
 import AuthFacade from "./facades/auth-facade.js";
 import AuthController from "./controllers/auth-controller.js";
 import { ENV } from "./config/environment.js";
+import { SECRETS } from "./config/secrets.js";
+import JwtTokenProvider from "./utils/token-providers/jwt-token-provider.js";
 
 const tx = PostgresClient.executeTx;
+const { jwtAccessTokenExpiresIn, jwtRefreshTokenExpiresIn } = ENV;
 
 const dataVersionsService = new DataVersionsService({ dataVersionsModel: DataVersionsModel });
 const memoryCache = new MemoryCache();
@@ -57,18 +61,21 @@ const dataVersionsController = new DataVersionsController({ dataVersionsFacade }
 
 const connectionsService = new ConnectionsService({ connectionsModel: ConnectionsModel });
 const devicesService = new DevicesService({ devicesModel: DevicesModel });
+const routerAutomation = RouterAutomation;
+const devicesMapper = new DevicesMapper({ routerAutomation });
 const routerCpanel = new RouterCpanel({ routerCpanelServiceUrl: ENV.routerCpanelServiceUrl });
 const devicesFacade = new DevicesFacade({
     devicesService,
     dataVersionsService,
-    devicesMapper: DevicesMapper,
+    devicesMapper,
     connectionsService,
+    routerAutomation,
     routerCpanel,
     tx
 });
 const devicesController = new DevicesController({ devicesFacade });
 const whitelistService = new WhitelistService({ whitelistModel: WhitelistModel });
-const whitelistFacade = new WhitelistFacade({ whitelistService, devicesFacade, tx });
+const whitelistFacade = new WhitelistFacade({ whitelistService, devicesFacade, routerAutomation, tx });
 const whitelistController = new WhitelistController({ whitelistFacade });
 
 const userRolesService = new UserRolesService({ userRolesModel: UserRolesModel });
@@ -76,7 +83,9 @@ const usersService = new UsersService({ usersModel: UsersModel });
 const usersFacade = new UsersFacade({ usersService, dataVersionsService, userRolesService, usersMapper: UsersMapper, tx });
 const usersController = new UsersController({ usersFacade });
 const refreshTokensService = new RefreshTokensService({ refreshTokensModel: RefreshTokensModel });
-const authFacade = new AuthFacade({ usersFacade, refreshTokensService });
+const accessTokenProvider = new JwtTokenProvider({ secret: SECRETS.jwtSecret, expiresIn: jwtAccessTokenExpiresIn });
+const refreshTokenProvider = new JwtTokenProvider({ secret: SECRETS.refreshJwtSecret, expiresIn: jwtRefreshTokenExpiresIn });
+const authFacade = new AuthFacade({ usersFacade, refreshTokensService, accessTokenProvider, refreshTokenProvider });
 const authController = new AuthController({ authFacade });
 
 createApp({
@@ -85,7 +94,8 @@ createApp({
     whitelistController,
     devicesController,
     usersController,
-    authController
+    authController,
+    accessTokenProvider
 });
 
 for (const signal of ["SIGINT", "SIGTERM"]) {

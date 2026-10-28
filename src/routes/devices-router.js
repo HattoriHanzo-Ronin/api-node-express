@@ -2,7 +2,7 @@ import { Router } from "express";
 import Middlewares from "../middlewares/middlewares.js";
 import { USER_ROLE } from "../config/constants.js";
 
-export default function createDevicesRouter({ devicesController }) {
+export default function createDevicesRouter({ devicesController, requireAuth }) {
     const devicesRouter = Router();
 
     devicesRouter.get("/", requireAuth, authorizedRoles([net]), asyncHandler(devicesController.getAll));
@@ -22,4 +22,4 @@ export default function createDevicesRouter({ devicesController }) {
 }
 
 const { net } = USER_ROLE;
-const { asyncHandler, authorizedRoles, requireAuth } = Middlewares;
+const { asyncHandler, authorizedRoles } = Middlewares;

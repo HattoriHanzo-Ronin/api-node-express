@@ -1,23 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AuthFacade from "../../src/facades/auth-facade.js";
-import JWTUtils from "../../src/utils/jwt-utils.js";
-
-vi.mock("../../src/utils/jwt-utils.js", () => ({
-    default: { generateAccessToken: vi.fn(), generateRefreshToken: vi.fn(), verifyRefreshToken: vi.fn() }
-}));
 
 describe("AuthFacade", () => {
     let usersFacade;
     let refreshTokensService;
+    let accessTokenProvider;
+    let refreshTokenProvider;
     let authFacade;
 
     beforeEach(() => {
         usersFacade = { authenticate: vi.fn(), getById: vi.fn() };
         refreshTokensService = { getByToken: vi.fn(), create: vi.fn(), delete: vi.fn() };
-        authFacade = new AuthFacade({ usersFacade, refreshTokensService });
-        JWTUtils.generateAccessToken.mockReturnValue("access-token");
-        JWTUtils.generateRefreshToken.mockReturnValue("refresh-token");
-        JWTUtils.verifyRefreshToken.mockReturnValue({ id: "1" });
+        accessTokenProvider = { create: vi.fn(() => "access-token") };
+        refreshTokenProvider = { create: vi.fn(() => "refresh-token"), verify: vi.fn(() => ({ id: "1" })) };
+        authFacade = new AuthFacade({ usersFacade, refreshTokensService, accessTokenProvider, refreshTokenProvider });
     });
 
     describe("login", () => {
@@ -36,13 +32,10 @@ describe("AuthFacade", () => {
             });
             expect(refreshTokensService.create).toHaveBeenCalledWith({ userId: "1", token: "refresh-token" });
             expect(usersFacade.authenticate).toHaveBeenCalledWith({ username: "admin", password: "password" });
-            expect(JWTUtils.generateAccessToken).toHaveBeenCalledWith({
-                id: "1",
-                username: "admin",
-                roles: ["ADMIN"],
-                scope: ["ADMIN"]
+            expect(accessTokenProvider.create).toHaveBeenCalledWith({
+                payload: { id: "1", username: "admin", roles: ["ADMIN"], scope: ["ADMIN"] }
             });
-            expect(JWTUtils.generateRefreshToken).toHaveBeenCalledWith({ id: "1" });
+            expect(refreshTokenProvider.create).toHaveBeenCalledWith({ payload: { id: "1" } });
         });
     });
 

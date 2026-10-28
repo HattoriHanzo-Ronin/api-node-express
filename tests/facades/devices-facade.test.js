@@ -1,22 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import RouterResolver from "../../src/devices-routers/router-resolver.js";
 import DevicesFacade from "../../src/facades/devices-facade.js";
 import DevicesMapper from "../../src/mappers/devices-mapper.js";
-
-const routerResolverMock = vi.hoisted(() => ({
-    impl: { delete: vi.fn(), create: vi.fn() },
-    resolver: vi.fn()
-}));
-
-vi.mock("../../src/devices-routers/router-resolver.js", () => ({
-    default: routerResolverMock.resolver
-}));
 
 describe("DevicesFacade", () => {
     let devicesService;
     let dataVersionsService;
     let devicesMapper;
     let connectionsService;
+    let routerAutomation;
     let routerCpanel;
     let devicesFacade;
     const tx = async (cb) => cb({});
@@ -46,15 +37,19 @@ describe("DevicesFacade", () => {
             createMany: vi.fn(),
             update: vi.fn()
         };
+        routerAutomation = vi.fn(function RouterAutomation() {
+            return { delete: vi.fn(), create: vi.fn() };
+        });
         routerCpanel = { create: vi.fn(), navigate: vi.fn(), close: vi.fn() };
-        routerResolverMock.resolver.mockImplementation(
-            class {
-                constructor() {
-                    return routerResolverMock.impl;
-                }
-            }
-        );
-        devicesFacade = new DevicesFacade({ devicesService, dataVersionsService, devicesMapper, connectionsService, routerCpanel, tx });
+        devicesFacade = new DevicesFacade({
+            devicesService,
+            dataVersionsService,
+            devicesMapper,
+            connectionsService,
+            routerAutomation,
+            routerCpanel,
+            tx
+        });
     });
 
     it("should get all devices and map their connections", async () => {
@@ -79,7 +74,15 @@ describe("DevicesFacade", () => {
     ])("should return %s devices mapped with their connections", async (_, method) => {
         const rows = [{ id: "device-1", name: "Desktop", type: "CLIENT", ctype: "LAN", mac: "AA:BB:CC:DD:EE:01" }];
         devicesService[method].mockResolvedValue(rows);
-        devicesFacade = new DevicesFacade({ devicesService, dataVersionsService, devicesMapper: DevicesMapper, connectionsService, routerCpanel, tx });
+        devicesFacade = new DevicesFacade({
+            devicesService,
+            dataVersionsService,
+            devicesMapper: new DevicesMapper({ routerAutomation }),
+            connectionsService,
+            routerAutomation,
+            routerCpanel,
+            tx
+        });
 
         await expect(devicesFacade[method]({ routerId: "router-1" })).resolves.toEqual({
             version: { devices: "2", whitelist: "3" },
@@ -195,9 +198,10 @@ describe("DevicesFacade", () => {
         await devicesFacade.update({ data });
 
         expect(devicesService.update).toHaveBeenCalledWith({ clientTx: {}, id: data.id, data: { name: data.name } });
-        expect(RouterResolver).toHaveBeenCalled();
-        expect(routerResolverMock.impl.delete).toHaveBeenCalledWith({ key: "white_list_1", mac: "AA:BB:CC:DD:EE:01" });
-        expect(routerResolverMock.impl.create).toHaveBeenCalledWith({
+        expect(routerAutomation).toHaveBeenCalled();
+        const routerImpl = routerAutomation.mock.results[0].value;
+        expect(routerImpl.delete).toHaveBeenCalledWith({ key: "white_list_1", mac: "AA:BB:CC:DD:EE:01" });
+        expect(routerImpl.create).toHaveBeenCalledWith({
             key: "white_list_1",
             mac: "AA:BB:CC:DD:EE:01",
             name: data.name
@@ -221,7 +225,10 @@ describe("DevicesFacade", () => {
         devicesService.delete.mockResolvedValue({ id: "device-1" });
 
         await expect(devicesFacade.delete({ id: "device-1" })).resolves.toEqual({ id: "device-1" });
-        expect(routerResolverMock.impl.delete).toHaveBeenCalledWith({ key: "white_list_1", mac: "AA:BB:CC:DD:EE:01" });
+        expect(routerAutomation.mock.results[0].value.delete).toHaveBeenCalledWith({
+            key: "white_list_1",
+            mac: "AA:BB:CC:DD:EE:01"
+        });
         expect(devicesService.delete).toHaveBeenCalledWith({ id: "device-1" });
     });
 });

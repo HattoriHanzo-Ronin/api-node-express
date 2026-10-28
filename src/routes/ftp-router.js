@@ -3,7 +3,7 @@ import Middlewares from "../middlewares/middlewares.js";
 import { USER_ROLE } from "../config/constants.js";
 import { ENV } from "../config/environment.js";
 
-export default function createFtpRouter({ ftpController }) {
+export default function createFtpRouter({ ftpController, requireAuth }) {
     const router = Router();
 
     router.get("/media/:id", cors([ENV.thumbnailGeneratorUrl]), asyncHandler(ftpController.streamMedia));
@@ -28,4 +28,4 @@ export default function createFtpRouter({ ftpController }) {
 }
 
 const { ftp } = USER_ROLE;
-const { asyncHandler, authorizedRoles, cors, multipart, requireAuth } = Middlewares;
+const { asyncHandler, authorizedRoles, cors, multipart } = Middlewares;

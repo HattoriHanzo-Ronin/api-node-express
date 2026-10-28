@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import RouterCpanel from "../../../src/devices-routers/cpanel/router-cpanel.js";
+import RouterCpanel from "../../../../src/utils/devices-routers/cpanel/router-cpanel.js";
 
 describe("RouterCpanel", () => {
     afterEach(() => {

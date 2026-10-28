@@ -29,7 +29,8 @@ describe("FtpRouter", () => {
 
     beforeAll(async () => {
         const app = express();
-        app.use("/ftp", createFtpRouter({ ftpController }));
+        const requireAuth = Middlewares.requireAuth({ accessTokenProvider: { verify: vi.fn() } });
+        app.use("/ftp", createFtpRouter({ ftpController, requireAuth }));
         app.use(Middlewares.routeNotFound, Middlewares.errorHandler);
         server = app.listen(0, "127.0.0.1");
         await new Promise((resolve) => server.once("listening", resolve));
