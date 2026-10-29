@@ -8,7 +8,9 @@
         "postgres": "node src/server-postgres.js",
         "wPostgres": "node --watch src/server-postgres.js",
         "lint": "eslint .",
-        "lint:fix": "eslint . --fix"
+        "lint:fix": "eslint . --fix",
+        "typecheck": "tsc --noEmit",
+        "build": "tsc --project tsconfig.build.json"
     },
     "dependencies": {
         "axios": "^1.20.0",
@@ -41,8 +43,14 @@
     },
     "homepage": "https://github.com/HattoriHanzo-Ronin/api-node-express#readme",
     "devDependencies": {
+        "@types/busboy": "^1.5.5",
         "@types/express": "^5.0.6",
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/node": "^26.6.5",
+        "@types/ws": "^8.18.2",
         "eslint": "^10.11.0",
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.72.1",
         "vitest": "^5.0.3"
     },
     "packageManager": "pnpm@12.8.1+sha512.f64ba907507f5ceafe06c8d38e6052d0179444580ec1279ddd5bfc11cb48aa8a2644b66598e07e761da84872a9fc57d5f902b87fa49d024198d558612aabbe45"
