@@ -13,9 +13,12 @@ const { aclPermissionDenied } = API_ERROR;
 export default class SocketSessionsFacade {
     static #ENTITY_ROLES = Object.freeze({ devices: net, whitelist: net, users: admin, ftp });
 
+    #socketSessionsService;
+    #dataVersionsFacade;
+
     constructor({ socketSessionsService, dataVersionsFacade }) {
-        this.socketSessionsService = socketSessionsService;
-        this.dataVersionsFacade = dataVersionsFacade;
+        this.#socketSessionsService = socketSessionsService;
+        this.#dataVersionsFacade = dataVersionsFacade;
     }
 
     /**
@@ -25,7 +28,7 @@ export default class SocketSessionsFacade {
      * @returns {{ id: string, expiresAt: string }} Socket session
      */
     create({ authUser }) {
-        return this.socketSessionsService.create({ authUser });
+        return this.#socketSessionsService.create({ authUser });
     }
 
     /**
@@ -36,7 +39,7 @@ export default class SocketSessionsFacade {
      * @returns {{ id: string, expiresAt: string }} Socket session
      */
     refresh({ authUser, id }) {
-        return this.socketSessionsService.refresh({ authUser, id });
+        return this.#socketSessionsService.refresh({ authUser, id });
     }
 
     /**
@@ -47,7 +50,7 @@ export default class SocketSessionsFacade {
      * @param {import("ws").WebSocket} params.webSocket WebSocket connection
      */
     connect({ authUser, id, webSocket }) {
-        this.socketSessionsService.activity({ authUser, id, webSocket });
+        this.#socketSessionsService.connect({ authUser, id, webSocket });
     }
 
     /**
@@ -61,7 +64,7 @@ export default class SocketSessionsFacade {
      * @returns {Promise<Object<string, string>>} Data versions
      */
     async getVersions({ authUser, dir, entities, id, webSocket }) {
-        this.socketSessionsService.activity({ authUser, id, webSocket });
+        this.#socketSessionsService.activity({ authUser, id, webSocket });
         ApiError.handle([{
             condition: entities.some((entity) => !authUser.roles.includes(SocketSessionsFacade.#ENTITY_ROLES[entity])),
             message: "No tiene permisos para consultar una de las versiones solicitadas",
@@ -70,13 +73,13 @@ export default class SocketSessionsFacade {
         }]);
         const databaseEntities = entities.filter((entity) => entity !== "ftp");
         const dataVersions = databaseEntities.length > 0
-            ? await this.dataVersionsFacade.getById({ id: databaseEntities })
+            ? await this.#dataVersionsFacade.getById({ id: databaseEntities })
             : {};
         if (!entities.includes("ftp")) {
             return dataVersions;
         }
 
-        const { version } = await this.dataVersionsFacade.getFtp({ dir, authUser });
+        const { version } = await this.#dataVersionsFacade.getFtp({ dir, authUser });
         return { ...dataVersions, ftp: version };
     }
 
@@ -87,7 +90,7 @@ export default class SocketSessionsFacade {
      * @param {import("ws").WebSocket} params.webSocket WebSocket connection
      */
     disconnect({ id, webSocket }) {
-        this.socketSessionsService.disconnect({ id, webSocket });
+        this.#socketSessionsService.disconnect({ id, webSocket });
     }
 
     /**
@@ -96,7 +99,7 @@ export default class SocketSessionsFacade {
      * @param {string} params.id Socket session identifier
      */
     invalidate({ id }) {
-        this.socketSessionsService.invalidate({ id });
+        this.#socketSessionsService.invalidate({ id });
     }
 
     /**
@@ -106,13 +109,13 @@ export default class SocketSessionsFacade {
      * @param {string} params.id Socket session identifier
      */
     close({ authUser, id }) {
-        this.socketSessionsService.close({ authUser, id });
+        this.#socketSessionsService.close({ authUser, id });
     }
 
     /**
      * Closes every WebSocket session
      */
     closeAll() {
-        this.socketSessionsService.closeAll();
+        this.#socketSessionsService.closeAll();
     }
 }

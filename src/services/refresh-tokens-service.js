@@ -7,9 +7,12 @@ import { API_ERROR } from "../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class RefreshTokensService {
+    #refreshTokensModel;
+    #entityError;
+
     constructor({ refreshTokensModel, entityError }) {
-        this.refreshTokensModel = refreshTokensModel;
-        this.entityError = entityError;
+        this.#refreshTokensModel = refreshTokensModel;
+        this.#entityError = entityError;
     }
 
     /**
@@ -18,7 +21,7 @@ export default class RefreshTokensService {
      * @param {string} params.token Refresh token
      */
     async getByToken({ token }) {
-        const result = await this.refreshTokensModel.getByToken({ token });
+        const result = await this.#refreshTokensModel.getByToken({ token });
         ApiError.handle([
             { condition: !result, message: "Token no válido", status: 401, apiError: API_ERROR.invalidToken }
         ]);
@@ -32,9 +35,9 @@ export default class RefreshTokensService {
      */
     async create({ userId, token }) {
         try {
-            await this.refreshTokensModel.insert({ refreshToken: { user_id: userId, token } });
+            await this.#refreshTokensModel.insert({ refreshToken: { user_id: userId, token } });
         } catch (err) {
-            this.entityError(err);
+            this.#entityError(err);
             throw err;
         }
     }
@@ -46,6 +49,6 @@ export default class RefreshTokensService {
      * @returns {Promise<void>}
      */
     async delete({ token }) {
-        return this.refreshTokensModel.delete({ token });
+        return this.#refreshTokensModel.delete({ token });
     }
 }

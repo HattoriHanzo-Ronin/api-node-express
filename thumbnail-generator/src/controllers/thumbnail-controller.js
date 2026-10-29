@@ -4,8 +4,10 @@
  * @author HattoriHanzo-Ronin
  */
 export default class ThumbnailController {
+    #thumbnailService;
+
     constructor({ thumbnailService }) {
-        this.thumbnailService = thumbnailService;
+        this.#thumbnailService = thumbnailService;
     }
 
     create = async (req, res) => {
@@ -15,7 +17,7 @@ export default class ThumbnailController {
                 controller.abort();
             }
         });
-        const thumbnail = await this.thumbnailService.create({ id: req.params.id, signal: controller.signal });
+        const thumbnail = await this.#thumbnailService.create({ id: req.params.id, signal: controller.signal });
         if (res.writableEnded) {
             return;
         }

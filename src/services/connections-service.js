@@ -9,9 +9,12 @@ const { connectionRequired, connectionCreateFailed, connectionUpdateFailed } = A
  * @author HattoriHanzo-Ronin
  */
 export default class ConnectionsService {
+    #connectionsModel;
+    #entityError;
+
     constructor({ connectionsModel, entityError }) {
-        this.connectionsModel = connectionsModel;
-        this.entityError = entityError;
+        this.#connectionsModel = connectionsModel;
+        this.#entityError = entityError;
     }
 
     /**
@@ -21,7 +24,7 @@ export default class ConnectionsService {
      * @returns {Promise<Object[]>} Connections
      */
     async getByDevices({ devicesId }) {
-        return this.connectionsModel.getByDevices({ devicesId });
+        return this.#connectionsModel.getByDevices({ devicesId });
     }
 
     /**
@@ -40,9 +43,9 @@ export default class ConnectionsService {
                     apiError: connectionRequired
                 }
             ]);
-            return await this.connectionsModel.insertMany({ clientTx, connections });
+            return await this.#connectionsModel.insertMany({ clientTx, connections });
         } catch (err) {
-            this.entityError(err);
+            this.#entityError(err);
             ApiError.handle([
                 {
                     condition: err.code !== connectionRequired,
@@ -80,7 +83,7 @@ export default class ConnectionsService {
                 return old && old.mac !== mac;
             });
             if (deleteConnections.length > 0) {
-                const deletedConnections = await this.connectionsModel.deleteMany({
+                const deletedConnections = await this.#connectionsModel.deleteMany({
                     clientTx,
                     macs: deleteConnections
                 });
@@ -88,7 +91,7 @@ export default class ConnectionsService {
             }
 
             if (createConnections.length > 0) {
-                const createdConnections = await this.connectionsModel.insertMany({
+                const createdConnections = await this.#connectionsModel.insertMany({
                     clientTx,
                     connections: createConnections
                 });
@@ -96,7 +99,7 @@ export default class ConnectionsService {
             }
 
             if (updateConnections.length > 0) {
-                const updatedConnections = await this.connectionsModel.updateMany({
+                const updatedConnections = await this.#connectionsModel.updateMany({
                     clientTx,
                     connections: updateConnections
                 });
@@ -105,7 +108,7 @@ export default class ConnectionsService {
 
             return result;
         } catch (err) {
-            this.entityError(err);
+            this.#entityError(err);
             ApiError.handle([
                 {
                     condition: true,

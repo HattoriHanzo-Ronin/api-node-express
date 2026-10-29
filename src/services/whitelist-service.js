@@ -7,9 +7,12 @@ import { API_ERROR } from "../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class WhitelistService {
+    #whitelistModel;
+    #entityError;
+
     constructor({ whitelistModel, entityError }) {
-        this.whitelistModel = whitelistModel;
-        this.entityError = entityError;
+        this.#whitelistModel = whitelistModel;
+        this.#entityError = entityError;
     }
 
     /**
@@ -20,7 +23,7 @@ export default class WhitelistService {
      * @returns {Promise<string | null>} Generated whitelist key
      */
     async getKey({ routerId, generateKey }) {
-        return generateKey(await this.whitelistModel.getKeys({ routerId }));
+        return generateKey(await this.#whitelistModel.getKeys({ routerId }));
     }
 
     /**
@@ -31,9 +34,9 @@ export default class WhitelistService {
      */
     async create({ clientTx, whitelist }) {
         try {
-            return await this.whitelistModel.insert({ clientTx, whitelist });
+            return await this.#whitelistModel.insert({ clientTx, whitelist });
         } catch (err) {
-            this.entityError(err);
+            this.#entityError(err);
             throw err;
         }
     }
@@ -47,7 +50,7 @@ export default class WhitelistService {
      * @returns {Promise<{ key: string | null }>} Deleted whitelist entry
      */
     async delete({ clientTx, routerId, mac }) {
-        const result = await this.whitelistModel.delete({ clientTx, routerId, mac });
+        const result = await this.#whitelistModel.delete({ clientTx, routerId, mac });
         ApiError.handle([
             {
                 condition: !result,

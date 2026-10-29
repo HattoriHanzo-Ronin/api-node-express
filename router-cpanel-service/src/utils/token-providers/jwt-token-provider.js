@@ -8,9 +8,12 @@ import ApiError from "../error/api-error.js";
  * @author HattoriHanzo-Ronin
  */
 export default class JwtTokenProvider {
+    #secret;
+    #expiresIn;
+
     constructor({ secret, expiresIn }) {
-        this.secret = secret;
-        this.expiresIn = expiresIn;
+        this.#secret = secret;
+        this.#expiresIn = expiresIn;
     }
 
     /**
@@ -20,7 +23,7 @@ export default class JwtTokenProvider {
      * @returns {string} Token
      */
     create({ payload }) {
-        return jwt.sign(payload, this.secret, { expiresIn: this.expiresIn });
+        return jwt.sign(payload, this.#secret, { expiresIn: this.#expiresIn });
     }
 
     /**
@@ -31,7 +34,7 @@ export default class JwtTokenProvider {
      */
     verify({ token }) {
         try {
-            return jwt.verify(token, this.secret);
+            return jwt.verify(token, this.#secret);
         } catch (err) {
             ApiError.handle([{
                 condition: err instanceof jwt.JsonWebTokenError,

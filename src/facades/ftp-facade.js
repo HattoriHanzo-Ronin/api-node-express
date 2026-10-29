@@ -16,13 +16,18 @@ const { ftpDirectoryCheckTimeout } = ENV;
 export default class FtpFacade {
     static #HASH_ALGORITHM = "sha256";
 
+    #ftpService;
+    #ftpMapper;
+    #memoryCache;
+    #directoryCache;
+
     #thumbnailJobs = new Map();
 
     constructor({ ftpService, ftpMapper, memoryCache, directoryCache }) {
-        this.ftpService = ftpService;
-        this.ftpMapper = ftpMapper;
-        this.memoryCache = memoryCache;
-        this.directoryCache = directoryCache;
+        this.#ftpService = ftpService;
+        this.#ftpMapper = ftpMapper;
+        this.#memoryCache = memoryCache;
+        this.#directoryCache = directoryCache;
     }
 
     /**
@@ -33,11 +38,11 @@ export default class FtpFacade {
      * @returns {Promise<{ hash: string, data: Object[] }>} Directory resources
      */
     async dir({ dir, authUser }) {
-        const source = await this.ftpService.dir({ dir, authUser });
-        const result = this.ftpMapper.entriesFromSftp(source);
+        const source = await this.#ftpService.dir({ dir, authUser });
+        const result = this.#ftpMapper.entriesFromSftp(source);
         this.#syncThumbnails({ dir, entries: result, authUser });
         const hash = await this.#watchDirectory({ dir, authUser, entries: result });
-        return { hash, data: this.ftpMapper.entriesToDomain(result) };
+        return { hash, data: this.#ftpMapper.entriesToDomain(result) };
     }
 
     /**
@@ -48,8 +53,8 @@ export default class FtpFacade {
      * @returns {Promise<string>} Directory hash
      */
     async getHash({ dir, authUser }) {
-        await this.ftpService.touchSession({ authUser });
-        const directory = this.directoryCache.get(authUser.id, dir);
+        await this.#ftpService.touchSession({ authUser });
+        const directory = this.#directoryCache.get(authUser.id, dir);
         if (directory) {
             return directory.hash;
         }
@@ -67,7 +72,7 @@ export default class FtpFacade {
      * @param {import("node:http").ServerResponse} params.stream HTTP response
      */
     async streamMedia({ id, range, method, stream }) {
-        await this.ftpService.streamMedia({ id, range, method, stream });
+        await this.#ftpService.streamMedia({ id, range, method, stream });
     }
 
     /**
@@ -79,10 +84,10 @@ export default class FtpFacade {
      * @returns {Promise<Buffer | null>} JPEG thumbnail, or null when unavailable
      */
     async getThumbnail({ dir, name, authUser }) {
-        let bufferMap = this.memoryCache.get(authUser.id, dir);
+        let bufferMap = this.#memoryCache.get(authUser.id, dir);
         if (!bufferMap) {
             await this.dir({ dir, authUser });
-            bufferMap = this.memoryCache.get(authUser.id, dir);
+            bufferMap = this.#memoryCache.get(authUser.id, dir);
         }
 
         const thumbnail = bufferMap?.get(name);
@@ -107,7 +112,7 @@ export default class FtpFacade {
      * @returns {Promise<{ hash: string, data: Object[] }>} Updated directory resources
      */
     async makeDir({ dir, name, authUser }) {
-        await this.ftpService.makeDir({ dir, name, authUser });
+        await this.#ftpService.makeDir({ dir, name, authUser });
         return this.dir({ dir, authUser });
     }
 
@@ -124,7 +129,7 @@ export default class FtpFacade {
         let completed = 0;
         let cacheCleared = false;
         try {
-            await this.ftpService.move({
+            await this.#ftpService.move({
                 dir,
                 entries,
                 destination,
@@ -178,7 +183,7 @@ export default class FtpFacade {
      * @returns {Promise<{ hash: string, data: Object[] }>} Updated directory resources
      */
     async rename({ dir, entry, newName, authUser }) {
-        const renamedEntry = await this.ftpService.rename({ dir, entry, newName, authUser });
+        const renamedEntry = await this.#ftpService.rename({ dir, entry, newName, authUser });
         if (entry.type === directoryType) {
             await this.#moveCachedDirectory(
                 authUser.id,
@@ -199,7 +204,7 @@ export default class FtpFacade {
      * @returns {Promise<{ id: string, entries: { path: string, type: string }[] }>} Upload session
      */
     async createUpload({ dir, entries, authUser }) {
-        return this.ftpService.createUpload({ dir, entries, authUser });
+        return this.#ftpService.createUpload({ dir, entries, authUser });
     }
 
     /**
@@ -212,7 +217,7 @@ export default class FtpFacade {
      * @param {Object} params.authUser Authenticated user
      */
     async uploadEntry({ id, entryPath, offset, file, authUser }) {
-        return this.ftpService.upload({ id, entryPath, offset, file, authUser });
+        return this.#ftpService.upload({ id, entryPath, offset, file, authUser });
     }
 
     /**
@@ -223,7 +228,7 @@ export default class FtpFacade {
      * @returns {Promise<{ hash: string, data: Object[] }>} Updated directory resources
      */
     async completeUpload({ id, authUser }) {
-        return this.ftpService.completeUpload({
+        return this.#ftpService.completeUpload({
             id, authUser, onComplete: ({ dir }) => this.dir({ dir, authUser })
         });
     }
@@ -235,7 +240,7 @@ export default class FtpFacade {
      * @param {Object} params.authUser Authenticated user
      */
     async cancelTransfer({ id, authUser }) {
-        await this.ftpService.cancelTransfer({ id, authUser });
+        await this.#ftpService.cancelTransfer({ id, authUser });
     }
 
     /**
@@ -247,7 +252,7 @@ export default class FtpFacade {
      * @returns {Promise<{ id: string, totalBytes: number, entries: { path: string, type: string, size?: number }[] }>} Download session
      */
     async createDownload({ dir, entries, authUser }) {
-        return this.ftpService.createDownload({ dir, entries, authUser });
+        return this.#ftpService.createDownload({ dir, entries, authUser });
     }
 
     /**
@@ -260,7 +265,7 @@ export default class FtpFacade {
      * @param {import("node:stream").Writable} params.stream Download destination
      */
     async downloadEntry({ id, entryPath, offset, authUser, stream }) {
-        await this.ftpService.download({ id, entryPath, offset, authUser, stream });
+        await this.#ftpService.download({ id, entryPath, offset, authUser, stream });
     }
 
     /**
@@ -275,7 +280,7 @@ export default class FtpFacade {
         let completed = 0;
         let cacheCleared = false;
         try {
-            await this.ftpService.delete({
+            await this.#ftpService.delete({
                 dir,
                 entries,
                 authUser,
@@ -312,8 +317,8 @@ export default class FtpFacade {
     }
 
     #clearDirectoryCache(ownerId, dir) {
-        this.memoryCache.delete(ownerId, dir);
-        this.directoryCache.delete(ownerId, dir);
+        this.#memoryCache.delete(ownerId, dir);
+        this.#directoryCache.delete(ownerId, dir);
         this.#thumbnailJobs.delete(FtpFacade.#getThumbnailJobKey(ownerId, dir));
     }
 
@@ -326,7 +331,7 @@ export default class FtpFacade {
      */
     #syncThumbnails({ dir, entries, authUser }) {
         const names = entries.filter(({ supportsThumbnail }) => supportsThumbnail).map(({ name }) => name);
-        const cachedBufferMap = this.memoryCache.get(authUser.id, dir);
+        const cachedBufferMap = this.#memoryCache.get(authUser.id, dir);
         const bufferMap = new Map(cachedBufferMap);
         const removedNames = new Set(bufferMap.keys());
         const missingNames = names.filter((name) => !removedNames.delete(name));
@@ -335,7 +340,7 @@ export default class FtpFacade {
         }
 
         if (!cachedBufferMap || removedNames.size) {
-            this.memoryCache.set(authUser.id, dir, bufferMap);
+            this.#memoryCache.set(authUser.id, dir, bufferMap);
         }
 
         const jobKey = FtpFacade.#getThumbnailJobKey(authUser.id, dir);
@@ -384,7 +389,7 @@ export default class FtpFacade {
      */
     async #getThumbnails({ dir, names, authUser, jobKey }) {
         try {
-            await this.ftpService.getThumbnails({
+            await this.#ftpService.getThumbnails({
                 dir,
                 names,
                 authUser,
@@ -394,11 +399,11 @@ export default class FtpFacade {
                         return;
                     }
 
-                    const cachedBufferMap = this.memoryCache.get(authUser.id, dir);
+                    const cachedBufferMap = this.#memoryCache.get(authUser.id, dir);
                     if (cachedBufferMap) {
                         const bufferMap = new Map(cachedBufferMap);
                         bufferMap.set(name, thumbnail);
-                        this.memoryCache.set(authUser.id, dir, bufferMap);
+                        this.#memoryCache.set(authUser.id, dir, bufferMap);
                     }
 
                     if (!thumbnailJobs.size) {
@@ -425,9 +430,9 @@ export default class FtpFacade {
      */
     async #watchDirectory({ dir, authUser, entries, hash }) {
         const ownerId = authUser.id;
-        const watching = this.directoryCache.has(ownerId, dir);
+        const watching = this.#directoryCache.has(ownerId, dir);
         const directoryHash = hash ?? FtpFacade.#hashDirectory(entries);
-        this.directoryCache.set(ownerId, dir, { hash: directoryHash });
+        this.#directoryCache.set(ownerId, dir, { hash: directoryHash });
         if (!watching) {
             setTimeout(() => this.#checkDirectory(ownerId, dir), ftpDirectoryCheckTimeout);
         }
@@ -436,47 +441,47 @@ export default class FtpFacade {
     }
 
     async #checkDirectory(ownerId, dir) {
-        const cachedDirectory = this.directoryCache.get(ownerId, dir);
+        const cachedDirectory = this.#directoryCache.get(ownerId, dir);
         if (!cachedDirectory) {
             return;
         }
 
         try {
-            const source = await this.ftpService.dir({
+            const source = await this.#ftpService.dir({
                 dir,
                 authUser: { id: ownerId },
                 internal: true
             });
             if (!source) {
-                if (this.ftpService.isSessionActive({ ownerId })) {
+                if (this.#ftpService.isSessionActive({ ownerId })) {
                     setTimeout(() => this.#checkDirectory(ownerId, dir), ftpDirectoryCheckTimeout);
                 } else {
-                    this.directoryCache.delete(ownerId, dir);
+                    this.#directoryCache.delete(ownerId, dir);
                 }
                 return;
             }
-            const entries = this.ftpMapper.entriesFromSftp(source);
+            const entries = this.#ftpMapper.entriesFromSftp(source);
             const hash = FtpFacade.#hashDirectory(entries);
             if (hash !== cachedDirectory.hash) {
-                this.directoryCache.set(ownerId, dir, { ...cachedDirectory, hash });
+                this.#directoryCache.set(ownerId, dir, { ...cachedDirectory, hash });
             }
         } catch {}
 
-        if (this.directoryCache.has(ownerId, dir)) {
+        if (this.#directoryCache.has(ownerId, dir)) {
             setTimeout(() => this.#checkDirectory(ownerId, dir), ftpDirectoryCheckTimeout);
         }
     }
 
     async #moveCachedDirectory(ownerId, sourceKey, destinationKey) {
-        const bufferMap = this.memoryCache.get(ownerId, sourceKey);
-        const directory = this.directoryCache.get(ownerId, sourceKey);
+        const bufferMap = this.#memoryCache.get(ownerId, sourceKey);
+        const directory = this.#directoryCache.get(ownerId, sourceKey);
         const sourceJobKey = FtpFacade.#getThumbnailJobKey(ownerId, sourceKey);
         const names = [...(this.#thumbnailJobs.get(sourceJobKey) ?? [])];
-        this.memoryCache.delete(ownerId, sourceKey);
-        this.directoryCache.delete(ownerId, sourceKey);
+        this.#memoryCache.delete(ownerId, sourceKey);
+        this.#directoryCache.delete(ownerId, sourceKey);
         this.#thumbnailJobs.delete(sourceJobKey);
         if (bufferMap !== undefined) {
-            this.memoryCache.set(ownerId, destinationKey, bufferMap);
+            this.#memoryCache.set(ownerId, destinationKey, bufferMap);
         }
 
         if (directory !== undefined) {

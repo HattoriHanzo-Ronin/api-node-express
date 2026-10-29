@@ -9,24 +9,26 @@ const { validateData } = ZodUtils;
  * @author HattoriHanzo-Ronin
  */
 export default class SocketSessionsController {
+    #socketSessionsFacade;
+
     constructor({ socketSessionsFacade }) {
-        this.socketSessionsFacade = socketSessionsFacade;
+        this.#socketSessionsFacade = socketSessionsFacade;
     }
 
     create = async (req, res) => {
-        res.status(201).json(this.socketSessionsFacade.create({ authUser: req.user }));
+        res.status(201).json(this.#socketSessionsFacade.create({ authUser: req.user }));
     };
 
     refresh = async (req, res) => {
         const { params, user: authUser } = req;
         const { id } = validateData(params, idSchema);
-        res.json(this.socketSessionsFacade.refresh({ authUser, id }));
+        res.json(this.#socketSessionsFacade.refresh({ authUser, id }));
     };
 
     close = async (req, res) => {
         const { params, user: authUser } = req;
         const { id } = validateData(params, idSchema);
-        this.socketSessionsFacade.close({ authUser, id });
+        this.#socketSessionsFacade.close({ authUser, id });
         res.status(204).end();
     };
 }

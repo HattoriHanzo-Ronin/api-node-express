@@ -9,11 +9,16 @@ const { deviceNotFound, whitelistRouterNotFound, connectionMacMismatch } = API_E
  * @author HattoriHanzo-Ronin
  */
 export default class WhitelistFacade {
+    #whitelistService;
+    #devicesFacade;
+    #routerAutomation;
+    #tx;
+
     constructor({ whitelistService, devicesFacade, routerAutomation, tx }) {
-        this.whitelistService = whitelistService;
-        this.devicesFacade = devicesFacade;
-        this.routerAutomation = routerAutomation;
-        this.tx = tx;
+        this.#whitelistService = whitelistService;
+        this.#devicesFacade = devicesFacade;
+        this.#routerAutomation = routerAutomation;
+        this.#tx = tx;
     }
 
     /**
@@ -26,12 +31,12 @@ export default class WhitelistFacade {
     async create({ routerId, allowedDevice }) {
         const { id, name, mac } = await this.#resolveAllowedDevice(allowedDevice);
         const routerImpl = await this.#getRouterImpl(routerId);
-        const key = await this.whitelistService.getKey({
+        const key = await this.#whitelistService.getKey({
             routerId,
             generateKey: (keys) => routerImpl.generateKey({ keys })
         });
-        return this.tx(async (clientTx) => {
-            await this.whitelistService.create({
+        return this.#tx(async (clientTx) => {
+            await this.#whitelistService.create({
                 clientTx,
                 whitelist: { router_id: routerId, connection_mac: mac, key }
             });
@@ -50,8 +55,8 @@ export default class WhitelistFacade {
     async delete({ routerId, allowedDevice }) {
         const { id, mac } = await this.#resolveAllowedDevice(allowedDevice);
         const routerImpl = await this.#getRouterImpl(routerId);
-        return this.tx(async (clientTx) => {
-            const { key } = await this.whitelistService.delete({
+        return this.#tx(async (clientTx) => {
+            const { key } = await this.#whitelistService.delete({
                 clientTx,
                 routerId,
                 mac
@@ -63,8 +68,8 @@ export default class WhitelistFacade {
 
     async #getRouterImpl(id) {
         try {
-            const router = await this.devicesFacade.getById({ id });
-            return new this.routerAutomation({ router });
+            const router = await this.#devicesFacade.getById({ id });
+            return new this.#routerAutomation({ router });
         } catch (err) {
             ApiError.handle([
                 {
@@ -79,7 +84,7 @@ export default class WhitelistFacade {
     }
 
     async #resolveAllowedDevice({ id, mac }) {
-        const { name, connections } = await this.devicesFacade.getById({ id });
+        const { name, connections } = await this.#devicesFacade.getById({ id });
         ApiError.handle([
             {
                 condition: !connections.some(({ mac: connectionMac }) => connectionMac === mac),

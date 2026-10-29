@@ -8,10 +8,10 @@ import { API_ERROR } from "../config/errors.js";
 import { ENV } from "../config/environment.js";
 
 const {
-    ftpMediaSessionTimeout: MEDIA_SESSION_TIMEOUT,
-    ftpTransferSessionTimeout: TRANSFER_SESSION_TIMEOUT,
-    ftpMaxUploadChunkSize: MAX_UPLOAD_CHUNK_SIZE,
-    ftpMaxThumbnailSize: MAX_THUMBNAIL_SIZE,
+    ftpMediaSessionTimeout,
+    ftpTransferSessionTimeout,
+    ftpMaxUploadChunkSize,
+    ftpMaxThumbnailSize,
     thumbnailGeneratorUrl
 } = ENV;
 const { dir: dirType, file: fileType } = FILE_TYPE;
@@ -37,11 +37,12 @@ const {
  * @author HattoriHanzo-Ronin
  */
 export default class FtpService {
+    #ftpConnectionManager;
     #transferSessions = new Map();
     #mediaSessions = new Map();
 
     constructor({ ftpConnectionManager }) {
-        this.ftpConnectionManager = ftpConnectionManager;
+        this.#ftpConnectionManager = ftpConnectionManager;
     }
 
     /**
@@ -51,7 +52,7 @@ export default class FtpService {
      * @returns {boolean} Whether internal work may continue
      */
     isSessionActive({ ownerId }) {
-        return this.ftpConnectionManager.isActive({ ownerId });
+        return this.#ftpConnectionManager.isActive({ ownerId });
     }
 
     /**
@@ -61,7 +62,7 @@ export default class FtpService {
      */
     async touchSession({ authUser }) {
         try {
-            await this.ftpConnectionManager.touch({ authUser });
+            await this.#ftpConnectionManager.touch({ authUser });
         } catch {
             FtpService.#ftpError({ message: "Error al preparar la sesión FTP", apiError: ftpDirFailed });
         }
@@ -77,7 +78,7 @@ export default class FtpService {
      */
     async dir({ dir, authUser, internal = false }) {
         try {
-            return await this.ftpConnectionManager.execute({
+            return await this.#ftpConnectionManager.execute({
                 authUser,
                 pool: internal ? "internal" : "read",
                 paths: [dir],
@@ -99,7 +100,7 @@ export default class FtpService {
      */
     async getThumbnails({ dir, names, authUser, callback }) {
         try {
-            return await this.ftpConnectionManager.execute({
+            return await this.#ftpConnectionManager.execute({
                 authUser,
                 pool: "read",
                 transfer: true,
@@ -172,7 +173,7 @@ export default class FtpService {
         try {
             let remotePath = await this.#getAvailableRemotePath({ dir, name, authUser });
             while (true) {
-                const collision = await this.ftpConnectionManager.execute({
+                const collision = await this.#ftpConnectionManager.execute({
                     authUser,
                     pool: "write",
                     paths: [remotePath],
@@ -218,7 +219,7 @@ export default class FtpService {
         let releaseSources;
         const releaseDestinations = [];
         try {
-            releaseSources = await this.ftpConnectionManager.lockTransfer({
+            releaseSources = await this.#ftpConnectionManager.lockTransfer({
                 authUser,
                 paths: entries.map((entry) => path.posix.join(dir, entry.name)),
                 sharedPaths: [...FtpService.#getParentPaths({ dir }), ...FtpService.#getParentPaths({ dir: destination })],
@@ -234,7 +235,7 @@ export default class FtpService {
                     authUser
                 });
                 while (true) {
-                    const releaseDestination = await this.ftpConnectionManager.lockTransfer({
+                    const releaseDestination = await this.#ftpConnectionManager.lockTransfer({
                         authUser,
                         paths: [destinationPath],
                         sharedPaths: [],
@@ -242,7 +243,7 @@ export default class FtpService {
                     });
                     let collision;
                     try {
-                        collision = await this.ftpConnectionManager.execute({
+                        collision = await this.#ftpConnectionManager.execute({
                             authUser,
                             pool: "write",
                             callback: ({ client }) => FtpService.#renameAvailable({ client, sourcePath, destinationPath })
@@ -290,7 +291,7 @@ export default class FtpService {
         try {
             const sourcePath = path.posix.join(dir, entry.name);
             let destinationPath = await this.#getAvailableRemotePath({ dir, name: newName, authUser });
-            while (await this.ftpConnectionManager.execute({
+            while (await this.#ftpConnectionManager.execute({
                 authUser,
                 pool: "write",
                 paths: [sourcePath, destinationPath],
@@ -325,13 +326,13 @@ export default class FtpService {
             activeStreams: new Set()
         };
         try {
-            session.releaseLocks = await this.ftpConnectionManager.lockTransfer({
+            session.releaseLocks = await this.#ftpConnectionManager.lockTransfer({
                 authUser,
                 paths: [],
                 sharedPaths: FtpService.#getParentPaths({ dir }),
                 treePaths: []
             });
-            return await this.ftpConnectionManager.execute({
+            return await this.#ftpConnectionManager.execute({
                 authUser,
                 pool: "write",
                 paths: [`\0upload:${dir}`],
@@ -353,7 +354,7 @@ export default class FtpService {
                     session.protectedDirs = [...new Set(resolvedEntries.filter((entry) =>
                         entry.type === dirType || entry.path.includes("/")
                     ).map((entry) => path.posix.join(dir, entry.path.split("/")[0])))];
-                    session.releaseEntryLocks = await this.ftpConnectionManager.lockTransfer({
+                    session.releaseEntryLocks = await this.#ftpConnectionManager.lockTransfer({
                         authUser, paths: [], sharedPaths: [], treePaths: session.protectedDirs
                     });
                     for (const entry of resolvedEntries.filter(({ type }) => type === dirType)) {
@@ -369,7 +370,7 @@ export default class FtpService {
 
                         return [entry.path, { ...entry, receivedBytes: 0, uploaded: false, uploading: false }];
                     });
-                    const timeout = setTimeout(() => void this.#expireTransfer({ id }), TRANSFER_SESSION_TIMEOUT);
+                    const timeout = setTimeout(() => void this.#expireTransfer({ id }), ftpTransferSessionTimeout);
                     timeout.unref();
                     session.timeout = timeout;
                     session.entries = new Map(sessionEntries);
@@ -429,13 +430,13 @@ export default class FtpService {
                 const protectedByDirectory = session.protectedDirs.some((dir) =>
                     remotePath === dir || remotePath.startsWith(`${dir}/`));
                 const releaseFile = !entry.remotePath && !protectedByDirectory
-                    ? await this.ftpConnectionManager.lockTransfer({ authUser, paths: [remotePath], sharedPaths: [], treePaths: [] })
+                    ? await this.#ftpConnectionManager.lockTransfer({ authUser, paths: [remotePath], sharedPaths: [], treePaths: [] })
                     : undefined;
                 if (releaseFile) {
                     session.fileLocks.push(releaseFile);
                 }
 
-                const result = await this.ftpConnectionManager.execute({
+                const result = await this.#ftpConnectionManager.execute({
                     authUser,
                     pool: "write",
                     transfer: true,
@@ -455,7 +456,7 @@ export default class FtpService {
 
                         destination = client.createWriteStream(entry.remotePath, { flags: "r+", start: offset });
                         session.activeStreams.add(destination);
-                        const counter = FtpService.#createChunkCounter({ entry, offset, maxSize: MAX_UPLOAD_CHUNK_SIZE });
+                        const counter = FtpService.#createChunkCounter({ entry, offset, maxSize: ftpMaxUploadChunkSize });
                         await pipeline(file.stream, counter, destination);
                         entry.receivedBytes = counter.size;
                         entry.uploaded = entry.size === undefined || entry.receivedBytes === entry.size;
@@ -539,13 +540,13 @@ export default class FtpService {
         const id = randomUUID();
         let releaseLocks;
         try {
-            releaseLocks = await this.ftpConnectionManager.lockTransfer({
+            releaseLocks = await this.#ftpConnectionManager.lockTransfer({
                 authUser,
                 paths: entries.map((entry) => path.posix.join(dir, entry.name)),
                 sharedPaths: FtpService.#getParentPaths({ dir }),
                 treePaths: entries.filter((entry) => entry.type === dirType).map((entry) => path.posix.join(dir, entry.name))
             });
-            return await this.ftpConnectionManager.execute({
+            return await this.#ftpConnectionManager.execute({
                 authUser,
                 pool: "read",
                 callback: async ({ client }) => {
@@ -564,7 +565,7 @@ export default class FtpService {
                         }]);
                         resolvedEntries.push(resolvedEntry);
                     }
-                    const timeout = setTimeout(() => void this.#expireTransfer({ id }), TRANSFER_SESSION_TIMEOUT);
+                    const timeout = setTimeout(() => void this.#expireTransfer({ id }), ftpTransferSessionTimeout);
                     timeout.unref();
                     this.#transferSessions.set(id, {
                         type: "DOWNLOAD",
@@ -617,7 +618,7 @@ export default class FtpService {
         let source;
         session.activeDownloads += 1;
         try {
-            await this.ftpConnectionManager.execute({
+            await this.#ftpConnectionManager.execute({
                 authUser,
                 pool: "read",
                 transfer: true,
@@ -681,7 +682,7 @@ export default class FtpService {
      */
     async delete({ dir, entries, authUser, onEntry, onComplete = async () => {} }) {
         try {
-            return await this.ftpConnectionManager.execute({
+            return await this.#ftpConnectionManager.execute({
                 authUser,
                 pool: "write",
                 paths: entries.map((entry) => path.posix.join(dir, entry.name)),
@@ -721,7 +722,7 @@ export default class FtpService {
         }
 
         const id = randomUUID();
-        const timeout = setTimeout(() => this.#mediaSessions.delete(id), MEDIA_SESSION_TIMEOUT);
+        const timeout = setTimeout(() => this.#mediaSessions.delete(id), ftpMediaSessionTimeout);
         this.#mediaSessions.set(id, {
             size,
             createReadStream: ({ start, end }) => client.createReadStream(remotePath, { start, end })
@@ -729,13 +730,13 @@ export default class FtpService {
         try {
             const response = await fetch(`${thumbnailGeneratorUrl}/thumbnail/${id}`, {
                 method: "POST",
-                signal: AbortSignal.timeout(MEDIA_SESSION_TIMEOUT)
+                signal: AbortSignal.timeout(ftpMediaSessionTimeout)
             });
             if (!response.ok) {
                 return null;
             }
 
-            return FtpService.#readResponseBuffer(response, MAX_THUMBNAIL_SIZE);
+            return FtpService.#readResponseBuffer(response, ftpMaxThumbnailSize);
         } finally {
             clearTimeout(timeout);
             this.#mediaSessions.delete(id);
@@ -952,7 +953,7 @@ export default class FtpService {
      * @returns {Promise<string>} Available remote path
      */
     async #getAvailableRemotePath({ dir, name, reservedNames = [], protectedPath = false, authUser }) {
-        return this.ftpConnectionManager.execute({
+        return this.#ftpConnectionManager.execute({
             authUser,
             pool: "write",
             sharedPaths: protectedPath ? [] : [dir],
@@ -1011,7 +1012,7 @@ export default class FtpService {
         }
 
         try {
-            await this.ftpConnectionManager.execute({
+            await this.#ftpConnectionManager.execute({
                 authUser: { id: session.ownerId },
                 pool: "write",
                 callback: async ({ client }) => {

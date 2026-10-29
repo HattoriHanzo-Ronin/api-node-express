@@ -6,9 +6,12 @@ import { WebSocketServer } from "ws";
  * @author HattoriHanzo-Ronin
  */
 export default class VncGateway {
+    #routerSessionService;
+    #webSocketServer;
+
     constructor({ routerSessionService }) {
-        this.routerSessionService = routerSessionService;
-        this.webSocketServer = new WebSocketServer({ noServer: true });
+        this.#routerSessionService = routerSessionService;
+        this.#webSocketServer = new WebSocketServer({ noServer: true });
     }
 
     /**
@@ -25,7 +28,7 @@ export default class VncGateway {
                 return;
             }
 
-            this.webSocketServer.handleUpgrade(request, socket, head, (webSocket) => {
+            this.#webSocketServer.handleUpgrade(request, socket, head, (webSocket) => {
                 void this.#bridge({ webSocket, sessionId: match[1], token: url.searchParams.get("token") ?? "" });
             });
         });
@@ -35,26 +38,26 @@ export default class VncGateway {
      * Closes every active WebSocket
      */
     close() {
-        this.webSocketServer.clients.forEach((client) => client.close());
-        this.webSocketServer.close();
+        this.#webSocketServer.clients.forEach((client) => client.close());
+        this.#webSocketServer.close();
     }
 
     async #bridge({ webSocket, sessionId, token }) {
         let vncSocket;
         try {
-            vncSocket = await this.routerSessionService.openVncSocket({ sessionId, token });
+            vncSocket = await this.#routerSessionService.openVncSocket({ sessionId, token });
         } catch {
             webSocket.close(1008, "Sesión no válida");
             return;
         }
 
         webSocket.on("message", (data) => {
-            this.routerSessionService.refresh({ sessionId });
+            this.#routerSessionService.refresh({ sessionId });
             vncSocket.write(data);
         });
         webSocket.once("close", () => vncSocket.destroy());
         vncSocket.on("data", (data) => {
-            this.routerSessionService.refresh({ sessionId });
+            this.#routerSessionService.refresh({ sessionId });
             webSocket.send(data);
         });
         vncSocket.once("close", () => webSocket.close());

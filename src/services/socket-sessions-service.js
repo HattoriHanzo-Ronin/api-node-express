@@ -4,9 +4,9 @@ import { API_ERROR } from "../config/errors.js";
 import ApiError from "../utils/error/api-error.js";
 
 const {
-    socketMaxConnections: MAX_CONNECTIONS,
-    socketMaxConnectionsPerUser: MAX_CONNECTIONS_PER_USER,
-    socketSessionInactivityTimeout: INACTIVITY_TIMEOUT
+    socketMaxConnections,
+    socketMaxConnectionsPerUser,
+    socketSessionInactivityTimeout
 } = ENV;
 const { socketSessionNotFound, socketSessionCapacityReached, socketSessionInvalid } = API_ERROR;
 
@@ -30,7 +30,7 @@ export default class SocketSessionsService {
         const ownerSessions = this.#ownerSessions.get(ownerId) ?? new Set();
         ApiError.handle([
             {
-                condition: this.#sessions.size >= MAX_CONNECTIONS || ownerSessions.size >= MAX_CONNECTIONS_PER_USER,
+                condition: this.#sessions.size >= socketMaxConnections || ownerSessions.size >= socketMaxConnectionsPerUser,
                 message: "Se alcanzó el máximo de conexiones de notificaciones",
                 status: 429,
                 apiError: socketSessionCapacityReached
@@ -161,7 +161,7 @@ export default class SocketSessionsService {
 
     #touch({ session, exp }) {
         clearTimeout(session.timeout);
-        const expiresAt = Math.min(Date.now() + INACTIVITY_TIMEOUT, exp * 1000);
+        const expiresAt = Math.min(Date.now() + socketSessionInactivityTimeout, exp * 1000);
         session.expiresAt = expiresAt;
         session.timeout = setTimeout(() => this.#delete({ session }), Math.max(0, expiresAt - Date.now()));
     }
