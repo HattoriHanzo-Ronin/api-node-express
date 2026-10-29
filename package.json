@@ -4,7 +4,7 @@
     "description": "",
     "main": "src/server-postgres.js",
     "scripts": {
-        "test": "vitest --exclude 'thumbnail-generator/**'",
+        "test": "vitest --exclude 'thumbnail-generator/**' --exclude 'router-cpanel-service/**'",
         "postgres": "node src/server-postgres.js",
         "wPostgres": "node --watch src/server-postgres.js",
         "lint": "eslint .",
