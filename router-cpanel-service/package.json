@@ -5,7 +5,11 @@
     "type": "module",
     "scripts": {
         "start": "node src/server.js",
-        "test": "vitest run"
+        "test": "vitest run",
+        "build": "tsc --project tsconfig.build.json",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "typecheck": "tsc --noEmit"
     },
     "dependencies": {
         "@novnc/novnc": "^1.7.0",
@@ -16,6 +20,13 @@
         "ws": "^8.19.0"
     },
     "devDependencies": {
+        "@types/express": "^5.0.6",
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/node": "^26.6.5",
+        "@types/ws": "^8.18.2",
+        "eslint": "^10.13.0",
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.72.1",
         "vitest": "^5.0.3"
     },
     "engines": {
