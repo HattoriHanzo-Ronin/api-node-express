@@ -9,6 +9,7 @@ describe("DevicesFacade", () => {
     let connectionsFacade;
     let routerAutomation;
     let routerCpanel;
+    let socketSessionsFacade;
     let devicesFacade;
     const tx = async (cb) => cb({});
 
@@ -50,6 +51,7 @@ describe("DevicesFacade", () => {
             return { delete: vi.fn(), create: vi.fn() };
         });
         routerCpanel = { create: vi.fn(), navigate: vi.fn(), close: vi.fn() };
+        socketSessionsFacade = { notify: vi.fn() };
         devicesFacade = new DevicesFacade({
             devicesService,
             dataVersionsFacade,
@@ -57,6 +59,7 @@ describe("DevicesFacade", () => {
             connectionsFacade,
             routerAutomation,
             routerCpanel,
+            socketSessionsFacade,
             tx
         });
     });
@@ -91,6 +94,7 @@ describe("DevicesFacade", () => {
             connectionsFacade,
             routerAutomation,
             routerCpanel,
+            socketSessionsFacade,
             tx
         });
 
@@ -131,6 +135,8 @@ describe("DevicesFacade", () => {
             deviceId: "device-1",
             connections: [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }]
         });
+        expect(socketSessionsFacade.notify).toHaveBeenCalledWith({ entity: "devices", data: { version: "2" } });
+        expect(socketSessionsFacade.notify).toHaveBeenCalledWith({ entity: "whitelist", data: { version: "3" } });
     });
 
     it("should create a router control panel session from a stored router", async () => {

@@ -1,6 +1,8 @@
 import { API_ERROR } from "./errors.js";
 import ApiError from "../utils/error/api-error.js";
 
+const PROTECTED_SERVICE = Object.freeze({ ftp: "ftp", socket: "socket" });
+const PROTECTED_SERVICES = new Set(Object.values(PROTECTED_SERVICE));
 const ENV = Object.freeze({
     port: Number(process.env.PORT),
     thumbnailGeneratorUrl: process.env.THUMBNAIL_GENERATOR_URL,
@@ -15,7 +17,7 @@ const ENV = Object.freeze({
     ftpMaxTransfers: Number(process.env.FTP_MAX_TRANSFERS),
     ftpIdleTimeout: Number(process.env.FTP_IDLE_TIMEOUT),
     ftpScaleWait: Number(process.env.FTP_SCALE_WAIT),
-    ftpProtectedUserIds: process.env.FTP_PROTECTED_USER_IDS,
+    protectedUsers: parseProtectedUsers(process.env.PROTECTED_USERS),
     ftpInternalPoolMin: Number(process.env.FTP_INTERNAL_POOL_MIN),
     ftpInternalPoolMax: Number(process.env.FTP_INTERNAL_POOL_MAX),
     ftpReadPoolMin: Number(process.env.FTP_READ_POOL_MIN),
@@ -36,6 +38,7 @@ const ENV = Object.freeze({
     socketMaxConnections: Number(process.env.SOCKET_MAX_CONNECTIONS),
     socketMaxConnectionsPerUser: Number(process.env.SOCKET_MAX_CONNECTIONS_PER_USER),
     socketSessionInactivityTimeout: Number(process.env.SOCKET_SESSION_INACTIVITY_TIMEOUT),
+    socketPingTimeout: Number(process.env.SOCKET_PING_TIMEOUT),
     chromePath: process.env.CHROME_PATH
 });
 
@@ -46,10 +49,8 @@ function validateConfiguration(environment) {
     const validNumbers = numericEntries.every(([key, value]) =>
         Number.isInteger(value) && (key === "ftpMaxUploadChunkSize" ? value >= 0 : value > 0)
     );
-    const validStrings = typeof environment.ftpProtectedUserIds === "string" && [
-        environment.jwtAccessTokenExpiresIn,
-        environment.jwtRefreshTokenExpiresIn
-    ].every((value) => typeof value === "string" && value.length > 0);
+    const validStrings = [environment.jwtAccessTokenExpiresIn, environment.jwtRefreshTokenExpiresIn]
+        .every((value) => typeof value === "string" && value.length > 0);
     const validUrls = [environment.thumbnailGeneratorUrl, environment.routerCpanelServiceUrl]
         .every((value) => typeof value === "string" && URL.canParse(value));
     const validCacheLimits = environment.memoryCacheMaxSizePerOwner <= environment.memoryCacheMaxSize;
@@ -59,6 +60,34 @@ function validateConfiguration(environment) {
             apiError: API_ERROR.configurationInvalid
         });
     }
+}
+
+function parseProtectedUsers(source) {
+    if (typeof source !== "string") {
+        throw new ApiError({ message: "La configuración de la aplicación no es válida", apiError: API_ERROR.configurationInvalid });
+    }
+    if (source === "") {
+        return Object.freeze({});
+    }
+
+    const users = {};
+    for (const entry of source.split(",")) {
+        const [id, services] = entry.trim().split(":");
+        const reservations = {};
+        if (!id || !services || users[id] !== undefined) {
+            throw new ApiError({ message: "La configuración de la aplicación no es válida", apiError: API_ERROR.configurationInvalid });
+        }
+        for (const service of services.split("|")) {
+            const [name, value] = service.split("=");
+            const reserved = Number(value);
+            if (!PROTECTED_SERVICES.has(name) || !Number.isInteger(reserved) || reserved < 1 || reservations[name] !== undefined) {
+                throw new ApiError({ message: "La configuración de la aplicación no es válida", apiError: API_ERROR.configurationInvalid });
+            }
+            reservations[name] = reserved;
+        }
+        users[id] = Object.freeze(reservations);
+    }
+    return Object.freeze(users);
 }
 
 export { ENV };

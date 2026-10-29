@@ -32,7 +32,7 @@ vi.mock("../../src/config/environment.js", () => ({
         ftpMaxTransfers: 16,
         ftpIdleTimeout: 15 * 60 * 1000,
         ftpScaleWait: 5000,
-        ftpProtectedUserIds: "",
+        protectedUsers: {},
         ftpInternalPoolMin: 1,
         ftpInternalPoolMax: 1,
         ftpReadPoolMin: 1,

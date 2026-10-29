@@ -14,7 +14,7 @@ const {
     ftpReadPoolMax,
     ftpWritePoolMin,
     ftpWritePoolMax,
-    ftpProtectedUserIds
+    protectedUsers
 } = ENV;
 const {
     ftpConfigurationInvalid,
@@ -49,10 +49,13 @@ export class FtpConnectionManager {
 
     static {
         FtpConnectionManager.#validateConfiguration();
-        FtpConnectionManager.#PROTECTED_USER_IDS = FtpConnectionManager.#parseProtectedUserIds(ftpProtectedUserIds);
+        FtpConnectionManager.#PROTECTED_USER_IDS = new Map(Object.entries(protectedUsers)
+            .flatMap(([ownerId, { ftp }]) => ftp === undefined ? [] : [[ownerId, ftp]]));
         const reservedConnections = [...FtpConnectionManager.#PROTECTED_USER_IDS.values()]
             .reduce((total, reserved) => total + reserved, 0);
-        if (reservedConnections > FtpConnectionManager.#MAX_CONNECTIONS) {
+        if (reservedConnections > FtpConnectionManager.#MAX_CONNECTIONS ||
+            [...FtpConnectionManager.#PROTECTED_USER_IDS.values()].some((reserved) =>
+                reserved < FtpConnectionManager.#MIN_CONNECTIONS_PER_USER || reserved > FtpConnectionManager.#MAX_CONNECTIONS_PER_USER)) {
             throw new ApiError({
                 message: "Las reservas SFTP superan el límite global de conexiones",
                 apiError: ftpConfigurationInvalid
@@ -578,23 +581,6 @@ export class FtpConnectionManager {
             session.lockQueue.splice(index, 1);
             pending.resolve(release);
         }
-    }
-
-    static #parseProtectedUserIds(source) {
-        return new Map(source.split(",").filter(Boolean).map((entry) => {
-            const [ownerId, reservedSource] = entry.trim().split(":");
-            const reserved = Number(reservedSource);
-            if (!ownerId || !Number.isInteger(reserved)
-                || reserved < FtpConnectionManager.#MIN_CONNECTIONS_PER_USER
-                || reserved > FtpConnectionManager.#MAX_CONNECTIONS_PER_USER) {
-                throw new ApiError({
-                    message: `Reserva SFTP no válida: ${entry}`,
-                    apiError: ftpConfigurationInvalid
-                });
-            }
-
-            return [ownerId, reserved];
-        }));
     }
 
     static #validateConfiguration() {

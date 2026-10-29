@@ -19,6 +19,7 @@ describe("FtpFacade", () => {
     let ftpService;
     let memoryCache;
     let directoryCache;
+    let socketSessionsFacade;
     let ftpFacade;
 
     beforeEach(() => {
@@ -44,11 +45,13 @@ describe("FtpFacade", () => {
         ftpService.getThumbnails.mockResolvedValue(undefined);
         memoryCache = new MemoryCache();
         directoryCache = new DirectoryCache();
+        socketSessionsFacade = { notify: vi.fn() };
         ftpFacade = new FtpFacade({
             ftpService,
             ftpMapper: FtpMapper,
             memoryCache,
-            directoryCache
+            directoryCache,
+            socketSessionsFacade
         });
     });
 
@@ -138,6 +141,11 @@ describe("FtpFacade", () => {
             expect(ftpService.dir).toHaveBeenCalledTimes(2);
             expect(directoryCache.get("user-id", "files")).toEqual({
                 hash: expect.not.stringMatching(initialHash)
+            });
+            expect(socketSessionsFacade.notify).toHaveBeenCalledWith({
+                entity: "ftp",
+                data: { dir: "files", version: directoryCache.get("user-id", "files").hash },
+                ownerId: "user-id"
             });
         });
 
@@ -273,6 +281,22 @@ describe("FtpFacade", () => {
             await expect(ftpFacade[method](data)).resolves.toEqual({ hash: expect.any(String), data: [] });
             expect(ftpService[method]).toHaveBeenCalledWith(data);
             expect(ftpService.dir).toHaveBeenCalledWith({ dir: "files", authUser });
+            expect(socketSessionsFacade.notify).toHaveBeenCalledWith({
+                entity: "ftp",
+                data: { dir: "files", version: expect.any(String) },
+                ownerId: authUser.id
+            });
+        });
+
+        it("should notify the root directory with its app relative path", async () => {
+            const authUser = { id: "user-id", username: "ronin" };
+            ftpService.makeDir.mockResolvedValue({ name: "docs", type: "DIR" });
+            await ftpFacade.makeDir({ dir: ".", name: "docs", authUser });
+            expect(socketSessionsFacade.notify).toHaveBeenCalledWith({
+                entity: "ftp",
+                data: { dir: " ", version: expect.any(String) },
+                ownerId: authUser.id
+            });
         });
 
         it("should synchronize the directory when an upload completes", async () => {
@@ -283,6 +307,11 @@ describe("FtpFacade", () => {
                 data: []
             });
             expect(ftpService.dir).toHaveBeenCalledWith({ dir: "files", authUser });
+            expect(socketSessionsFacade.notify).toHaveBeenCalledWith({
+                entity: "ftp",
+                data: { dir: "files", version: expect.any(String) },
+                ownerId: authUser.id
+            });
         });
 
         it("should stream moved entries and relocate folder caches", async () => {

@@ -21,8 +21,8 @@ Authorization: Bearer {{accessToken}}
 ### WebSocket protocol
 #
 # Connect to ws://localhost:60004/events/{{socketSessionId}}.
-# Request one or more authorized versions when the client needs them:
+# Send this single subscription message immediately after connecting:
 # { "accessToken": "{{accessToken}}", "entities": ["devices", "whitelist"] }
 #
-# FTP directory hash requests use:
-# { "accessToken": "{{accessToken}}", "entities": ["ftp"], "dir": "." }
+# The server then emits only changes for the authorized subscribed entities.
+# FTP changes include the affected directory: { "entity": "ftp", "dir": "." }

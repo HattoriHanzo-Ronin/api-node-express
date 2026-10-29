@@ -1,6 +1,6 @@
 import { WebSocketServer } from "ws";
 import { API_ERROR } from "../../config/errors.js";
-import { dataVersionsSchema } from "../../schemas/data-versions-schema.js";
+import { socketSubscriptionSchema } from "../../schemas/socket-sessions-schema.js";
 import ApiError from "../error/api-error.js";
 import ZodUtils from "../zod-utils.js";
 
@@ -52,33 +52,19 @@ export default class SocketGateway {
     }
 
     #watchMessages({ sessionId, webSocket }) {
-        let connected = false;
         webSocket.once("close", () => {
             this.#socketSessionsFacade.disconnect({ id: sessionId, webSocket });
         });
-        webSocket.on("message", async (data, isBinary) => {
-            let message;
-            let authUser;
+        webSocket.once("message", async (data, isBinary) => {
             try {
-                message = SocketGateway.#getMessage({ data, isBinary });
-                authUser = this.#getAuthUser({ accessToken: message.accessToken });
+                const message = SocketGateway.#getMessage({ data, isBinary });
+                const authUser = this.#getAuthUser({ accessToken: message.accessToken });
+                const { entities } = validateData({ entities: message.entities }, socketSubscriptionSchema);
+                await this.#socketSessionsFacade.subscribe({ authUser, entities, id: sessionId, webSocket });
             } catch (err) {
                 this.#sendError({ err, webSocket });
                 this.#socketSessionsFacade.invalidate({ id: sessionId });
                 webSocket.close(1008, "Sesión no válida");
-                return;
-            }
-
-            try {
-                const { dir, entities } = validateData({ dir: message.dir, entities: message.entities }, dataVersionsSchema);
-                if (!connected) {
-                    this.#socketSessionsFacade.connect({ authUser, id: sessionId, webSocket });
-                    connected = true;
-                }
-
-                webSocket.send(JSON.stringify(await this.#socketSessionsFacade.getVersions({ authUser, dir, entities, id: sessionId, webSocket })));
-            } catch (err) {
-                this.#sendError({ err, webSocket });
             }
         });
     }
@@ -104,7 +90,17 @@ export default class SocketGateway {
             throw new ApiError({ message: "La sesión de notificaciones no es válida", status: 401, apiError: socketSessionInvalid });
         }
 
-        const message = JSON.parse(data.toString());
+        let message;
+        try {
+            message = JSON.parse(data.toString());
+        } catch {
+            throw new ApiError({
+                message: "La sesión de notificaciones no es válida",
+                status: 401,
+                apiError: socketSessionInvalid
+            });
+        }
+
         if (typeof message.accessToken !== "string") {
             throw new ApiError({ message: "La sesión de notificaciones no es válida", status: 401, apiError: socketSessionInvalid });
         }

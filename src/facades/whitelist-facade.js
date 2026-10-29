@@ -1,4 +1,5 @@
 import ApiError from "../utils/error/api-error.js";
+import { SOCKET_ENTITY } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
 
 const { deviceNotFound, whitelistRouterNotFound, connectionMacMismatch } = API_ERROR;
@@ -10,14 +11,18 @@ const { deviceNotFound, whitelistRouterNotFound, connectionMacMismatch } = API_E
  */
 export default class WhitelistFacade {
     #whitelistService;
+    #dataVersionsFacade;
     #devicesFacade;
     #routerAutomation;
+    #socketSessionsFacade;
     #tx;
 
-    constructor({ whitelistService, devicesFacade, routerAutomation, tx }) {
+    constructor({ whitelistService, dataVersionsFacade, devicesFacade, routerAutomation, socketSessionsFacade, tx }) {
         this.#whitelistService = whitelistService;
+        this.#dataVersionsFacade = dataVersionsFacade;
         this.#devicesFacade = devicesFacade;
         this.#routerAutomation = routerAutomation;
+        this.#socketSessionsFacade = socketSessionsFacade;
         this.#tx = tx;
     }
 
@@ -35,7 +40,7 @@ export default class WhitelistFacade {
             routerId,
             generateKey: (keys) => routerImpl.generateKey({ keys })
         });
-        return this.#tx(async (clientTx) => {
+        const result = await this.#tx(async (clientTx) => {
             await this.#whitelistService.create({
                 clientTx,
                 whitelist: { router_id: routerId, connection_mac: mac, key }
@@ -43,6 +48,8 @@ export default class WhitelistFacade {
             await routerImpl.create({ key, name, mac });
             return { id, mac };
         });
+        await this.#notify();
+        return result;
     }
 
     /**
@@ -55,7 +62,7 @@ export default class WhitelistFacade {
     async delete({ routerId, allowedDevice }) {
         const { id, mac } = await this.#resolveAllowedDevice(allowedDevice);
         const routerImpl = await this.#getRouterImpl(routerId);
-        return this.#tx(async (clientTx) => {
+        const result = await this.#tx(async (clientTx) => {
             const { key } = await this.#whitelistService.delete({
                 clientTx,
                 routerId,
@@ -64,6 +71,13 @@ export default class WhitelistFacade {
             await routerImpl.delete({ key, mac });
             return { id, mac };
         });
+        await this.#notify();
+        return result;
+    }
+
+    async #notify() {
+        const { version } = await this.#dataVersionsFacade.getById({ id: SOCKET_ENTITY.whitelist });
+        this.#socketSessionsFacade.notify({ entity: SOCKET_ENTITY.whitelist, data: { version } });
     }
 
     async #getRouterImpl(id) {

@@ -1,6 +1,6 @@
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { FILE_TYPE } from "../config/constants.js";
+import { FILE_TYPE, SOCKET_ENTITY } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
 import ApiError from "../utils/error/api-error.js";
 import { ENV } from "../config/environment.js";
@@ -20,14 +20,16 @@ export default class FtpFacade {
     #ftpMapper;
     #memoryCache;
     #directoryCache;
+    #socketSessionsFacade;
 
     #thumbnailJobs = new Map();
 
-    constructor({ ftpService, ftpMapper, memoryCache, directoryCache }) {
+    constructor({ ftpService, ftpMapper, memoryCache, directoryCache, socketSessionsFacade }) {
         this.#ftpService = ftpService;
         this.#ftpMapper = ftpMapper;
         this.#memoryCache = memoryCache;
         this.#directoryCache = directoryCache;
+        this.#socketSessionsFacade = socketSessionsFacade;
     }
 
     /**
@@ -113,7 +115,9 @@ export default class FtpFacade {
      */
     async makeDir({ dir, name, authUser }) {
         await this.#ftpService.makeDir({ dir, name, authUser });
-        return this.dir({ dir, authUser });
+        const result = await this.dir({ dir, authUser });
+        this.#notify({ authUser, dir, version: result.hash });
+        return result;
     }
 
     /**
@@ -161,6 +165,11 @@ export default class FtpFacade {
                     this.#clearDirectoryCache(authUser.id, destination);
                     cacheCleared = true;
                     const { hash } = await this.dir({ dir: destination, authUser });
+                    this.#notify({ authUser, dir });
+                    if (destination !== dir) {
+                        this.#notify({ authUser, dir: destination });
+                    }
+
                     await this.#writeProgress({ stream, progress: { event: "complete", version: hash } });
                     stream.end();
                 }
@@ -192,7 +201,9 @@ export default class FtpFacade {
             );
         }
 
-        return this.dir({ dir, authUser });
+        const result = await this.dir({ dir, authUser });
+        this.#notify({ authUser, dir, version: result.hash });
+        return result;
     }
 
     /**
@@ -229,7 +240,13 @@ export default class FtpFacade {
      */
     async completeUpload({ id, authUser }) {
         return this.#ftpService.completeUpload({
-            id, authUser, onComplete: ({ dir }) => this.dir({ dir, authUser })
+            id,
+            authUser,
+            onComplete: async ({ dir }) => {
+                const result = await this.dir({ dir, authUser });
+                this.#notify({ authUser, dir, version: result.hash });
+                return result;
+            }
         });
     }
 
@@ -305,6 +322,7 @@ export default class FtpFacade {
                     this.#clearDirectoryCache(authUser.id, dir);
                     cacheCleared = true;
                     const { hash } = await this.dir({ dir, authUser });
+                    this.#notify({ authUser, dir, version: hash });
                     await this.#writeProgress({ stream, progress: { event: "complete", version: hash } });
                     stream.end();
                 }
@@ -320,6 +338,11 @@ export default class FtpFacade {
         this.#memoryCache.delete(ownerId, dir);
         this.#directoryCache.delete(ownerId, dir);
         this.#thumbnailJobs.delete(FtpFacade.#getThumbnailJobKey(ownerId, dir));
+    }
+
+    #notify({ authUser, dir, version }) {
+        const relativeDir = dir === "." ? " " : dir;
+        this.#socketSessionsFacade.notify({ entity: SOCKET_ENTITY.ftp, data: { dir: relativeDir, version }, ownerId: authUser.id });
     }
 
     /**
@@ -453,7 +476,8 @@ export default class FtpFacade {
                 internal: true
             });
             if (!source) {
-                if (this.#ftpService.isSessionActive({ ownerId })) {
+                const sessionActive = this.#ftpService.isSessionActive({ ownerId });
+                if (sessionActive) {
                     setTimeout(() => this.#checkDirectory(ownerId, dir), ftpDirectoryCheckTimeout);
                 } else {
                     this.#directoryCache.delete(ownerId, dir);
@@ -464,6 +488,7 @@ export default class FtpFacade {
             const hash = FtpFacade.#hashDirectory(entries);
             if (hash !== cachedDirectory.hash) {
                 this.#directoryCache.set(ownerId, dir, { ...cachedDirectory, hash });
+                this.#notify({ authUser: { id: ownerId }, dir, version: hash });
             }
         } catch {}
 

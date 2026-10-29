@@ -3,47 +3,33 @@ import SocketSessionsFacade from "../../src/facades/socket-sessions-facade.js";
 
 describe("SocketSessionsFacade", () => {
     let socketSessionsService;
-    let dataVersionsFacade;
     let facade;
 
     beforeEach(() => {
-        socketSessionsService = { activity: vi.fn(), connect: vi.fn() };
-        dataVersionsFacade = { getById: vi.fn(), getFtp: vi.fn() };
-        facade = new SocketSessionsFacade({ socketSessionsService, dataVersionsFacade });
+        socketSessionsService = { connect: vi.fn(), subscribe: vi.fn(), notify: vi.fn() };
+        facade = new SocketSessionsFacade({ socketSessionsService });
     });
 
-    it("should return versions authorized by the authenticated user role", async () => {
-        const authUser = { id: "user-id", roles: ["NET"] };
-        dataVersionsFacade.getById.mockResolvedValue({ devices: "2", whitelist: "3" });
-        await expect(facade.getVersions({ authUser, dir: ".", entities: ["devices", "whitelist"], id: "session-id", webSocket: {} }))
-            .resolves.toEqual({ devices: "2", whitelist: "3" });
-        expect(socketSessionsService.activity).toHaveBeenCalledOnce();
-        expect(dataVersionsFacade.getById).toHaveBeenCalledWith({ id: ["devices", "whitelist"] });
-    });
-
-    it("should connect an authenticated socket session", () => {
+    it("should subscribe an authenticated socket to authorized entities", async () => {
         const authUser = { id: "user-id", roles: ["NET"] };
         const webSocket = {};
-        facade.connect({ authUser, id: "session-id", webSocket });
+        await facade.subscribe({ authUser, entities: ["devices", "whitelist"], id: "session-id", webSocket });
         expect(socketSessionsService.connect).toHaveBeenCalledWith({ authUser, id: "session-id", webSocket });
+        expect(socketSessionsService.subscribe).toHaveBeenCalledWith({ id: "session-id", webSocket, entities: ["devices", "whitelist"] });
     });
 
-    it("should reject a version without its required role", async () => {
-        await expect(facade.getVersions({
+    it("should reject a subscription without its required role", async () => {
+        await expect(facade.subscribe({
             authUser: { id: "user-id", roles: ["NET"] },
-            dir: ".",
             entities: ["users"],
             id: "session-id",
             webSocket: {}
         })).rejects.toMatchObject({ code: "ACL_PERMISSION_DENIED" });
-        expect(dataVersionsFacade.getById).not.toHaveBeenCalled();
+        expect(socketSessionsService.connect).not.toHaveBeenCalled();
     });
 
-    it("should return a FTP directory hash to FTP users", async () => {
-        const authUser = { id: "user-id", roles: ["FTP"] };
-        dataVersionsFacade.getFtp.mockResolvedValue({ version: "directory-hash" });
-        await expect(facade.getVersions({ authUser, dir: "files", entities: ["ftp"], id: "session-id", webSocket: {} }))
-            .resolves.toEqual({ ftp: "directory-hash" });
-        expect(dataVersionsFacade.getFtp).toHaveBeenCalledWith({ authUser, dir: "files" });
+    it("should publish private entity changes for their owner", () => {
+        facade.notify({ entity: "ftp", data: { dir: "files" }, ownerId: "user-id" });
+        expect(socketSessionsService.notify).toHaveBeenCalledWith({ entity: "ftp", data: { dir: "files" }, ownerId: "user-id" });
     });
 });
