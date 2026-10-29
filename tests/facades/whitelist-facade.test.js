@@ -3,20 +3,31 @@ import WhitelistFacade from "../../src/facades/whitelist-facade.js";
 
 describe("WhitelistFacade", () => {
     let whitelistService;
+    let dataVersionsFacade;
     let devicesFacade;
     let routerAutomation;
+    let socketSessionsFacade;
     let whitelistFacade;
     const tx = async (cb) => cb({});
 
     beforeEach(() => {
         vi.clearAllMocks();
         whitelistService = { getKey: vi.fn(), create: vi.fn(), delete: vi.fn() };
+        dataVersionsFacade = { getById: vi.fn().mockResolvedValue({ version: "3" }) };
         devicesFacade = { getById: vi.fn() };
         const routerImpl = { generateKey: vi.fn(() => "white_list_1"), create: vi.fn(), delete: vi.fn() };
         routerAutomation = vi.fn(function RouterAutomation() {
             return routerImpl;
         });
-        whitelistFacade = new WhitelistFacade({ whitelistService, devicesFacade, routerAutomation, tx });
+        socketSessionsFacade = { notify: vi.fn() };
+        whitelistFacade = new WhitelistFacade({
+            whitelistService,
+            dataVersionsFacade,
+            devicesFacade,
+            routerAutomation,
+            socketSessionsFacade,
+            tx
+        });
     });
 
     it("should create whitelist entry and synchronize router", async () => {
@@ -51,6 +62,7 @@ describe("WhitelistFacade", () => {
             name: "Desktop",
             mac: "AA:BB:CC:DD:EE:01"
         });
+        expect(socketSessionsFacade.notify).toHaveBeenCalledWith({ entity: "whitelist", data: { version: "3" } });
     });
 
     it("should delete whitelist entry and synchronize router", async () => {
@@ -75,6 +87,7 @@ describe("WhitelistFacade", () => {
             mac: "AA:BB:CC:DD:EE:01"
         });
         expect(routerAutomation.mock.results[0].value.delete).toHaveBeenCalledWith({ key: "white_list_1", mac: "AA:BB:CC:DD:EE:01" });
+        expect(socketSessionsFacade.notify).toHaveBeenCalledWith({ entity: "whitelist", data: { version: "3" } });
     });
 
     it("should fail when mac does not belong to allowed device", async () => {

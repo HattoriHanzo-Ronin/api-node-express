@@ -64,11 +64,15 @@ const {
     refreshTokens: refreshTokensEntityError
 } = PostgresErrors;
 
+const socketSessionsService = new SocketSessionsService();
+const socketSessionsFacade = new SocketSessionsFacade({ socketSessionsService });
+const socketSessionsController = new SocketSessionsController({ socketSessionsFacade });
+
 const memoryCache = new MemoryCache();
 const directoryCache = new DirectoryCache();
 const ftpConnectionManager = new FtpConnectionManager();
 const ftpService = new FtpService({ ftpConnectionManager });
-const ftpFacade = new FtpFacade({ ftpService, ftpMapper: FtpMapper, memoryCache, directoryCache });
+const ftpFacade = new FtpFacade({ ftpService, ftpMapper: FtpMapper, memoryCache, directoryCache, socketSessionsFacade });
 const ftpController = new FtpController({ ftpFacade });
 
 const dataVersionsService = new DataVersionsService({ dataVersionsModel: DataVersionsModel });
@@ -98,12 +102,20 @@ const devicesFacade = new DevicesFacade({
     connectionsFacade,
     routerAutomation,
     routerCpanel,
+    socketSessionsFacade,
     tx
 });
 const devicesController = new DevicesController({ devicesFacade });
 
 const whitelistService = new WhitelistService({ whitelistModel: WhitelistModel, entityError: whitelistEntityError });
-const whitelistFacade = new WhitelistFacade({ whitelistService, devicesFacade, routerAutomation, tx });
+const whitelistFacade = new WhitelistFacade({
+    whitelistService,
+    dataVersionsFacade,
+    devicesFacade,
+    routerAutomation,
+    socketSessionsFacade,
+    tx
+});
 const whitelistController = new WhitelistController({ whitelistFacade });
 
 const userRolesService = new UserRolesService({ userRolesModel: UserRolesModel });
@@ -118,6 +130,7 @@ const usersFacade = new UsersFacade({
     dataVersionsFacade,
     userRolesFacade,
     usersMapper: UsersMapper,
+    socketSessionsFacade,
     tx
 });
 const usersController = new UsersController({ usersFacade });
@@ -126,10 +139,6 @@ const refreshTokensService = new RefreshTokensService({
     refreshTokensModel: RefreshTokensModel,
     entityError: refreshTokensEntityError
 });
-
-const socketSessionsService = new SocketSessionsService();
-const socketSessionsFacade = new SocketSessionsFacade({ socketSessionsService, dataVersionsFacade });
-const socketSessionsController = new SocketSessionsController({ socketSessionsFacade });
 
 const accessTokenProvider = new JwtTokenProvider({ secret: jwtSecret, expiresIn: jwtAccessTokenExpiresIn });
 const refreshTokenProvider = new JwtTokenProvider({ secret: refreshJwtSecret, expiresIn: jwtRefreshTokenExpiresIn });

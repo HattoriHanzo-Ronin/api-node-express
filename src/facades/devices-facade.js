@@ -1,5 +1,5 @@
 import ApiError from "../utils/error/api-error.js";
-import { DEVICE_TYPE } from "../config/constants.js";
+import { DEVICE_TYPE, SOCKET_ENTITY } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
 
 const { routerCpanelNotRouter, routerAddFailed, routerDeleteFailed, routerRollbackFailed } = API_ERROR;
@@ -16,15 +16,17 @@ export default class DevicesFacade {
     #connectionsFacade;
     #routerAutomation;
     #routerCpanel;
+    #socketSessionsFacade;
     #tx;
 
-    constructor({ devicesService, dataVersionsFacade, devicesMapper, connectionsFacade, routerAutomation, routerCpanel, tx }) {
+    constructor({ devicesService, dataVersionsFacade, devicesMapper, connectionsFacade, routerAutomation, routerCpanel, socketSessionsFacade, tx }) {
         this.#devicesService = devicesService;
         this.#dataVersionsFacade = dataVersionsFacade;
         this.#devicesMapper = devicesMapper;
         this.#connectionsFacade = connectionsFacade;
         this.#routerAutomation = routerAutomation;
         this.#routerCpanel = routerCpanel;
+        this.#socketSessionsFacade = socketSessionsFacade;
         this.#tx = tx;
     }
 
@@ -35,7 +37,7 @@ export default class DevicesFacade {
      */
     async getAll() {
         const [{ version }, result] = await Promise.all([
-            this.#dataVersionsFacade.getById({ id: "devices" }),
+            this.#dataVersionsFacade.getById({ id: SOCKET_ENTITY.devices }),
             this.#devicesService.getAll()
         ]);
         return { version, data: await this.#mapResult({ result }) };
@@ -60,7 +62,7 @@ export default class DevicesFacade {
      */
     async getAllowedDevices({ routerId }) {
         const [version, result] = await Promise.all([
-            this.#getVersions(["devices", "whitelist"]),
+            this.#getVersions([SOCKET_ENTITY.devices, SOCKET_ENTITY.whitelist]),
             this.#devicesService.getAllowedDevices({ routerId })
         ]);
         const { devices, connections } = this.#devicesMapper.createDeviceSource(result);
@@ -76,7 +78,7 @@ export default class DevicesFacade {
      */
     async getNotAllowedDevices({ routerId }) {
         const [version, result] = await Promise.all([
-            this.#getVersions(["devices", "whitelist"]),
+            this.#getVersions([SOCKET_ENTITY.devices, SOCKET_ENTITY.whitelist]),
             this.#devicesService.getNotAllowedDevices({ routerId })
         ]);
         const { devices, connections } = this.#devicesMapper.createDeviceSource(result);
@@ -142,7 +144,7 @@ export default class DevicesFacade {
      * @returns {Promise<Object>} Created device
      */
     async create({ device }) {
-        return this.#tx(async (clientTx) => {
+        const result = await this.#tx(async (clientTx) => {
             const { connections, ...newDevice } = device;
             const result = await this.#devicesService.create({
                 clientTx,
@@ -155,6 +157,8 @@ export default class DevicesFacade {
             });
             return this.#devicesMapper.deviceToDomain({ source: result, connections: deviceConnections });
         });
+        await this.#notifyChanges();
+        return result;
     }
 
     /**
@@ -219,6 +223,7 @@ export default class DevicesFacade {
 
             return result;
         });
+        await this.#notifyChanges();
         return this.#mapResult({ id, result });
     }
 
@@ -231,7 +236,9 @@ export default class DevicesFacade {
     async delete({ id }) {
         const device = await this.getById({ id });
         await this.#deleteRouterWhitelist(device);
-        return this.#devicesService.delete({ id });
+        const result = await this.#devicesService.delete({ id });
+        await this.#notifyChanges();
+        return result;
     }
 
     /**
@@ -326,6 +333,12 @@ export default class DevicesFacade {
 
     async #getVersions(ids) {
         return this.#dataVersionsFacade.getById({ id: ids });
+    }
+
+    async #notifyChanges() {
+        const version = await this.#getVersions([SOCKET_ENTITY.devices, SOCKET_ENTITY.whitelist]);
+        this.#socketSessionsFacade.notify({ entity: SOCKET_ENTITY.devices, data: { version: version.devices } });
+        this.#socketSessionsFacade.notify({ entity: SOCKET_ENTITY.whitelist, data: { version: version.whitelist } });
     }
 
     async #mapResult({ id = null, result }) {

@@ -6,6 +6,7 @@ describe("UsersFacade", () => {
     let dataVersionsFacade;
     let userRolesFacade;
     let usersMapper;
+    let socketSessionsFacade;
     let usersFacade;
 
     beforeEach(() => {
@@ -25,7 +26,15 @@ describe("UsersFacade", () => {
             replace: vi.fn()
         };
         usersMapper = { userToDomain: vi.fn(), usersToDomain: vi.fn() };
-        usersFacade = new UsersFacade({ usersService, dataVersionsFacade, userRolesFacade, usersMapper, tx: async (cb) => cb({}) });
+        socketSessionsFacade = { notify: vi.fn() };
+        usersFacade = new UsersFacade({
+            usersService,
+            dataVersionsFacade,
+            userRolesFacade,
+            usersMapper,
+            socketSessionsFacade,
+            tx: async (cb) => cb({})
+        });
     });
 
     describe("getAll", () => {
@@ -99,6 +108,7 @@ describe("UsersFacade", () => {
                 roles: ["FTP"],
                 scope: undefined
             });
+            expect(socketSessionsFacade.notify).toHaveBeenCalledWith({ entity: "users", data: { version: "4" } });
         });
     });
 

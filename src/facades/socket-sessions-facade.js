@@ -1,24 +1,27 @@
-import { USER_ROLE } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
+import { SOCKET_ENTITY, USER_ROLE } from "../config/constants.js";
 import ApiError from "../utils/error/api-error.js";
 
 const { admin, ftp, net } = USER_ROLE;
 const { aclPermissionDenied } = API_ERROR;
 
 /**
- * Coordinates WebSocket sessions and version queries
+ * Coordinates WebSocket sessions and subscriptions
  *
  * @author HattoriHanzo-Ronin
  */
 export default class SocketSessionsFacade {
-    static #ENTITY_ROLES = Object.freeze({ devices: net, whitelist: net, users: admin, ftp });
+    static #ENTITY_ROLES = Object.freeze({
+        [SOCKET_ENTITY.devices]: net,
+        [SOCKET_ENTITY.whitelist]: net,
+        [SOCKET_ENTITY.users]: admin,
+        [SOCKET_ENTITY.ftp]: ftp
+    });
 
     #socketSessionsService;
-    #dataVersionsFacade;
 
-    constructor({ socketSessionsService, dataVersionsFacade }) {
+    constructor({ socketSessionsService }) {
         this.#socketSessionsService = socketSessionsService;
-        this.#dataVersionsFacade = dataVersionsFacade;
     }
 
     /**
@@ -43,44 +46,33 @@ export default class SocketSessionsFacade {
     }
 
     /**
-     * Connects a WebSocket session
+     * Subscribes a WebSocket session to authorized entity changes
      *
      * @param {Object} params.authUser Authenticated user
-     * @param {string} params.id Socket session identifier
-     * @param {import("ws").WebSocket} params.webSocket WebSocket connection
-     */
-    connect({ authUser, id, webSocket }) {
-        this.#socketSessionsService.connect({ authUser, id, webSocket });
-    }
-
-    /**
-     * Returns authorized data versions through a WebSocket session
-     *
-     * @param {Object} params.authUser Authenticated user
-     * @param {string} params.dir FTP directory path
      * @param {string[]} params.entities Requested entities
      * @param {string} params.id Socket session identifier
      * @param {import("ws").WebSocket} params.webSocket WebSocket connection
-     * @returns {Promise<Object<string, string>>} Data versions
      */
-    async getVersions({ authUser, dir, entities, id, webSocket }) {
-        this.#socketSessionsService.activity({ authUser, id, webSocket });
+    async subscribe({ authUser, entities, id, webSocket }) {
         ApiError.handle([{
             condition: entities.some((entity) => !authUser.roles.includes(SocketSessionsFacade.#ENTITY_ROLES[entity])),
-            message: "No tiene permisos para consultar una de las versiones solicitadas",
+            message: "No tiene permisos para suscribirse a una de las entidades solicitadas",
             status: 403,
             apiError: aclPermissionDenied
         }]);
-        const databaseEntities = entities.filter((entity) => entity !== "ftp");
-        const dataVersions = databaseEntities.length > 0
-            ? await this.#dataVersionsFacade.getById({ id: databaseEntities })
-            : {};
-        if (!entities.includes("ftp")) {
-            return dataVersions;
-        }
+        await this.#socketSessionsService.connect({ authUser, id, webSocket });
+        this.#socketSessionsService.subscribe({ id, webSocket, entities });
+    }
 
-        const { version } = await this.#dataVersionsFacade.getFtp({ dir, authUser });
-        return { ...dataVersions, ftp: version };
+    /**
+     * Notifies subscribed sockets about an entity change
+     *
+     * @param {string} params.entity Changed entity identifier
+     * @param {Object | undefined} [params.data] Additional event data
+     * @param {string | undefined} [params.ownerId] Owner identifier for private resources
+     */
+    notify({ entity, data, ownerId }) {
+        this.#socketSessionsService.notify({ entity, data, ownerId });
     }
 
     /**

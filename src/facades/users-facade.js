@@ -1,5 +1,5 @@
 import ApiError from "../utils/error/api-error.js";
-import { USER_ROLE } from "../config/constants.js";
+import { SOCKET_ENTITY, USER_ROLE } from "../config/constants.js";
 import { API_ERROR } from "../config/errors.js";
 
 const { admin } = USER_ROLE;
@@ -15,13 +15,15 @@ export default class UsersFacade {
     #dataVersionsFacade;
     #userRolesFacade;
     #usersMapper;
+    #socketSessionsFacade;
     #tx;
 
-    constructor({ usersService, dataVersionsFacade, userRolesFacade, usersMapper, tx }) {
+    constructor({ usersService, dataVersionsFacade, userRolesFacade, usersMapper, socketSessionsFacade, tx }) {
         this.#usersService = usersService;
         this.#dataVersionsFacade = dataVersionsFacade;
         this.#userRolesFacade = userRolesFacade;
         this.#usersMapper = usersMapper;
+        this.#socketSessionsFacade = socketSessionsFacade;
         this.#tx = tx;
     }
 
@@ -33,7 +35,7 @@ export default class UsersFacade {
      */
     async getAll({ authUser }) {
         const [{ version }, result] = await Promise.all([
-            this.#dataVersionsFacade.getById({ id: "users" }),
+            this.#dataVersionsFacade.getById({ id: SOCKET_ENTITY.users }),
             this.#usersService.getAll()
         ]);
         const aclByUser = await this.#userRolesFacade.getByUsers({ usersId: result.map(({ id }) => id) });
@@ -96,12 +98,14 @@ export default class UsersFacade {
             userRoles = authScope;
         }
 
-        return this.#tx(async (clientTx) => {
+        const result = await this.#tx(async (clientTx) => {
             const result = await this.#usersService.create({ clientTx, user: newUser });
             const acl = await this.#userRolesFacade.createMany({ clientTx, userId: result.id, roles: userRoles, scope: userScope });
             const createdUser = this.#usersMapper.userToDomain({ source: result, acl });
             return this.#filterAcl({ authUser, source: createdUser });
         });
+        await this.#notify();
+        return result;
     }
 
     /**
@@ -173,7 +177,7 @@ export default class UsersFacade {
                 }
             }
         ]);
-        return this.#tx(async (clientTx) => {
+        const result = await this.#tx(async (clientTx) => {
             const onlyUpdateAcl = Object.keys(newData).length === 0 && superAdmin;
             const result = onlyUpdateAcl
                 ? user
@@ -208,6 +212,8 @@ export default class UsersFacade {
 
             return result;
         });
+        await this.#notify();
+        return result;
     }
 
     /**
@@ -232,8 +238,16 @@ export default class UsersFacade {
      */
     async delete({ authUser, id }) {
         await this.getById({ authUser, id });
-        return this.#usersService.delete({ id });
+        const result = await this.#usersService.delete({ id });
+        await this.#notify();
+        return result;
     }
+
+    async #notify() {
+        const { version } = await this.#dataVersionsFacade.getById({ id: SOCKET_ENTITY.users });
+        this.#socketSessionsFacade.notify({ entity: SOCKET_ENTITY.users, data: { version } });
+    }
+
     #allowedManage({ authUser, userRoles }) {
         return authUser.scope.includes(admin) || userRoles.every((role) => authUser.scope.includes(role));
     }
