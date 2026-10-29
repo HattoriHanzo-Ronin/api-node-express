@@ -46,6 +46,7 @@ export default class RouterSessionService {
     static #VNC_CONNECTION_DELAY = 100;
     static #VIEWPORTS = Object.freeze({ desktop: Object.freeze({ width: 1440, height: 900 }), mobile: Object.freeze({ width: 900, height: 1600 }) });
 
+    #tokenProvider;
     #sessions = new Map();
     #ownerSessions = new Map();
     #ownerLocks = new Map();
@@ -53,7 +54,7 @@ export default class RouterSessionService {
     #nextDisplay = displayBase;
 
     constructor({ tokenProvider }) {
-        this.tokenProvider = tokenProvider;
+        this.#tokenProvider = tokenProvider;
     }
 
     /**
@@ -283,7 +284,7 @@ export default class RouterSessionService {
      */
     async #createSession({ ownerId, routerName, routerIp, routerPassword, language, clientType, theme }) {
         const id = randomUUID();
-        const token = this.tokenProvider.create({ payload: { sid: id } });
+        const token = this.#tokenProvider.create({ payload: { sid: id } });
         const display = this.#nextDisplay;
         this.#nextDisplay += 1;
         const vncPort = vncPortBase + display - displayBase;
@@ -449,7 +450,7 @@ export default class RouterSessionService {
     }
 
     #getSession({ sessionId, token }) {
-        const { sid } = this.tokenProvider.verify({ token });
+        const { sid } = this.#tokenProvider.verify({ token });
         const session = this.#sessions.get(sid);
         ApiError.handle([{
             condition: !session || sid !== sessionId,

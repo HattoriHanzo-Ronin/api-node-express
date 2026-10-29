@@ -4,10 +4,14 @@
  * @author HattoriHanzo-Ronin
  */
 export default class DataVersionsFacade {
+    #dataVersionsService;
+    #dataVersionsMapper;
+    #ftpFacade;
+
     constructor({ dataVersionsService, dataVersionsMapper, ftpFacade }) {
-        this.dataVersionsService = dataVersionsService;
-        this.dataVersionsMapper = dataVersionsMapper;
-        this.ftpFacade = ftpFacade;
+        this.#dataVersionsService = dataVersionsService;
+        this.#dataVersionsMapper = dataVersionsMapper;
+        this.#ftpFacade = ftpFacade;
     }
 
     /**
@@ -18,9 +22,9 @@ export default class DataVersionsFacade {
      */
     async getById({ id }) {
         if (Array.isArray(id)) {
-            return this.dataVersionsMapper.versionsToDomain(await this.dataVersionsService.getByIds({ ids: id }));
+            return this.#dataVersionsMapper.versionsToDomain(await this.#dataVersionsService.getByIds({ ids: id }));
         }
-        return this.dataVersionsService.getById({ id });
+        return this.#dataVersionsService.getById({ id });
     }
 
     /**
@@ -31,6 +35,6 @@ export default class DataVersionsFacade {
      * @returns {Promise<{ version: string }>} FTP directory version
      */
     async getFtp({ dir, authUser }) {
-        return { version: await this.ftpFacade.getHash({ dir, authUser }) };
+        return { version: await this.#ftpFacade.getHash({ dir, authUser }) };
     }
 }

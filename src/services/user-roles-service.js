@@ -9,8 +9,10 @@ const { aclRoleRequired, aclRoleCreateFailed, aclRoleUpdateFailed } = API_ERROR;
  * @author HattoriHanzo-Ronin
  */
 export default class UserRolesService {
+    #userRolesModel;
+
     constructor({ userRolesModel }) {
-        this.userRolesModel = userRolesModel;
+        this.#userRolesModel = userRolesModel;
     }
 
     /**
@@ -20,7 +22,7 @@ export default class UserRolesService {
      * @returns {Promise<Object[][]>} User roles grouped by user
      */
     async getByUsers({ usersId }) {
-        return this.userRolesModel.getByUsers({ usersId });
+        return this.#userRolesModel.getByUsers({ usersId });
     }
 
     /**
@@ -39,7 +41,7 @@ export default class UserRolesService {
                     apiError: aclRoleRequired
                 }
             ]);
-            return await this.userRolesModel.insertMany({ clientTx, userRoles });
+            return await this.#userRolesModel.insertMany({ clientTx, userRoles });
         } catch (err) {
             ApiError.handle([
                 {
@@ -62,7 +64,7 @@ export default class UserRolesService {
      */
     async replace({ clientTx, userId, userRoles }) {
         try {
-            await this.userRolesModel.deleteByUser({ clientTx, userId });
+            await this.#userRolesModel.deleteByUser({ clientTx, userId });
             return await this.createMany({ clientTx, userRoles });
         } catch (err) {
             ApiError.handle([

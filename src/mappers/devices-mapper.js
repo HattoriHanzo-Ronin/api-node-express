@@ -4,8 +4,10 @@
  * @author HattoriHanzo-Ronin
  */
 export default class DevicesMapper {
+    #routerAutomation;
+
     constructor({ routerAutomation }) {
-        this.routerAutomation = routerAutomation;
+        this.#routerAutomation = routerAutomation;
     }
 
     /**
@@ -67,7 +69,7 @@ export default class DevicesMapper {
             return { ...device, connections };
         }
 
-        const routerImpl = new this.routerAutomation({ router: device });
+        const routerImpl = new this.#routerAutomation({ router: device });
         return { ...device, capabilities: routerImpl.getCapabilities(), connections };
     }
 

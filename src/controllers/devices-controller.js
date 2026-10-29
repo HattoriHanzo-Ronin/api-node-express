@@ -12,66 +12,68 @@ const { getValidatedSchema, getPartialSchema } = DevicesSchema;
  * @author HattoriHanzo-Ronin
  */
 export default class DevicesController {
+    #devicesFacade;
+
     constructor({ devicesFacade }) {
-        this.devicesFacade = devicesFacade;
+        this.#devicesFacade = devicesFacade;
     }
 
     getAll = async (req, res) => {
-        const { version, data } = await this.devicesFacade.getAll();
+        const { version, data } = await this.#devicesFacade.getAll();
         res.set("Data-Version", version).json(data);
     };
 
     getById = async (req, res) => {
         const { id } = validateData(req.params, idSchema);
-        res.json(await this.devicesFacade.getById({ id }));
+        res.json(await this.#devicesFacade.getById({ id }));
     };
 
     getAllowedDevices = async (req, res) => {
         const routerId = this.#validateRouterId(req);
-        const { version: { devices, whitelist }, data } = await this.devicesFacade.getAllowedDevices({ routerId });
+        const { version: { devices, whitelist }, data } = await this.#devicesFacade.getAllowedDevices({ routerId });
         res.set({ "Devices-Version": devices, "Whitelist-Version": whitelist }).json(data);
     };
 
     getNotAllowedDevices = async (req, res) => {
         const routerId = this.#validateRouterId(req);
-        const { version: { devices, whitelist }, data } = await this.devicesFacade.getNotAllowedDevices({ routerId });
+        const { version: { devices, whitelist }, data } = await this.#devicesFacade.getNotAllowedDevices({ routerId });
         res.set({ "Devices-Version": devices, "Whitelist-Version": whitelist }).json(data);
     };
 
     create = async (req, res) => {
         const device = validateData(req.body, getValidatedSchema());
-        res.status(201).json(await this.devicesFacade.create({ device }));
+        res.status(201).json(await this.#devicesFacade.create({ device }));
     };
 
     update = async (req, res) => {
         const data = validateData(req.body, getPartialSchema());
-        res.json(await this.devicesFacade.update({ data }));
+        res.json(await this.#devicesFacade.update({ data }));
     };
 
     delete = async (req, res) => {
         const { id } = validateData(req.params, idSchema);
-        res.json(await this.devicesFacade.delete({ id }));
+        res.json(await this.#devicesFacade.delete({ id }));
     };
 
     createRouterCpanel = async (req, res) => {
         const { params, body, user: authUser } = req;
         const { id: routerId } = validateData({ id: params.routerId }, idSchema);
         const { language, clientType, theme } = validateData(body, routerCpanelSessionSchema);
-        res.status(201).json(await this.devicesFacade.createRouterCpanel({ authUser, routerId, language, clientType, theme }));
+        res.status(201).json(await this.#devicesFacade.createRouterCpanel({ authUser, routerId, language, clientType, theme }));
     };
 
     navigateRouterCpanel = async (req, res) => {
         const { params, body, user: authUser } = req;
         const { id: sessionId } = validateData({ id: params.sessionId }, idSchema);
         const { action } = validateData(body, routerCpanelNavigationSchema);
-        await this.devicesFacade.navigateRouterCpanel({ authUser, sessionId, action });
+        await this.#devicesFacade.navigateRouterCpanel({ authUser, sessionId, action });
         res.status(204).send();
     };
 
     closeRouterCpanel = async (req, res) => {
         const { params, user: authUser } = req;
         const { id: sessionId } = validateData({ id: params.sessionId }, idSchema);
-        await this.devicesFacade.closeRouterCpanel({ authUser, sessionId });
+        await this.#devicesFacade.closeRouterCpanel({ authUser, sessionId });
         res.status(204).send();
     };
 

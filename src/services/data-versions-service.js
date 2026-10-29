@@ -4,8 +4,10 @@
  * @author HattoriHanzo-Ronin
  */
 export default class DataVersionsService {
+    #dataVersionsModel;
+
     constructor({ dataVersionsModel }) {
-        this.dataVersionsModel = dataVersionsModel;
+        this.#dataVersionsModel = dataVersionsModel;
     }
 
     /**
@@ -15,7 +17,7 @@ export default class DataVersionsService {
      * @returns {Promise<{ version: string } | null>} Data version
      */
     async getById({ id }) {
-        return this.dataVersionsModel.getById({ id });
+        return this.#dataVersionsModel.getById({ id });
     }
 
     /**
@@ -25,6 +27,6 @@ export default class DataVersionsService {
      * @returns {Promise<{ id: string, version: string }[]>} Data versions
      */
     async getByIds({ ids }) {
-        return this.dataVersionsModel.getByIds({ ids });
+        return this.#dataVersionsModel.getByIds({ ids });
     }
 }

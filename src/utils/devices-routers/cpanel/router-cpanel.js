@@ -9,8 +9,10 @@ const { routerCpanelServiceUnavailable, routerCpanelSessionFailed } = API_ERROR;
  * @author HattoriHanzo-Ronin
  */
 export default class RouterCpanel {
+    #routerCpanelServiceUrl;
+
     constructor({ routerCpanelServiceUrl }) {
-        this.routerCpanelServiceUrl = routerCpanelServiceUrl;
+        this.#routerCpanelServiceUrl = routerCpanelServiceUrl;
     }
 
     /**
@@ -55,7 +57,7 @@ export default class RouterCpanel {
     }
 
     async #request({ path, method, body }) {
-        const url = new URL(path, this.routerCpanelServiceUrl);
+        const url = new URL(path, this.#routerCpanelServiceUrl);
         let response;
         try {
             response = await fetch(url, {

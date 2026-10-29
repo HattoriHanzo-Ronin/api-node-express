@@ -14,9 +14,12 @@ const { validateData } = ZodUtils;
  * @author HattoriHanzo-Ronin
  */
 export default class DevicesService {
+    #devicesModel;
+    #entityError;
+
     constructor({ devicesModel, entityError }) {
-        this.devicesModel = devicesModel;
-        this.entityError = entityError;
+        this.#devicesModel = devicesModel;
+        this.#entityError = entityError;
     }
 
     /**
@@ -25,7 +28,7 @@ export default class DevicesService {
      * @returns {Promise<Object[]>} Devices
      */
     async getAll() {
-        return this.devicesModel.getAll();
+        return this.#devicesModel.getAll();
     }
 
     /**
@@ -35,7 +38,7 @@ export default class DevicesService {
      * @returns {Promise<Object>} Device
      */
     async getById({ id }) {
-        const result = await this.devicesModel.getById({ id });
+        const result = await this.#devicesModel.getById({ id });
         ApiError.handle([
             {
                 condition: !result,
@@ -54,7 +57,7 @@ export default class DevicesService {
      * @returns {Promise<Object[]>} Device rows
      */
     async getAllowedDevices({ routerId }) {
-        return this.devicesModel.getAllowedDevices({ routerId });
+        return this.#devicesModel.getAllowedDevices({ routerId });
     }
 
     /**
@@ -64,7 +67,7 @@ export default class DevicesService {
      * @returns {Promise<Object[]>} Device rows
      */
     async getNotAllowedDevices({ routerId }) {
-        return this.devicesModel.getNotAllowedDevices({ routerId });
+        return this.#devicesModel.getNotAllowedDevices({ routerId });
     }
 
     /**
@@ -74,7 +77,7 @@ export default class DevicesService {
      * @returns {Promise<Object[]>} Associated routers
      */
     async getRoutersByAllowedDevice({ allowedDeviceId }) {
-        return this.devicesModel.getRoutersByAllowedDevice({ allowedDeviceId });
+        return this.#devicesModel.getRoutersByAllowedDevice({ allowedDeviceId });
     }
 
     /**
@@ -86,9 +89,9 @@ export default class DevicesService {
      */
     async create({ clientTx, device }) {
         try {
-            return await this.devicesModel.insert({ clientTx, device });
+            return await this.#devicesModel.insert({ clientTx, device });
         } catch (err) {
-            this.entityError(err);
+            this.#entityError(err);
             throw err;
         }
     }
@@ -104,10 +107,10 @@ export default class DevicesService {
     async update({ clientTx, id, data }) {
         try {
             validateNotEmptyObject(data, deviceEmptyUpdate);
-            const result = await this.devicesModel.update({ clientTx, id, data });
+            const result = await this.#devicesModel.update({ clientTx, id, data });
             return validateData(result, DevicesSchema.getDeviceSchema());
         } catch (err) {
-            this.entityError(err);
+            this.#entityError(err);
             throw err;
         }
     }
@@ -119,6 +122,6 @@ export default class DevicesService {
      * @returns {Promise<{ id: string }>} Deleted device identifier
      */
     async delete({ id }) {
-        return this.devicesModel.delete({ id });
+        return this.#devicesModel.delete({ id });
     }
 }

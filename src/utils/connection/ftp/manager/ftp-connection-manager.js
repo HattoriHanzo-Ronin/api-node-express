@@ -60,6 +60,8 @@ export class FtpConnectionManager {
         }
     }
 
+    #createClient;
+    #closeClient;
     #sessions = new Map();
     #totalConnections = 0;
     #activeTransfers = 0;
@@ -71,8 +73,8 @@ export class FtpConnectionManager {
         createClient = getClient,
         closeClient = ftpCloseClient
     } = {}) {
-        this.createClient = createClient;
-        this.closeClient = closeClient;
+        this.#createClient = createClient;
+        this.#closeClient = closeClient;
     }
 
     /**
@@ -354,7 +356,7 @@ export class FtpConnectionManager {
                 type,
                 busy: false,
                 lastUsed: Date.now(),
-                clientPromise: Promise.resolve().then(() => this.createClient({ ownerId: session.ownerId }))
+                clientPromise: Promise.resolve().then(() => this.#createClient({ ownerId: session.ownerId }))
             };
             session.pools[type].connections.push(connection);
             this.#totalConnections += 1;
@@ -433,7 +435,7 @@ export class FtpConnectionManager {
             return;
         }
         try {
-            await this.closeClient({ client: result[0].value });
+            await this.#closeClient({ client: result[0].value });
         } catch {
             throw new ApiError({
                 message: "No se ha podido cerrar la conexión SFTP",

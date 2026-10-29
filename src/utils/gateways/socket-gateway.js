@@ -13,10 +13,14 @@ const { validateData } = ZodUtils;
  * @author HattoriHanzo-Ronin
  */
 export default class SocketGateway {
+    #socketSessionsFacade;
+    #accessTokenProvider;
+    #webSocketServer;
+
     constructor({ socketSessionsFacade, accessTokenProvider }) {
-        this.socketSessionsFacade = socketSessionsFacade;
-        this.accessTokenProvider = accessTokenProvider;
-        this.webSocketServer = new WebSocketServer({ noServer: true });
+        this.#socketSessionsFacade = socketSessionsFacade;
+        this.#accessTokenProvider = accessTokenProvider;
+        this.#webSocketServer = new WebSocketServer({ noServer: true });
     }
 
     /**
@@ -33,7 +37,7 @@ export default class SocketGateway {
                 return;
             }
 
-            this.webSocketServer.handleUpgrade(request, socket, head, (webSocket) => {
+            this.#webSocketServer.handleUpgrade(request, socket, head, (webSocket) => {
                 this.#watchMessages({ sessionId: match[1], webSocket });
             });
         });
@@ -43,14 +47,14 @@ export default class SocketGateway {
      * Closes every active WebSocket
      */
     close() {
-        this.webSocketServer.clients.forEach((webSocket) => webSocket.close());
-        this.webSocketServer.close();
+        this.#webSocketServer.clients.forEach((webSocket) => webSocket.close());
+        this.#webSocketServer.close();
     }
 
     #watchMessages({ sessionId, webSocket }) {
         let connected = false;
         webSocket.once("close", () => {
-            this.socketSessionsFacade.disconnect({ id: sessionId, webSocket });
+            this.#socketSessionsFacade.disconnect({ id: sessionId, webSocket });
         });
         webSocket.on("message", async (data, isBinary) => {
             let message;
@@ -60,7 +64,7 @@ export default class SocketGateway {
                 authUser = this.#getAuthUser({ accessToken: message.accessToken });
             } catch (err) {
                 this.#sendError({ err, webSocket });
-                this.socketSessionsFacade.invalidate({ id: sessionId });
+                this.#socketSessionsFacade.invalidate({ id: sessionId });
                 webSocket.close(1008, "Sesión no válida");
                 return;
             }
@@ -68,11 +72,11 @@ export default class SocketGateway {
             try {
                 const { dir, entities } = validateData({ dir: message.dir, entities: message.entities }, dataVersionsSchema);
                 if (!connected) {
-                    this.socketSessionsFacade.connect({ authUser, id: sessionId, webSocket });
+                    this.#socketSessionsFacade.connect({ authUser, id: sessionId, webSocket });
                     connected = true;
                 }
 
-                webSocket.send(JSON.stringify(await this.socketSessionsFacade.getVersions({ authUser, dir, entities, id: sessionId, webSocket })));
+                webSocket.send(JSON.stringify(await this.#socketSessionsFacade.getVersions({ authUser, dir, entities, id: sessionId, webSocket })));
             } catch (err) {
                 this.#sendError({ err, webSocket });
             }
@@ -81,7 +85,7 @@ export default class SocketGateway {
 
     #getAuthUser({ accessToken }) {
         try {
-            return this.accessTokenProvider.verify({ token: accessToken });
+            return this.#accessTokenProvider.verify({ token: accessToken });
         } catch {
             throw new ApiError({ message: "Token no válido", status: 401, apiError: invalidToken });
         }

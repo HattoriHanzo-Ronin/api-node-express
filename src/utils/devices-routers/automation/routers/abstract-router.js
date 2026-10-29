@@ -14,8 +14,10 @@ const { routerImplementationNotFound } = API_ERROR;
  * @author HattoriHanzo-Ronin
  */
 export default class AbstractRouter {
+    #router;
+
     constructor({ router }) {
-        this.router = router;
+        this.#router = router;
     }
 
     /**
@@ -109,5 +111,14 @@ export default class AbstractRouter {
         if (browser) {
             await browser.close();
         }
+    }
+
+    /**
+     * Returns the router configuration for implementations
+     *
+     * @returns {Object} Router configuration
+     */
+    get router() {
+        return this.#router;
     }
 }

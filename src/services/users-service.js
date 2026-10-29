@@ -10,9 +10,12 @@ const { userNotFound, userInvalidCredentials, userIncorrectPassword, userEmptyUp
  * @author HattoriHanzo-Ronin
  */
 export default class UsersService {
+    #usersModel;
+    #entityError;
+
     constructor({ usersModel, entityError }) {
-        this.usersModel = usersModel;
-        this.entityError = entityError;
+        this.#usersModel = usersModel;
+        this.#entityError = entityError;
     }
 
     /**
@@ -21,7 +24,7 @@ export default class UsersService {
      * @returns {Promise<Object[]>} List of users data
      */
     async getAll() {
-        return this.usersModel.getAll();
+        return this.#usersModel.getAll();
     }
 
     /**
@@ -31,7 +34,7 @@ export default class UsersService {
      * @returns {Promise<Object>} User data
      */
     async getById({ id }) {
-        const result = await this.usersModel.getById({ id });
+        const result = await this.#usersModel.getById({ id });
         ApiError.handle([{ condition: !result, message: "El usuario no existe", status: 404, apiError: userNotFound }]);
         return result;
     }
@@ -44,7 +47,7 @@ export default class UsersService {
      * @returns {Promise<Object>} Authenticated user data
      */
     async authenticate({ username, password }) {
-        const result = await this.usersModel.authenticate({ username, password });
+        const result = await this.#usersModel.authenticate({ username, password });
         const invalidUser = !result || !result.active;
         ApiError.handle([
             {
@@ -64,7 +67,7 @@ export default class UsersService {
      * @param {string} params.password User password
      */
     async checkPassword({ id, password }) {
-        const result = await this.usersModel.checkPassword({ id, password });
+        const result = await this.#usersModel.checkPassword({ id, password });
         ApiError.handle([
             {
                 condition: !result,
@@ -84,9 +87,9 @@ export default class UsersService {
      */
     async create({ clientTx, user }) {
         try {
-            return await this.usersModel.insert({ clientTx, user });
+            return await this.#usersModel.insert({ clientTx, user });
         } catch (err) {
-            this.entityError(err);
+            this.#entityError(err);
             throw err;
         }
     }
@@ -102,9 +105,9 @@ export default class UsersService {
     async update({ clientTx, id, data }) {
         try {
             ValidateUtils.validateNotEmptyObject(data, userEmptyUpdate);
-            return await this.usersModel.update({ clientTx, id, data });
+            return await this.#usersModel.update({ clientTx, id, data });
         } catch (err) {
-            this.entityError(err);
+            this.#entityError(err);
             throw err;
         }
     }
@@ -116,6 +119,6 @@ export default class UsersService {
      * @returns {Promise<{ id: string }>} Deleted user identifier
      */
     async delete({ id }) {
-        return this.usersModel.delete({ id });
+        return this.#usersModel.delete({ id });
     }
 }

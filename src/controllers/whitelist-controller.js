@@ -10,18 +10,20 @@ const { validateData } = ZodUtils;
  * @author HattoriHanzo-Ronin
  */
 export default class WhitelistController {
+    #whitelistFacade;
+
     constructor({ whitelistFacade }) {
-        this.whitelistFacade = whitelistFacade;
+        this.#whitelistFacade = whitelistFacade;
     }
 
     create = async (req, res) => {
         const whitelist = this.#validateRequest(req);
-        res.json(await this.whitelistFacade.create(whitelist));
+        res.json(await this.#whitelistFacade.create(whitelist));
     };
 
     delete = async (req, res) => {
         const whitelist = this.#validateRequest(req);
-        res.json(await this.whitelistFacade.delete(whitelist));
+        res.json(await this.#whitelistFacade.delete(whitelist));
     };
 
     #validateRequest({ params, body }) {

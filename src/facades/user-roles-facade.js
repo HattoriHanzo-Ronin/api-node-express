@@ -4,9 +4,12 @@
  * @author HattoriHanzo-Ronin
  */
 export default class UserRolesFacade {
+    #userRolesService;
+    #userRolesMapper;
+
     constructor({ userRolesService, userRolesMapper }) {
-        this.userRolesService = userRolesService;
-        this.userRolesMapper = userRolesMapper;
+        this.#userRolesService = userRolesService;
+        this.#userRolesMapper = userRolesMapper;
     }
 
     /**
@@ -16,7 +19,7 @@ export default class UserRolesFacade {
      * @returns {Promise<Map<string, Object>>} User ACL data
      */
     async getByUsers({ usersId }) {
-        return this.userRolesMapper.rolesByUsersToDomain(await this.userRolesService.getByUsers({ usersId }));
+        return this.#userRolesMapper.rolesByUsersToDomain(await this.#userRolesService.getByUsers({ usersId }));
     }
 
     /**
@@ -29,11 +32,11 @@ export default class UserRolesFacade {
      * @returns {Promise<Object>} User ACL data
      */
     async createMany({ clientTx, userId, roles, scope }) {
-        const source = await this.userRolesService.createMany({
+        const source = await this.#userRolesService.createMany({
             clientTx,
-            userRoles: this.userRolesMapper.rolesToPersistence({ userId, roles, scope })
+            userRoles: this.#userRolesMapper.rolesToPersistence({ userId, roles, scope })
         });
-        return this.userRolesMapper.rolesByUsersToDomain(source).get(userId);
+        return this.#userRolesMapper.rolesByUsersToDomain(source).get(userId);
     }
 
     /**
@@ -46,11 +49,11 @@ export default class UserRolesFacade {
      * @returns {Promise<Object>} User ACL data
      */
     async replace({ clientTx, userId, roles, scope }) {
-        const source = await this.userRolesService.replace({
+        const source = await this.#userRolesService.replace({
             clientTx,
             userId,
-            userRoles: this.userRolesMapper.rolesToPersistence({ userId, roles, scope })
+            userRoles: this.#userRolesMapper.rolesToPersistence({ userId, roles, scope })
         });
-        return this.userRolesMapper.rolesByUsersToDomain(source).get(userId);
+        return this.#userRolesMapper.rolesByUsersToDomain(source).get(userId);
     }
 }

@@ -7,7 +7,7 @@ describe("SocketSessionsFacade", () => {
     let facade;
 
     beforeEach(() => {
-        socketSessionsService = { activity: vi.fn() };
+        socketSessionsService = { activity: vi.fn(), connect: vi.fn() };
         dataVersionsFacade = { getById: vi.fn(), getFtp: vi.fn() };
         facade = new SocketSessionsFacade({ socketSessionsService, dataVersionsFacade });
     });
@@ -19,6 +19,13 @@ describe("SocketSessionsFacade", () => {
             .resolves.toEqual({ devices: "2", whitelist: "3" });
         expect(socketSessionsService.activity).toHaveBeenCalledOnce();
         expect(dataVersionsFacade.getById).toHaveBeenCalledWith({ id: ["devices", "whitelist"] });
+    });
+
+    it("should connect an authenticated socket session", () => {
+        const authUser = { id: "user-id", roles: ["NET"] };
+        const webSocket = {};
+        facade.connect({ authUser, id: "session-id", webSocket });
+        expect(socketSessionsService.connect).toHaveBeenCalledWith({ authUser, id: "session-id", webSocket });
     });
 
     it("should reject a version without its required role", async () => {
