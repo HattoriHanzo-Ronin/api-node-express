@@ -1,4 +1,7 @@
 import { defineConfig } from "eslint/config";
+import tseslint from "typescript-eslint";
+
+const TYPESCRIPT_FILES = ["**/*.ts"];
 
 export default defineConfig([
     {
@@ -15,6 +18,26 @@ export default defineConfig([
             "prefer-const": "warn",
             "object-shorthand": ["error", "always"],
             "no-unused-vars": ["warn", { args: "after-used", caughtErrors: "none" }],
+            "consistent-return": "warn",
+            "arrow-body-style": ["warn", "as-needed"]
+        }
+    },
+    ...tseslint.configs.recommended.map((config) => ({ ...config, files: TYPESCRIPT_FILES })),
+    {
+        files: TYPESCRIPT_FILES,
+        languageOptions: {
+            ecmaVersion: "latest",
+            sourceType: "module"
+        },
+        rules: {
+            curly: ["error", "all"],
+            eqeqeq: ["warn", "always"],
+            "no-else-return": "warn",
+            "no-var": "error",
+            "prefer-const": "warn",
+            "object-shorthand": ["error", "always"],
+            "no-unused-vars": "off",
+            "@typescript-eslint/no-unused-vars": ["warn", { args: "after-used", caughtErrors: "none" }],
             "consistent-return": "warn",
             "arrow-body-style": ["warn", "as-needed"]
         }
