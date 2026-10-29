@@ -345,8 +345,23 @@ describe("FtpFacade", () => {
                 type: "DIR",
                 completed: 1,
                 total: 1
-            }, { event: "complete", version: expect.any(String) }]);
+            }, {
+                event: "complete",
+                source: { dir: "source", version: expect.any(String) },
+                destination: { dir: "destination", version: expect.any(String) }
+            }]);
+            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "source", authUser });
             expect(ftpService.dir).toHaveBeenCalledWith({ dir: "destination", authUser });
+            expect(socketSessionsFacade.notify).toHaveBeenCalledWith({
+                entity: "ftp",
+                data: { dir: "source", version: expect.any(String) },
+                ownerId: authUser.id
+            });
+            expect(socketSessionsFacade.notify).toHaveBeenCalledWith({
+                entity: "ftp",
+                data: { dir: "destination", version: expect.any(String) },
+                ownerId: authUser.id
+            });
             expect(memoryCache.get("user-id", "source/photos")).toBeUndefined();
             expect(memoryCache.get("user-id", "destination/moved-photos")).toBe(thumbnail);
             expect(directoryCache.has("user-id", "source/photos")).toBe(false);

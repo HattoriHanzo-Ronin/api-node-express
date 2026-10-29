@@ -164,13 +164,20 @@ export default class FtpFacade {
                     this.#clearDirectoryCache(authUser.id, dir);
                     this.#clearDirectoryCache(authUser.id, destination);
                     cacheCleared = true;
-                    const { hash } = await this.dir({ dir: destination, authUser });
-                    this.#notify({ authUser, dir });
-                    if (destination !== dir) {
-                        this.#notify({ authUser, dir: destination });
-                    }
-
-                    await this.#writeProgress({ stream, progress: { event: "complete", version: hash } });
+                    const [{ hash: sourceVersion }, { hash: destinationVersion }] = await Promise.all([
+                        this.dir({ dir, authUser }),
+                        this.dir({ dir: destination, authUser })
+                    ]);
+                    this.#notify({ authUser, dir, version: sourceVersion });
+                    this.#notify({ authUser, dir: destination, version: destinationVersion });
+                    await this.#writeProgress({
+                        stream,
+                        progress: {
+                            event: "complete",
+                            source: { dir, version: sourceVersion },
+                            destination: { dir: destination, version: destinationVersion }
+                        }
+                    });
                     stream.end();
                 }
             });
