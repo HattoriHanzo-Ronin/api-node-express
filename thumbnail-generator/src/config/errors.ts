@@ -7,6 +7,6 @@ const API_ERROR = Object.freeze({
     thumbnailOutputTooLarge: "THUMBNAIL_OUTPUT_TOO_LARGE",
     thumbnailMediaInvalid: "THUMBNAIL_MEDIA_INVALID",
     thumbnailGenerationFailed: "THUMBNAIL_GENERATION_FAILED"
-});
+} as const);
 
 export { API_ERROR };

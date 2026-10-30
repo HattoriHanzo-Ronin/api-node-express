@@ -1,8 +1,9 @@
 import "dotenv/config";
 import { API_ERROR } from "./errors.js";
 import ApiError from "../utils/error/api-error.js";
+import type { Environment } from "../types/environment.js";
 
-const ENV = Object.freeze({
+const ENV: Environment = Object.freeze({
     port: Number(process.env.PORT),
     apiUrl: process.env.API_URL,
     thumbnailInitialConcurrency: Number(process.env.THUMBNAIL_INITIAL_CONCURRENCY),
@@ -16,7 +17,7 @@ const ENV = Object.freeze({
 
 validateConfiguration(ENV);
 
-function validateConfiguration(environment) {
+function validateConfiguration(environment: Environment): void {
     const validNumbers = [
         environment.port,
         environment.thumbnailInitialConcurrency,
