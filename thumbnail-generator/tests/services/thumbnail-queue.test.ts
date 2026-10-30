@@ -1,8 +1,9 @@
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MockChildProcess, ResourceUsage, ThumbnailService } from "../types/thumbnail-service.js";
 
 const { childProcesses, mockReadFile, mockSpawn } = vi.hoisted(() => ({
-    childProcesses: [],
+    childProcesses: [] as MockChildProcess[],
     mockReadFile: vi.fn(),
     mockSpawn: vi.fn()
 }));
@@ -11,8 +12,8 @@ vi.mock("node:child_process", () => ({ spawn: mockSpawn }));
 vi.mock("node:fs/promises", () => ({ readFile: mockReadFile }));
 
 describe("ThumbnailService queue", () => {
-    let resourceUsage;
-    let service;
+    let resourceUsage: ResourceUsage;
+    let service: ThumbnailService;
 
     beforeEach(async () => {
         vi.resetModules();
@@ -45,15 +46,14 @@ describe("ThumbnailService queue", () => {
             return "1000";
         });
         mockSpawn.mockImplementation(() => {
-            const childProcess = new EventEmitter();
+            const childProcess = new EventEmitter() as MockChildProcess;
             childProcess.stdout = new EventEmitter();
-            childProcess.stderr = new EventEmitter();
-            childProcess.stderr.setEncoding = vi.fn();
+            childProcess.stderr = Object.assign(new EventEmitter(), { setEncoding: vi.fn() });
             childProcess.kill = vi.fn();
             childProcesses.push(childProcess);
             return childProcess;
         });
-        ({ default: service } = await import("../../src/services/thumbnail-service.js"));
+        ({ DefaultThumbnailService: service } = await import("../../src/services/impl/default-thumbnail-service.js"));
     });
 
     afterEach(() => {
@@ -136,7 +136,7 @@ describe("ThumbnailService queue", () => {
     });
 });
 
-function complete(childProcess) {
+function complete(childProcess: MockChildProcess): void {
     childProcess.stdout.emit("data", Buffer.from([0xff, 0xd8]));
     childProcess.emit("close", 0);
 }
