@@ -2,6 +2,7 @@ import "dotenv/config";
 import { API_ERROR } from "./errors.js";
 import ApiError from "../utils/error/api-error.js";
 import type { Environment } from "../types/environment.js";
+import type { JwtExpiresIn } from "../types/jwt-provider.js";
 
 const {
     PORT,
@@ -25,7 +26,7 @@ const ENV: Environment = Object.freeze({
     maxSessionsPerUser: Number(MAX_SESSIONS_PER_USER),
     maxVncConnectionsPerSession: Number(MAX_VNC_CONNECTIONS_PER_SESSION),
     sessionInactivityTimeout: Number(SESSION_INACTIVITY_TIMEOUT),
-    jwtAccessTokenExpiresIn: JWT_ACCESS_TOKEN_EXPIRES_IN
+    jwtAccessTokenExpiresIn: toJwtExpiresIn(JWT_ACCESS_TOKEN_EXPIRES_IN)
 });
 
 validateConfiguration(ENV);
@@ -64,6 +65,20 @@ function validateConfiguration(environment: Environment): void {
             apiError: API_ERROR.configurationInvalid
         }
     ]);
+}
+
+function toJwtExpiresIn(value: string | undefined): JwtExpiresIn | undefined {
+    if (!value || !isJwtExpiresIn(value)) {
+        return undefined;
+    }
+
+    return value;
+}
+
+function isJwtExpiresIn(value: string): value is JwtExpiresIn {
+    return /^\d+(?:\.\d+)?\s*(?:ms|s|m|h|d|w|y|sec(?:ond)?s?|min(?:ute)?s?|hr(?:s)?|hour(?:s)?|day(?:s)?|week(?:s)?|year(?:s)?)$/i.test(
+        value
+    );
 }
 
 export { ENV };

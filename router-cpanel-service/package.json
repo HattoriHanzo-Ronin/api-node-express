@@ -4,7 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "start": "node src/server.js",
+        "start": "node dist/server.js",
         "test": "vitest run",
         "build": "tsc --project tsconfig.build.json",
         "lint": "eslint .",

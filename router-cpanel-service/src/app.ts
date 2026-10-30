@@ -1,9 +1,16 @@
 import { fileURLToPath } from "node:url";
 import express from "express";
+import type { Express } from "express";
+import type { RouterSessionController } from "./controllers/router-session-controller.js";
+import type { ExpressRouterSessionControllerHandlers } from "./types/default-router-session-controller.js";
 import Middlewares from "./middlewares/middlewares.js";
 import createRouterSessionRouter from "./routes/router-session-router.js";
 
-export function createApp({ routerSessionController }) {
+export function createApp({
+    routerSessionController
+}: {
+    routerSessionController: RouterSessionController<ExpressRouterSessionControllerHandlers>;
+}): Express {
     const app = express();
     const { url } = import.meta;
     const { asyncHandler, json, routeNotFound, errorHandler } = Middlewares;
