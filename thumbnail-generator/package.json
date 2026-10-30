@@ -5,7 +5,7 @@
     "type": "module",
     "scripts": {
         "test": "vitest --run",
-        "start": "node src/server.js",
+        "start": "node dist/server.js",
         "build": "tsc --project tsconfig.build.json",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",

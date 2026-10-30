@@ -1,17 +1,14 @@
-import type { RequestHandler } from "express";
+import type { ThumbnailControllerHandlers } from "../types/thumbnail-controller.js";
 
 /**
  * Thumbnail controller contract
  *
  * @author HattoriHanzo-Ronin
+ * @typeParam Handlers Handler map used by the concrete HTTP implementation
  */
-export interface ThumbnailController {
+export interface ThumbnailController<Handlers extends ThumbnailControllerHandlers> {
     /**
      * Creates a thumbnail response
-     *
-     * @param req Express request containing the media session identifier
-     * @param res Express response for the JPEG thumbnail
-     * @param next Express next function
      */
-    create: RequestHandler<{ id: string }>;
+    create: Handlers["create"];
 }
