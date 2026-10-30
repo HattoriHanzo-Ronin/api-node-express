@@ -1,3 +1,5 @@
+import type { JwtExpiresIn } from "./jwt-provider.js";
+
 export type Environment = Readonly<{
     port: number;
     publicUrl: string | undefined;
@@ -8,5 +10,5 @@ export type Environment = Readonly<{
     maxSessionsPerUser: number;
     maxVncConnectionsPerSession: number;
     sessionInactivityTimeout: number;
-    jwtAccessTokenExpiresIn: string | undefined;
+    jwtAccessTokenExpiresIn: JwtExpiresIn | undefined;
 }>;
