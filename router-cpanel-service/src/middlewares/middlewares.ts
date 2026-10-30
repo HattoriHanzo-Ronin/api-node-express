@@ -1,4 +1,5 @@
 import express from "express";
+import type { ErrorRequestHandler, NextFunction, Request, RequestHandler, Response } from "express";
 import { API_ERROR } from "../config/errors.js";
 import ApiError from "../utils/error/api-error.js";
 
@@ -13,42 +14,42 @@ export default class Middlewares {
     /**
      * Creates JSON body parser middleware
      *
-     * @returns {import("express").RequestHandler} Express middleware
+     * @returns JSON body parser middleware
      */
-    static json() {
+    static json(): RequestHandler {
         return express.json();
     }
 
     /**
      * Wraps an async Express handler and forwards errors to the next middleware
      *
-     * @param {Function} fn Async Express route handler
-     * @returns {Function} Express middleware
+     * @param fn Async Express route handler
+     * @returns Express middleware
      */
-    static asyncHandler(fn) {
+    static asyncHandler(fn: RequestHandler): RequestHandler {
         return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
     }
 
     /**
      * Handles requests that do not match an application route
      *
-     * @param {import("express").Request} req Express request
-     * @param {import("express").Response} res Express response
-     * @param {import("express").NextFunction} next Express next function
+     * @param req Express request
+     * @param res Express response
+     * @param next Express next function
      */
-    static routeNotFound(req, res, next) {
+    static routeNotFound(req: Request, res: Response, next: NextFunction): void {
         next(new ApiError({ message: "Page not found", status: 404, apiError: routeNotFound }));
     }
 
     /**
      * Handles application errors
      *
-     * @param {Error} err Application error
-     * @param {import("express").Request} req Express request
-     * @param {import("express").Response} res Express response
-     * @param {import("express").NextFunction} next Express next function
+     * @param err Application error
+     * @param req Express request
+     * @param res Express response
+     * @param next Express next function
      */
-    static errorHandler(err, req, res, next) {
+    static errorHandler: ErrorRequestHandler = (err, req, res, next) => {
         if (res.headersSent) {
             next(err);
             return;
@@ -59,5 +60,5 @@ export default class Middlewares {
         const message = isApiError ? err.message : "Error inesperado";
         const code = isApiError ? err.code : internalError;
         res.status(status).json({ code, message });
-    }
+    };
 }
