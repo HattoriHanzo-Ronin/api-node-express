@@ -20,6 +20,12 @@ export default class ApiError extends Error {
     /**
      * Evaluates conditional API error actions
      *
+     * @param errors Error conditions to evaluate
+     * @param errors[].condition Indicates whether the condition matches
+     * @param [errors[].execute] Action executed when the condition matches
+     * @param [errors[].message] Error message
+     * @param [errors[].status] HTTP status code
+     * @param [errors[].apiError] API error code
      * @throws {ApiError} When a matching condition defines a message
      */
     static handle(errors: ErrorCondition[]): void {
