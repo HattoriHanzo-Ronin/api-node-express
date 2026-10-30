@@ -7,19 +7,28 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { promisify } from "node:util";
-import ffmpegPath from "ffmpeg-static";
+import { createRequire } from "node:module";
+import type { AddressInfo } from "node:net";
+import type { ByteRange, ThumbnailServiceTestState } from "../types/thumbnail-service.js";
+
+const require = createRequire(import.meta.url);
+const ffmpegPath = require("ffmpeg-static") as string | null;
 
 describe("ThumbnailService", () => {
-    const paths = [];
-    const ranges = [];
-    let fixtureDir;
-    let fixture;
-    let server;
-    let service;
+    const paths: (string | undefined)[] = [];
+    const ranges: (string | undefined)[] = [];
+    let fixtureDir = "";
+    let fixture = "";
+    let server: ThumbnailServiceTestState["server"];
+    let service: ThumbnailServiceTestState["service"];
 
     beforeAll(async () => {
         fixtureDir = await mkdtemp(path.join(tmpdir(), "thumbnail-generator-test-"));
         fixture = path.join(fixtureDir, "video.mp4");
+        if (!ffmpegPath) {
+            throw new Error("ffmpeg-static is unavailable");
+        }
+
         await promisify(execFile)(ffmpegPath, [
             "-f", "lavfi", "-i", "testsrc2=s=640x360", "-t", "1", "-c:v", "mpeg4", fixture
         ]);
@@ -28,7 +37,7 @@ describe("ThumbnailService", () => {
             paths.push(request.url);
             ranges.push(request.headers.range);
             const { start, end, partial } = getRange(request.headers.range, size);
-            const headers = { "Accept-Ranges": "bytes", "Content-Length": end - start + 1 };
+            const headers: Record<string, string | number> = { "Accept-Ranges": "bytes", "Content-Length": end - start + 1 };
             if (partial) {
                 headers["Content-Range"] = `bytes ${start}-${end}/${size}`;
             }
@@ -41,9 +50,9 @@ describe("ThumbnailService", () => {
 
             await pipeline(createReadStream(fixture, { start, end }), response);
         });
-        await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+        await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
         process.env.PORT = "3000";
-        process.env.API_URL = `http://127.0.0.1:${server.address().port}`;
+        process.env.API_URL = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
         process.env.THUMBNAIL_INITIAL_CONCURRENCY = "20";
         process.env.THUMBNAIL_CPU_TARGET = "80";
         process.env.THUMBNAIL_MEMORY_TARGET = "80";
@@ -51,11 +60,11 @@ describe("ThumbnailService", () => {
         process.env.THUMBNAIL_MAX_OUTPUT_SIZE = "5242880";
         process.env.THUMBNAIL_MAX_PIXELS = "40000000";
         process.env.THUMBNAIL_TIMEOUT = "30000";
-        ({ default: service } = await import("../../src/services/thumbnail-service.js"));
+        ({ DefaultThumbnailService: service } = await import("../../src/services/impl/default-thumbnail-service.js"));
     });
 
     afterAll(async () => {
-        await new Promise((resolve) => server?.close(resolve) ?? resolve());
+        await new Promise<void>((resolve) => server?.close(() => resolve()) ?? resolve());
         if (fixtureDir) {
             await rm(fixtureDir, { recursive: true, force: true });
         }
@@ -69,7 +78,7 @@ describe("ThumbnailService", () => {
     });
 });
 
-function getRange(source, size) {
+function getRange(source: string | undefined, size: number): ByteRange {
     const range = source?.match(/^bytes=(\d*)-(\d*)$/);
     if (!range) {
         return { start: 0, end: size - 1, partial: false };
