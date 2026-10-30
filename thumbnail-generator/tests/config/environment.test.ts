@@ -40,7 +40,7 @@ describe("environment", () => {
     });
 });
 
-function setEnvironment(environment) {
+function setEnvironment(environment: Record<string, string>): void {
     for (const [key, value] of Object.entries(environment)) {
         vi.stubEnv(key, value);
     }
