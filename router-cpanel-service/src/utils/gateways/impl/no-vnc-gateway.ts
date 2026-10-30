@@ -1,8 +1,9 @@
 import { WebSocketServer } from "ws";
 import type { Server } from "node:http";
+import type { Socket } from "node:net";
 import type { RawData } from "ws";
 import type { VncGateway } from "../vnc-gateway.js";
-import type RouterSessionService from "../../../services/router-session-service.js";
+import type { RouterSessionService } from "../../../services/router-session-service.js";
 import type { BridgeVncConnectionParams } from "../../../types/no-vnc-gateway.js";
 
 /**
@@ -11,10 +12,10 @@ import type { BridgeVncConnectionParams } from "../../../types/no-vnc-gateway.js
  * @author HattoriHanzo-Ronin
  */
 export class NoVncGateway implements VncGateway<Server> {
-    private readonly routerSessionService: RouterSessionService;
+    private readonly routerSessionService: RouterSessionService<Socket>;
     private readonly webSocketServer: WebSocketServer;
 
-    constructor({ routerSessionService }: { routerSessionService: RouterSessionService }) {
+    constructor({ routerSessionService }: { routerSessionService: RouterSessionService<Socket> }) {
         this.routerSessionService = routerSessionService;
         this.webSocketServer = new WebSocketServer({ noServer: true });
     }
@@ -40,7 +41,7 @@ export class NoVncGateway implements VncGateway<Server> {
     }
 
     private async bridge({ webSocket, sessionId, token }: BridgeVncConnectionParams): Promise<void> {
-        let vncSocket: Awaited<ReturnType<RouterSessionService["openVncSocket"]>>;
+        let vncSocket: Awaited<ReturnType<RouterSessionService<Socket>["openVncSocket"]>>;
         try {
             vncSocket = await this.routerSessionService.openVncSocket({ sessionId, token });
         } catch {
