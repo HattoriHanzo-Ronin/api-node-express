@@ -14,7 +14,9 @@ export default class Middlewares {
      * @param fn Async Express route handler
      * @returns Express middleware
      */
-    static asyncHandler<Params extends Record<string, string>>(fn: RequestHandler<Params>): RequestHandler<Params> {
+    static asyncHandler<Params, ResBody, ReqBody, ReqQuery>(
+        fn: RequestHandler<Params, ResBody, ReqBody, ReqQuery>
+    ): RequestHandler<Params, ResBody, ReqBody, ReqQuery> {
         return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
     }
 

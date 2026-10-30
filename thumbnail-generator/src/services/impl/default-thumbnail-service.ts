@@ -7,7 +7,13 @@ import { availableParallelism } from "node:os";
 import { ENV } from "../../config/environment.js";
 import { API_ERROR } from "../../config/errors.js";
 import ApiError from "../../utils/error/api-error.js";
-import type { CpuSample, CreateThumbnailParams, ResourceUsage, ResourceUsageParams, ThumbnailJob } from "../../types/thumbnail-service.js";
+import type { CreateThumbnailParams } from "../../types/thumbnail-service.js";
+import type {
+    CpuSample,
+    ResourceUsage,
+    ResourceUsageParams,
+    ThumbnailJob
+} from "../../types/default-thumbnail-service.js";
 import type { ApiErrorOptions } from "../../types/api-error.js";
 
 const require = createRequire(import.meta.url);
@@ -81,7 +87,10 @@ export class DefaultThumbnailService {
      * Starts queued FFmpeg work while the current resource target allows it
      */
     private static drainQueue(): void {
-        while (DefaultThumbnailService.ACTIVE < DefaultThumbnailService.TARGET_CONCURRENCY && DefaultThumbnailService.QUEUE.length) {
+        while (
+            DefaultThumbnailService.ACTIVE < DefaultThumbnailService.TARGET_CONCURRENCY &&
+            DefaultThumbnailService.QUEUE.length
+        ) {
             const job = DefaultThumbnailService.QUEUE.shift();
             if (!job) {
                 return;
@@ -106,10 +115,12 @@ export class DefaultThumbnailService {
                 return;
             }
 
-            job.reject(DefaultThumbnailService.createError({
-                message: "No se pudo generar la miniatura",
-                apiError: thumbnailGenerationFailed
-            }));
+            job.reject(
+                DefaultThumbnailService.createError({
+                    message: "No se pudo generar la miniatura",
+                    apiError: thumbnailGenerationFailed
+                })
+            );
         } finally {
             job.signal?.removeEventListener("abort", job.cancel);
             DefaultThumbnailService.ACTIVE -= 1;
@@ -128,7 +139,10 @@ export class DefaultThumbnailService {
     private static async generate({ id, signal }: CreateThumbnailParams): Promise<Buffer> {
         const mediaUrl = await DefaultThumbnailService.getMediaUrl(id);
         if (!ffmpegPath) {
-            throw DefaultThumbnailService.createError({ message: "No se pudo generar la miniatura", apiError: thumbnailGenerationFailed });
+            throw DefaultThumbnailService.createError({
+                message: "No se pudo generar la miniatura",
+                apiError: thumbnailGenerationFailed
+            });
         }
 
         const childProcess = spawn(ffmpegPath, [
@@ -242,18 +256,25 @@ export class DefaultThumbnailService {
         }
     }
 
-    private static startScheduler() {
+    private static startScheduler(): void {
         if (DefaultThumbnailService.SCHEDULER) {
             return;
         }
 
-        DefaultThumbnailService.SCHEDULER = setInterval(() => void DefaultThumbnailService.adjustConcurrency(), thumbnailSchedulerInterval);
+        DefaultThumbnailService.SCHEDULER = setInterval(
+            () => void DefaultThumbnailService.adjustConcurrency(),
+            thumbnailSchedulerInterval
+        );
         DefaultThumbnailService.SCHEDULER.unref();
         void DefaultThumbnailService.adjustConcurrency();
     }
 
-    private static stopScheduler() {
-        if (DefaultThumbnailService.QUEUE.length || DefaultThumbnailService.ACTIVE || !DefaultThumbnailService.SCHEDULER) {
+    private static stopScheduler(): void {
+        if (
+            DefaultThumbnailService.QUEUE.length ||
+            DefaultThumbnailService.ACTIVE ||
+            !DefaultThumbnailService.SCHEDULER
+        ) {
             return;
         }
 
@@ -266,7 +287,7 @@ export class DefaultThumbnailService {
     /**
      * Adjusts queued work admission from the container resource usage
      */
-    private static async adjustConcurrency() {
+    private static async adjustConcurrency(): Promise<void> {
         const usage = await DefaultThumbnailService.getResourceUsage();
         if (!usage) {
             return;
@@ -287,7 +308,7 @@ export class DefaultThumbnailService {
      *
      * @returns CPU and memory usage ratios, or null when unavailable
      */
-    private static async getResourceUsage() {
+    private static async getResourceUsage(): Promise<ResourceUsage | null> {
         try {
             const [cpuStat, cpuMax, memoryCurrent, memoryMax] = await Promise.all([
                 readFile("/sys/fs/cgroup/cpu.stat", "utf8"),
@@ -314,7 +335,7 @@ export class DefaultThumbnailService {
      *
      * @returns CPU and memory usage ratios, or null when unavailable
      */
-    private static async getLegacyResourceUsage() {
+    private static async getLegacyResourceUsage(): Promise<ResourceUsage | null> {
         try {
             const [cpuUsage, cpuQuota, cpuPeriod, memoryCurrent, memoryLimit] = await Promise.all([
                 readFile("/sys/fs/cgroup/cpuacct/cpuacct.usage", "utf8"),
@@ -345,7 +366,12 @@ export class DefaultThumbnailService {
      * @param params.memoryLimit Available memory bytes
      * @returns CPU and memory usage ratios, or null before a complete sample
      */
-    private static calculateUsage({ cpuUsage, cpuLimit, memoryCurrent, memoryLimit }: ResourceUsageParams): ResourceUsage | null {
+    private static calculateUsage({
+        cpuUsage,
+        cpuLimit,
+        memoryCurrent,
+        memoryLimit
+    }: ResourceUsageParams): ResourceUsage | null {
         const memory = memoryCurrent / memoryLimit;
         const now = performance.now();
         const previous = DefaultThumbnailService.LAST_CPU_SAMPLE;
@@ -376,7 +402,7 @@ export class DefaultThumbnailService {
         return new ApiError({ message, status, apiError });
     }
 
-    private static createCancelledError() {
+    private static createCancelledError(): ApiError {
         return DefaultThumbnailService.createError({
             message: "La solicitud fue cancelada",
             status: 499,
