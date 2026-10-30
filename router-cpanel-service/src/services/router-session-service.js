@@ -149,6 +149,7 @@ export default class RouterSessionService {
     /**
      * Renews a router control panel session inactivity timeout
      *
+     * @param {{ sessionId: string }} params Session identifier
      * @param {string} params.sessionId Browser session identifier
      */
     refresh({ sessionId }) {
@@ -163,6 +164,7 @@ export default class RouterSessionService {
     /**
      * Opens a VNC connection for a valid viewer token
      *
+     * @param {{ sessionId: string, token: string }} params VNC connection details
      * @param {string} params.sessionId Browser session identifier
      * @param {string} params.token Viewer token
      * @returns {Promise<import("node:net").Socket>} VNC socket

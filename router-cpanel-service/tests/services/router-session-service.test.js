@@ -29,7 +29,7 @@ vi.mock("node:child_process", () => ({ spawn: mocks.spawn }));
 vi.mock("puppeteer-core", () => ({ default: { launch: mocks.launch } }));
 
 import RouterSessionService from "../../src/services/router-session-service.js";
-import JwtTokenProvider from "../../src/utils/token-providers/jwt-token-provider.js";
+import { JwtProvider } from "../../src/utils/token-providers/impl/jwt-provider.js";
 
 describe("RouterSessionService", () => {
     let tokenProvider;
@@ -44,7 +44,7 @@ describe("RouterSessionService", () => {
         mocks.launch.mockResolvedValue(browser);
         mocks.createConnection.mockImplementation(() => createVncSocket());
         mocks.spawn.mockImplementation(() => createChildProcess());
-        tokenProvider = new JwtTokenProvider({ secret: "router-cpanel-jwt-secret", expiresIn: "30min" });
+        tokenProvider = new JwtProvider({ secret: "router-cpanel-jwt-secret", expiresIn: "30min" });
     });
 
     afterEach(() => {

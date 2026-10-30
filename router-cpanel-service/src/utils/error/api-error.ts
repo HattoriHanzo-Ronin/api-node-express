@@ -1,4 +1,5 @@
 import { API_ERROR } from "../../config/errors.js";
+import type { ApiErrorCode, ApiErrorParams, ErrorCondition } from "../../types/api-error.js";
 
 /**
  * API error response
@@ -6,7 +7,10 @@ import { API_ERROR } from "../../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class ApiError extends Error {
-    constructor({ message, status = 500, apiError = API_ERROR.routerSessionFailed }) {
+    readonly status: number;
+    readonly code: ApiErrorCode;
+
+    constructor({ message, status = 500, apiError = API_ERROR.routerSessionFailed }: ApiErrorParams) {
         super(message);
         this.name = "ApiError";
         this.status = status;
@@ -16,14 +20,15 @@ export default class ApiError extends Error {
     /**
      * Evaluates conditional API error actions
      *
-     * @param {Object[]} errors Error conditions to evaluate
-     * @param {boolean} errors[].condition Indicates whether the rule matches
-     * @param {Function} [errors[].execute] Action executed when the condition matches
-     * @param {string} [errors[].message] Error message
-     * @param {number} [errors[].status] HTTP status code
-     * @param {string} [errors[].apiError] API error code
+     * @param errors Error conditions to evaluate
+     * @param errors[].condition Indicates whether the condition matches
+     * @param [errors[].execute] Action executed when the condition matches
+     * @param [errors[].message] Error message
+     * @param [errors[].status] HTTP status code
+     * @param [errors[].apiError] API error code
+     * @throws {ApiError} When a matching condition defines a message
      */
-    static handle(errors) {
+    static handle(errors: ErrorCondition[]): void {
         for (const error of errors) {
             const { condition, execute, message, status, apiError } = error;
             if (condition) {
