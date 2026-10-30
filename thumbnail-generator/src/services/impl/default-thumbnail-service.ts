@@ -7,7 +7,8 @@ import { availableParallelism } from "node:os";
 import { ENV } from "../../config/environment.js";
 import { API_ERROR } from "../../config/errors.js";
 import ApiError from "../../utils/error/api-error.js";
-import type { CpuSample, CreateThumbnailParams, ResourceUsage, ResourceUsageParams, ThumbnailErrorParams, ThumbnailJob } from "../../types/thumbnail-service.js";
+import type { CpuSample, CreateThumbnailParams, ResourceUsage, ResourceUsageParams, ThumbnailJob } from "../../types/thumbnail-service.js";
+import type { ApiErrorOptions } from "../../types/api-error.js";
 
 const require = createRequire(import.meta.url);
 const ffmpegPath = require("ffmpeg-static") as string | null;
@@ -119,6 +120,10 @@ export class DefaultThumbnailService {
 
     /**
      * Generates a JPEG thumbnail from a temporary media session
+     *
+     * @param params.id Media session identifier
+     * @param [params.signal] Request cancellation signal
+     * @returns JPEG thumbnail
      */
     private static async generate({ id, signal }: CreateThumbnailParams): Promise<Buffer> {
         const mediaUrl = await DefaultThumbnailService.getMediaUrl(id);
@@ -279,6 +284,8 @@ export class DefaultThumbnailService {
 
     /**
      * Returns current CPU and memory usage from the container cgroup
+     *
+     * @returns CPU and memory usage ratios, or null when unavailable
      */
     private static async getResourceUsage() {
         try {
@@ -304,6 +311,8 @@ export class DefaultThumbnailService {
 
     /**
      * Returns container usage from cgroup v1 when cgroup v2 is unavailable
+     *
+     * @returns CPU and memory usage ratios, or null when unavailable
      */
     private static async getLegacyResourceUsage() {
         try {
@@ -329,6 +338,12 @@ export class DefaultThumbnailService {
 
     /**
      * Calculates the CPU delta and current memory ratio from cgroup samples
+     *
+     * @param params.cpuUsage Consumed CPU microseconds
+     * @param params.cpuLimit CPU cores available to the container
+     * @param params.memoryCurrent Consumed memory bytes
+     * @param params.memoryLimit Available memory bytes
+     * @returns CPU and memory usage ratios, or null before a complete sample
      */
     private static calculateUsage({ cpuUsage, cpuLimit, memoryCurrent, memoryLimit }: ResourceUsageParams): ResourceUsage | null {
         const memory = memoryCurrent / memoryLimit;
@@ -344,6 +359,9 @@ export class DefaultThumbnailService {
 
     /**
      * Resolves the internal API hostname before invoking static FFmpeg
+     *
+     * @param id Media session identifier
+     * @returns Resolved media URL
      */
     private static async getMediaUrl(id: string): Promise<string> {
         const mediaUrl = new URL(`/ftp/media/${id}`, apiUrl);
@@ -354,7 +372,7 @@ export class DefaultThumbnailService {
         return mediaUrl.href;
     }
 
-    private static createError({ message, status, apiError }: ThumbnailErrorParams): ApiError {
+    private static createError({ message, status, apiError }: ApiErrorOptions): ApiError {
         return new ApiError({ message, status, apiError });
     }
 

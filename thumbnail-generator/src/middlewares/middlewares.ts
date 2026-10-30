@@ -10,6 +10,9 @@ import ApiError from "../utils/error/api-error.js";
 export default class Middlewares {
     /**
      * Wraps an async Express handler and forwards errors to the next middleware
+     *
+     * @param fn Async Express route handler
+     * @returns Express middleware
      */
     static asyncHandler<Params extends Record<string, string>>(fn: RequestHandler<Params>): RequestHandler<Params> {
         return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -17,6 +20,10 @@ export default class Middlewares {
 
     /**
      * Handles requests that do not match an application route
+     *
+     * @param req Express request
+     * @param res Express response
+     * @param next Express next function
      */
     static routeNotFound(req: Request, res: Response, next: NextFunction): void {
         next(new ApiError({ message: "Page not found", status: 404, apiError: API_ERROR.routeNotFound }));
@@ -24,6 +31,11 @@ export default class Middlewares {
 
     /**
      * Handles application errors
+     *
+     * @param err Application error
+     * @param req Express request
+     * @param res Express response
+     * @param next Express next function
      */
     static errorHandler: ErrorRequestHandler = (err, req, res, next) => {
         if (res.headersSent) {
