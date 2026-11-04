@@ -215,6 +215,9 @@ importers:
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5
+      '@types/ssh2-sftp-client':
+        specifier: ^9.0.6
+        version: 9.0.6
       '@types/ws':
         specifier: ^8.18.2
         version: 8.18.2
@@ -479,6 +482,9 @@ packages:
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
+  '@types/node@18.19.130':
+    resolution: {integrity: sha512-GRaXQx6jGfL8sKfaIDD6OupbIHBr9jv7Jnaml9tB7l4v068PAOXqfcujMMo5PhbIs6ggR1XODELqahT2R8v0fg==}
+
   '@types/node@26.6.3':
     resolution: {integrity: sha512-dsqMQQoeTLqu9wynDD00q573mNzso3IdQOAfHRJqLCcmCFPoGo9A1bDpUcv/9tnKpErQWv9uKeGfl37EIS02Yg==}
 
@@ -496,6 +502,12 @@ packages:
 
   '@types/serve-static@2.2.0':
     resolution: {integrity: sha512-8mam4H1NHLtu7nmtalF7eyBH14QyOASmcxHhSfEoRyr0nP/YdoesEtU+uSRvMe96TW/HPTtkoKqQLl53N7UXMQ==}
+
+  '@types/ssh2-sftp-client@9.0.6':
+    resolution: {integrity: sha512-4+KvXO/V77y9VjI2op2T8+RCGI/GXQAwR0q5Qkj/EJ5YSeyKszqZP6F8i3H3txYoBqjc7sgorqyvBP3+w1EHyg==}
+
+  '@types/ssh2@1.15.6':
+    resolution: {integrity: sha512-oGdxhBqcRTwSTKFm+9EiKzkNVYRLEFkcW44lhguvBalGJbWfGnDt/ezwSUZc+SF9m9bMc3VyklNAtp7zICjS5w==}
 
   '@types/ws@8.18.2':
     resolution: {integrity: sha512-67MQl+fpWKVTT1NYdnmo3U4sc/xPo/zQBncVnI74qmQa0z/b+1g6iYqNmGCPbxO+zz2aklb08a0oHfegiVd0/w==}
@@ -1536,6 +1548,9 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  undici-types@5.26.5:
+    resolution: {integrity: sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==}
+
   undici-types@8.9.0:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
@@ -1910,6 +1925,10 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
+  '@types/node@18.19.130':
+    dependencies:
+      undici-types: 5.26.5
+
   '@types/node@26.6.3':
     dependencies:
       undici-types: 8.9.0
@@ -1930,6 +1949,14 @@ snapshots:
     dependencies:
       '@types/http-errors': 2.0.5
       '@types/node': 26.6.3
+
+  '@types/ssh2-sftp-client@9.0.6':
+    dependencies:
+      '@types/ssh2': 1.15.6
+
+  '@types/ssh2@1.15.6':
+    dependencies:
+      '@types/node': 18.19.130
 
   '@types/ws@8.18.2':
     dependencies:
@@ -3013,6 +3040,8 @@ snapshots:
       - supports-color
 
   typescript@6.0.3: {}
+
+  undici-types@5.26.5: {}
 
   undici-types@8.9.0: {}
 

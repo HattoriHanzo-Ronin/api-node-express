@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import jwt from "jsonwebtoken";
-import JwtTokenProvider from "../../../src/utils/token-providers/jwt-token-provider.js";
+import JwtProvider from "../../../src/utils/token-providers/impl/jwt-token-provider.js";
 
 vi.mock("jsonwebtoken", () => ({
     default: {
@@ -10,12 +10,12 @@ vi.mock("jsonwebtoken", () => ({
     }
 }));
 
-describe("JwtTokenProvider", () => {
+describe("JwtProvider", () => {
     let tokenProvider;
 
     beforeEach(() => {
         vi.clearAllMocks();
-        tokenProvider = new JwtTokenProvider({ secret: "secret", expiresIn: "30min" });
+        tokenProvider = new JwtProvider({ secret: "secret", expiresIn: "30min" });
         jwt.sign.mockReturnValue("token");
     });
 

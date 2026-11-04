@@ -10,7 +10,7 @@ const {
     allowedInfo: allowedInfoColumns,
     routerInfo: routerInfoColumns
 } = devicesColumns;
-const { pgPromiseColumnsWithAlias: columnsWithAlias } = PostgresDbUtils;
+const { columnsWithAlias } = PostgresDbUtils;
 
 /**
  * Devices table model

@@ -1,12 +1,15 @@
 import z from "zod";
-import ValidateUtils from "../utils/validate-utils.js";
 import ZodUtils from "../utils/zod-utils.js";
 import { FILE_TYPE } from "../config/constants.js";
 import dirSchema, { pathSchema } from "./common/dir-schema.js";
 import idSchema from "./common/id-schema.js";
 
-const { handleValidationIssues, zodEnumIgnoreCase, withSuperRefine } = ZodUtils;
-const { ERROR_MESSAGES: { typeRequired, format, emptyArray, emptyString, invalidEnum } } = ValidateUtils;
+const {
+    handleValidationIssues,
+    zodEnumIgnoreCase,
+    withSuperRefine,
+    ERROR_MESSAGES: { typeRequired, format, emptyArray, emptyString, invalidEnum }
+} = ZodUtils;
 const fileType = Object.values(FILE_TYPE);
 const { dir } = dirSchema.shape;
 const name = z
@@ -14,11 +17,11 @@ const name = z
     .trim()
     .min(1, emptyString)
     .regex(/^[^\p{Cc}/\\]+$/u, format);
-const entry = z.object({ type: zodEnumIgnoreCase(z, z.enum(fileType, invalidEnum(fileType)), typeRequired), name });
+const entry = z.object({ type: zodEnumIgnoreCase(z.enum(fileType, invalidEnum(fileType)), typeRequired), name });
 const entries = z.array(entry, typeRequired).min(1, emptyArray);
 const offset = z.coerce.number().int().nonnegative().optional();
 const transferEntry = z.object({
-    type: zodEnumIgnoreCase(z, z.enum(fileType, invalidEnum(fileType)), typeRequired),
+    type: zodEnumIgnoreCase(z.enum(fileType, invalidEnum(fileType)), typeRequired),
     path: pathSchema,
     size: z.number().int().nonnegative().optional()
 });
@@ -87,7 +90,13 @@ export default class FtpSchema {
 
     static #moveCases({ dir, destination }, ctx) {
         return handleValidationIssues(
-            [{ condition: dir === destination, path: ["destination"], message: "El destino debe ser diferente al origen" }],
+            [
+                {
+                    condition: dir === destination,
+                    path: ["destination"],
+                    message: "El destino debe ser diferente al origen"
+                }
+            ],
             ctx
         );
     }

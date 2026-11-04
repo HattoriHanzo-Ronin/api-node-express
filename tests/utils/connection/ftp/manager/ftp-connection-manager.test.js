@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FtpConnectionManager } from "../../../../../src/utils/connection/ftp/manager/ftp-connection-manager.js";
+import FtpPooledConnectionManager from "../../../../../src/utils/connection/ftp/manager/impl/ftp-pooled-connection-manager.js";
 
 const testEnvironment = vi.hoisted(() => ({
     ftpMaxConnections: 100,
@@ -19,7 +19,7 @@ vi.mock("../../../../../src/config/environment.js", () => ({ ENV: testEnvironmen
 
 const authUser = { id: "user-id", username: "ronin" };
 
-describe("FtpConnectionManager", () => {
+describe("FtpPooledConnectionManager", () => {
     let clients;
     let createClient;
     let closeClient;
@@ -47,7 +47,7 @@ describe("FtpConnectionManager", () => {
             return client;
         });
         closeClient = vi.fn(async ({ client }) => client.end());
-        manager = new FtpConnectionManager({ createClient, closeClient });
+        manager = new FtpPooledConnectionManager({ createClient, closeClient });
     });
 
     afterEach(async () => {
@@ -458,7 +458,7 @@ describe("FtpConnectionManager", () => {
         await manager.closeAll();
         testEnvironment.protectedUsers = { [authUser.id]: { ftp: 1 } };
         vi.resetModules();
-        await expect(import("../../../../../src/utils/connection/ftp/manager/ftp-connection-manager.js")).rejects.toMatchObject({
+        await expect(import("../../../../../src/utils/connection/ftp/manager/impl/ftp-pooled-connection-manager.js")).rejects.toMatchObject({
             name: "ApiError",
             code: "FTP_CONFIGURATION_INVALID"
         });
@@ -468,7 +468,7 @@ describe("FtpConnectionManager", () => {
         await manager.closeAll();
         testEnvironment.ftpMaxConnections = 2;
         vi.resetModules();
-        await expect(import("../../../../../src/utils/connection/ftp/manager/ftp-connection-manager.js")).rejects.toMatchObject({
+        await expect(import("../../../../../src/utils/connection/ftp/manager/impl/ftp-pooled-connection-manager.js")).rejects.toMatchObject({
             name: "ApiError",
             code: "FTP_CONFIGURATION_INVALID"
         });
@@ -478,10 +478,10 @@ describe("FtpConnectionManager", () => {
 async function createConfiguredManager({ createClient, closeClient, environment }) {
     Object.assign(testEnvironment, environment);
     vi.resetModules();
-    const { FtpConnectionManager: ConfiguredFtpConnectionManager } = await import(
-        "../../../../../src/utils/connection/ftp/manager/ftp-connection-manager.js"
+    const { default: ConfiguredFtpPooledConnectionManager } = await import(
+        "../../../../../src/utils/connection/ftp/manager/impl/ftp-pooled-connection-manager.js"
     );
-    return new ConfiguredFtpConnectionManager({ createClient, closeClient });
+    return new ConfiguredFtpPooledConnectionManager({ createClient, closeClient });
 }
 
 function deferred() {

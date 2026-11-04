@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createServer } from "node:http";
 import WebSocket from "ws";
-import SocketGateway from "../../../src/utils/gateways/socket-gateway.js";
+import SocketEventsGateway from "../../../src/utils/gateways/impl/socket-events-gateway.js";
 import ApiError from "../../../src/utils/error/api-error.js";
 
-describe("SocketGateway", () => {
+describe("SocketEventsGateway", () => {
     const authUser = { id: "user-id", exp: 1_900_000_000, roles: ["NET"] };
     let accessTokenProvider;
     let socketSessionsFacade;
@@ -19,7 +19,7 @@ describe("SocketGateway", () => {
             disconnect: vi.fn(),
             invalidate: vi.fn()
         };
-        gateway = new SocketGateway({ socketSessionsFacade, accessTokenProvider });
+        gateway = new SocketEventsGateway({ socketSessionsFacade, accessTokenProvider });
         server = createServer();
         gateway.attach({ server });
         server.listen(0, "127.0.0.1");
@@ -47,7 +47,9 @@ describe("SocketGateway", () => {
     });
 
     it("should invalidate a session when authentication fails", async () => {
-        accessTokenProvider.verify.mockImplementation(() => { throw new Error("invalid token"); });
+        accessTokenProvider.verify.mockImplementation(() => {
+            throw new ApiError({ message: "Token no válido", status: 401, apiError: "INVALID_TOKEN" });
+        });
         const webSocket = await openSocket(`${origin}/events/session-id`);
         webSocket.send(JSON.stringify({ accessToken: "invalid-token", entities: ["devices"] }));
         await expectMessage(webSocket, { code: "INVALID_TOKEN" });

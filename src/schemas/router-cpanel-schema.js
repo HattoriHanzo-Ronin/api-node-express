@@ -1,15 +1,13 @@
 import z from "zod";
-import ValidateUtils from "../utils/validate-utils.js";
+import { ROUTER_CPANEL_ACTION, ROUTER_CPANEL_CLIENT_TYPE, ROUTER_CPANEL_THEME } from "../config/constants.js";
+import ZodUtils from "../utils/zod-utils.js";
 
 const {
     ERROR_MESSAGES: { typeRequired, typeNotRequired, format, length }
-} = ValidateUtils;
-const ROUTER_CPANEL_ACTIONS = Object.freeze({ back: "back", reload: "reload" });
-const ROUTER_CPANEL_CLIENT_TYPES = Object.freeze({ desktop: "desktop", mobile: "mobile" });
-const ROUTER_CPANEL_THEMES = Object.freeze({ dark: "dark", light: "light" });
+} = ZodUtils;
 const routerCpanelSessionSchema = z.object({
-    clientType: z.enum(Object.values(ROUTER_CPANEL_CLIENT_TYPES), typeRequired).optional().default("desktop"),
-    theme: z.enum(Object.values(ROUTER_CPANEL_THEMES), typeRequired).optional().default("dark"),
+    clientType: z.enum(Object.values(ROUTER_CPANEL_CLIENT_TYPE), typeRequired).optional().default("desktop"),
+    theme: z.enum(Object.values(ROUTER_CPANEL_THEME), typeRequired).optional().default("dark"),
     language: z
         .string(typeNotRequired)
         .trim()
@@ -18,6 +16,6 @@ const routerCpanelSessionSchema = z.object({
         .regex(/^[a-z]{2,3}(?:-[A-Z]{2})?$/, format)
         .optional()
 });
-const routerCpanelNavigationSchema = z.object({ action: z.enum(Object.values(ROUTER_CPANEL_ACTIONS), typeRequired) });
+const routerCpanelNavigationSchema = z.object({ action: z.enum(Object.values(ROUTER_CPANEL_ACTION), typeRequired) });
 
 export { routerCpanelSessionSchema, routerCpanelNavigationSchema };

@@ -47,7 +47,7 @@ vi.mock("../../src/config/environment.js", () => ({
 }));
 
 import FtpClient from "../../src/utils/connection/ftp/ftp-client.js";
-import { FtpConnectionManager } from "../../src/utils/connection/ftp/manager/ftp-connection-manager.js";
+import FtpPooledConnectionManager from "../../src/utils/connection/ftp/manager/impl/ftp-pooled-connection-manager.js";
 import FtpService from "../../src/services/ftp-service.js";
 
 describe("FtpService", () => {
@@ -56,7 +56,7 @@ describe("FtpService", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        ftpConnectionManager = new FtpConnectionManager();
+        ftpConnectionManager = new FtpPooledConnectionManager();
         ftpService = new FtpService({ ftpConnectionManager });
         mockClient.list.mockResolvedValue([]);
         mockClient.exists.mockResolvedValue("d");
