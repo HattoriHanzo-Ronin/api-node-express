@@ -1,18 +1,22 @@
 import z from "zod";
-import { DEVICE_TYPE } from "../config/constants.js";
+import { CONNECTION_TYPE, DEVICE_TYPE } from "../config/constants.js";
 import ValidateUtils from "../utils/validate-utils.js";
 import ZodUtils from "../utils/zod-utils.js";
 import idSchema from "./common/id-schema.js";
 import macSchema from "./common/mac-schema.js";
 
-const { handleValidationIssues, zodEnumIgnoreCase, useRequiredProperties, withSuperRefine } = ZodUtils;
 const {
-    ERROR_MESSAGES: { typeRequired, typeNotRequired, format, emptyArray, length, invalidEnum },
+    handleValidationIssues,
+    zodEnumIgnoreCase,
+    useRequiredProperties,
+    withSuperRefine,
+    ERROR_MESSAGES: { typeRequired, typeNotRequired, format, emptyArray, length, invalidEnum }
+} = ZodUtils;
+const {
     REGEX: { passwordRegex }
 } = ValidateUtils;
 const SAFE_TEXT_REGEX = /^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 -]+$/;
-const CONNECTION_CTYPE = Object.freeze({ wan: "WAN", lan: "LAN", wifi: "WIFI" });
-const connectionsCtype = Object.values(CONNECTION_CTYPE);
+const connectionsCtype = Object.values(CONNECTION_TYPE);
 const devicesType = Object.values(DEVICE_TYPE);
 const { router, server } = DEVICE_TYPE;
 const devicesSchema = z.object({
@@ -26,12 +30,12 @@ const devicesSchema = z.object({
         .array(
             z.object({
                 mac: macSchema.shape.mac,
-                ctype: zodEnumIgnoreCase(z, z.enum(connectionsCtype, invalidEnum(connectionsCtype)), typeRequired)
+                ctype: zodEnumIgnoreCase(z.enum(connectionsCtype, invalidEnum(connectionsCtype)), typeRequired)
             }),
             typeRequired
         )
         .min(1, emptyArray),
-    type: zodEnumIgnoreCase(z, z.enum(devicesType, invalidEnum(devicesType)), typeRequired),
+    type: zodEnumIgnoreCase(z.enum(devicesType, invalidEnum(devicesType)), typeRequired),
     model: z
         .string(typeNotRequired)
         .trim()
@@ -40,7 +44,9 @@ const devicesSchema = z.object({
         .regex(SAFE_TEXT_REGEX, format)
         .nullable()
         .default(null),
-    ip: z.string(typeNotRequired).trim()
+    ip: z
+        .string(typeNotRequired)
+        .trim()
         .regex(/^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/, format)
         .nullable()
         .default(null),

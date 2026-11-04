@@ -6,11 +6,11 @@ import PostgresErrors from "./utils/error/postgres/postgres-errors.js";
 
 import FtpController from "./controllers/ftp-controller.js";
 import FtpService from "./services/ftp-service.js";
-import { FtpConnectionManager } from "./utils/connection/ftp/manager/ftp-connection-manager.js";
+import FtpPooledConnectionManager from "./utils/connection/ftp/manager/impl/ftp-pooled-connection-manager.js";
 import FtpMapper from "./mappers/ftp-mapper.js";
 import FtpFacade from "./facades/ftp-facade.js";
-import MemoryCache from "./utils/cache/memory-cache.js";
-import DirectoryCache from "./utils/cache/directory-cache.js";
+import MemoryCache from "./utils/cache/impl/memory-cache.js";
+import DirectoryCache from "./utils/cache/impl/directory-cache.js";
 import DataVersionsModel from "./models/postgres/data-versions/data-versions-model.js";
 import DataVersionsService from "./services/data-versions-service.js";
 import DataVersionsMapper from "./mappers/data-versions-mapper.js";
@@ -25,8 +25,8 @@ import DevicesService from "./services/devices-service.js";
 import DevicesMapper from "./mappers/devices-mapper.js";
 import DevicesFacade from "./facades/devices-facade.js";
 import DevicesController from "./controllers/devices-controller.js";
-import RouterAutomation from "./utils/devices-routers/automation/router-automation.js";
-import RouterCpanel from "./utils/devices-routers/cpanel/router-cpanel.js";
+import RouterAutomation from "./utils/devices-routers/automation/impl/router-automation-manager.js";
+import RouterCpanelClient from "./utils/devices-routers/cpanel/impl/router-cpanel-client.js";
 import WhitelistModel from "./models/postgres/whitelist/whitelist-model.js";
 import WhitelistService from "./services/whitelist-service.js";
 import WhitelistFacade from "./facades/whitelist-facade.js";
@@ -47,11 +47,11 @@ import AuthFacade from "./facades/auth-facade.js";
 import AuthController from "./controllers/auth-controller.js";
 import { ENV } from "./config/environment.js";
 import { SECRETS } from "./config/secrets.js";
-import JwtTokenProvider from "./utils/token-providers/jwt-token-provider.js";
+import JwtProvider from "./utils/token-providers/impl/jwt-token-provider.js";
 import SocketSessionsService from "./services/socket-sessions-service.js";
 import SocketSessionsController from "./controllers/socket-sessions-controller.js";
 import SocketSessionsFacade from "./facades/socket-sessions-facade.js";
-import SocketGateway from "./utils/gateways/socket-gateway.js";
+import WebSocketEventsGateway from "./utils/gateways/impl/socket-events-gateway.js";
 
 const tx = PostgresClient.executeTx;
 const { jwtAccessTokenExpiresIn, jwtRefreshTokenExpiresIn, routerCpanelServiceUrl } = ENV;
@@ -70,7 +70,7 @@ const socketSessionsController = new SocketSessionsController({ socketSessionsFa
 
 const memoryCache = new MemoryCache();
 const directoryCache = new DirectoryCache();
-const ftpConnectionManager = new FtpConnectionManager();
+const ftpConnectionManager = new FtpPooledConnectionManager();
 const ftpService = new FtpService({ ftpConnectionManager });
 const ftpFacade = new FtpFacade({ ftpService, ftpMapper: FtpMapper, memoryCache, directoryCache, socketSessionsFacade });
 const ftpController = new FtpController({ ftpFacade });
@@ -94,7 +94,7 @@ const connectionsFacade = new ConnectionsFacade({
 const devicesService = new DevicesService({ devicesModel: DevicesModel, entityError: devicesEntityError });
 const routerAutomation = RouterAutomation;
 const devicesMapper = new DevicesMapper({ routerAutomation });
-const routerCpanel = new RouterCpanel({ routerCpanelServiceUrl });
+const routerCpanel = new RouterCpanelClient({ routerCpanelServiceUrl });
 const devicesFacade = new DevicesFacade({
     devicesService,
     dataVersionsFacade,
@@ -140,9 +140,9 @@ const refreshTokensService = new RefreshTokensService({
     entityError: refreshTokensEntityError
 });
 
-const accessTokenProvider = new JwtTokenProvider({ secret: jwtSecret, expiresIn: jwtAccessTokenExpiresIn });
-const refreshTokenProvider = new JwtTokenProvider({ secret: refreshJwtSecret, expiresIn: jwtRefreshTokenExpiresIn });
-const socketGateway = new SocketGateway({ socketSessionsFacade, accessTokenProvider });
+const accessTokenProvider = new JwtProvider({ secret: jwtSecret, expiresIn: jwtAccessTokenExpiresIn });
+const refreshTokenProvider = new JwtProvider({ secret: refreshJwtSecret, expiresIn: jwtRefreshTokenExpiresIn });
+const socketGateway = new WebSocketEventsGateway({ socketSessionsFacade, accessTokenProvider });
 const authFacade = new AuthFacade({
     usersFacade,
     refreshTokensService,

@@ -4,7 +4,11 @@ const validEnvironment = {
     PORT: "59998",
     THUMBNAIL_GENERATOR_URL: "http://thumbnail-generator:3000",
     ROUTER_CPANEL_SERVICE_URL: "http://router-cpanel-service:3000",
+    HOSTDB: "postgres",
     PORTDB: "5432",
+    USERDB: "api",
+    DB: "api",
+    HOSTFTP: "ftp",
     PORTFTP: "22",
     FTP_MAX_CONNECTIONS: "100",
     FTP_MAX_TRANSFERS: "16",
@@ -31,7 +35,8 @@ const validEnvironment = {
     SOCKET_MAX_CONNECTIONS: "300",
     SOCKET_MAX_CONNECTIONS_PER_USER: "3",
     SOCKET_SESSION_INACTIVITY_TIMEOUT: "900000",
-    SOCKET_PING_TIMEOUT: "5000"
+    SOCKET_PING_TIMEOUT: "5000",
+    CHROME_PATH: "/usr/bin/chromium"
 };
 
 describe("environment", () => {

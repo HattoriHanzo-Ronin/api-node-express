@@ -1,0 +1,177 @@
+import type { Browser, Page } from "puppeteer-core";
+import AbstractRouter from "../abstract-router.js";
+import { AddAllowParams, DeleteAllowParams, GeneratedKeysParams } from "../../../../../types/router-automation.js";
+
+/**
+ * TP-Link Archer AX53 router implementation
+ *
+ * @author HattoriHanzo-Ronin
+ */
+export default class ArcherAX53Router extends AbstractRouter {
+    private browser: Browser | undefined;
+
+    getCapabilities() {
+        return {
+            addAllow: true,
+            deleteAllow: true
+        };
+    }
+
+    generateKey(params: GeneratedKeysParams) {
+        void params;
+        return null;
+    }
+
+    async addAllow({ name, mac }: AddAllowParams) {
+        try {
+            mac = mac.replaceAll(":", "-");
+            const page = await this.openAccessControl();
+            await this.delay({ ms: 5000 });
+            const buttons = await page.$$('div[role="button"]');
+            for (const button of buttons) {
+                const text = await page.evaluate((el) => el.textContent, button);
+                if (text?.includes("Añadir")) {
+                    await page.evaluate((el) => el.click(), button);
+                    break;
+                }
+            }
+            await page.waitForSelector("span");
+            const spans = await page.$$("span");
+            for (const span of spans) {
+                const text = await page.evaluate((el) => el.textContent, span);
+                if (text?.includes("Agregar manualmente")) {
+                    await page.evaluate((el) => el.click(), span);
+                    break;
+                }
+            }
+            await page.waitForSelector("input.su-input__content");
+            const nameInput = await page.$("input.su-input__content");
+            if (!nameInput) {
+                return false;
+            }
+
+            await nameInput.click({
+                count: 3
+            });
+            await nameInput.type(name);
+            let macInputs = await page.$$("input.su-mac-input__partition");
+            if (macInputs.length < 6) {
+                await this.delay({ ms: 3500 });
+                macInputs = await page.$$("input.su-mac-input__partition");
+            }
+
+            if (macInputs.length < 6) {
+                await page.waitForSelector("input.su-mac-input__partition");
+                macInputs = await page.$$("input.su-mac-input__partition");
+            }
+
+            const macParts = mac.split("-");
+            for (let i = 0; i < 6; i++) {
+                await macInputs[i].click();
+                await macInputs[i].type(macParts[i]);
+            }
+            await page.waitForSelector('div[role="button"], button');
+            const confirmButtons = await page.$$('div[role="button"], button');
+            for (const button of confirmButtons) {
+                const text = await page.evaluate((el) => el.textContent, button);
+                if (text?.trim() === "AÑADIR") {
+                    await page.evaluate((el) => el.click(), button);
+                    return true;
+                }
+            }
+            return false;
+        } catch {
+            return false;
+        } finally {
+            await this.closePuppeteerBrowser(this.browser);
+        }
+    }
+
+    async deleteAllow({ mac }: DeleteAllowParams) {
+        try {
+            mac = mac.replaceAll(":", "-");
+            const page = await this.openAccessControl();
+            await page.waitForSelector("tr.su-table__row");
+            const rows = await page.$$("tr.su-table__row");
+            for (const row of rows) {
+                const rowText = await page.evaluate((el) => el.innerText, row);
+                if (!rowText.includes(mac)) {
+                    continue;
+                }
+                await page.waitForSelector('div[role="button"]');
+                const buttons = await row.$$('div[role="button"]');
+                let deleteButton = null;
+                for (const button of buttons) {
+                    const html = await page.evaluate((el) => el.innerHTML, button);
+                    if (html.includes("fill-rule") && html.includes("currentColor")) {
+                        deleteButton = button;
+                    }
+                }
+                if (!deleteButton) {
+                    return false;
+                }
+
+                await page.evaluate((el) => el.click(), deleteButton);
+                await page.waitForSelector('div[role="button"], button');
+                const confirmButtons = await page.$$('div[role="button"], button');
+                for (const button of confirmButtons) {
+                    const text = await page.evaluate((el) => el.textContent, button);
+                    if (text?.trim() === "OK") {
+                        await page.evaluate((el) => el.click(), button);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } catch {
+            return false;
+        } finally {
+            await this.closePuppeteerBrowser(this.browser);
+        }
+    }
+
+    /**
+     * Opens the router access control page
+     *
+     * @returns Router access control page
+     */
+    private async openAccessControl(): Promise<Page> {
+        this.browser = await this.getPuppeteerBrowser();
+        const page = await this.browser.newPage();
+        await page.goto(this.getUrl(), {
+            waitUntil: "networkidle2",
+            timeout: 30000
+        });
+        await page.waitForSelector('input[type="password"]', {
+            visible: true,
+            timeout: 15000
+        });
+        await page.click('input[type="password"]', {
+            count: 3
+        });
+        await page.keyboard.press("Backspace");
+        await page.type('input[type="password"]', this.getRouter().admin_pass, {
+            delay: 50
+        });
+        const loginButton = await page.$('button, input[type="submit"], .login-btn');
+        if (!loginButton) {
+            throw new Error("No se ha encontrado el botón de acceso del router");
+        }
+
+        await Promise.all([
+            loginButton.click(),
+            page
+                .waitForNavigation({
+                    waitUntil: "networkidle2",
+                    timeout: 30000
+                })
+                .catch(() => {})
+        ]);
+        await this.delay({});
+        await page.evaluate(() => {
+            window.location.hash = "/accessControl";
+        });
+        return page;
+    }
+
+}

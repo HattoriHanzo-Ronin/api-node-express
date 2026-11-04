@@ -10,5 +10,5 @@
         "skipLibCheck": true,
         "types": ["node"]
     },
-    "include": ["src/**/*.js", "src/**/*.ts", "tests/**/*.js", "tests/**/*.ts"]
+    "include": ["src/**/*.js", "src/**/*.ts", "tests/**/*.js", "tests/**/*.ts", "src/utils/connection/ftp/ftp-client.ts"]
 }

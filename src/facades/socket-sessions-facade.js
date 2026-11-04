@@ -78,6 +78,7 @@ export default class SocketSessionsFacade {
     /**
      * Disconnects a WebSocket from its session
      *
+     * @param {object} params Socket connection parameters
      * @param {string} params.id Socket session identifier
      * @param {import("ws").WebSocket} params.webSocket WebSocket connection
      */
@@ -88,6 +89,7 @@ export default class SocketSessionsFacade {
     /**
      * Invalidates a WebSocket session
      *
+     * @param {object} params Socket connection parameters
      * @param {string} params.id Socket session identifier
      */
     invalidate({ id }) {

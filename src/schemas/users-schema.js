@@ -8,16 +8,16 @@ const {
     zodEnumIgnoreCase,
     useRequiredProperties,
     withSuperRefine,
-    handleValidationIssues
+    handleValidationIssues,
+    ERROR_MESSAGES: { typeRequired, format, emptyArray, length, invalidEnum }
 } = ZodUtils;
 const {
-    ERROR_MESSAGES: { typeRequired, format, emptyArray, length, invalidEnum },
     REGEX: { passwordRegex }
 } = ValidateUtils;
 const userRoles = Object.values(USER_ROLE);
 const { admin } = USER_ROLE;
 const rolesArraySchema = z
-    .array(zodEnumIgnoreCase(z, z.enum(userRoles, invalidEnum(userRoles)), typeRequired), typeRequired)
+    .array(zodEnumIgnoreCase(z.enum(userRoles, invalidEnum(userRoles)), typeRequired), typeRequired)
     .min(1, emptyArray)
     .optional();
 const passwordSchema = z

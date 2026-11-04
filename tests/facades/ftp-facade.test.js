@@ -1,7 +1,7 @@
 import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import MemoryCache from "../../src/utils/cache/memory-cache.js";
-import DirectoryCache from "../../src/utils/cache/directory-cache.js";
+import MemoryCache from "../../src/utils/cache/impl/memory-cache.js";
+import DirectoryCache from "../../src/utils/cache/impl/directory-cache.js";
 import FtpFacade from "../../src/facades/ftp-facade.js";
 import FtpMapper from "../../src/mappers/ftp-mapper.js";
 
