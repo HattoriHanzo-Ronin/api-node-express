@@ -1,7 +1,14 @@
 import express from "express";
 import busboy from "busboy";
+import type { Readable } from "node:stream";
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 import ApiError from "../utils/error/api-error.js";
 import { API_ERROR } from "../config/errors.js";
+import type { ApiErrorResponse } from "../types/api-error.js";
+import type { AuthAccessTokenPayload } from "../types/auth.js";
+import type { AsyncRequestHandler, MiddlewareError } from "../types/middlewares.js";
+import type TokenProvider from "../utils/token-providers/token-provider.js";
+import type { Role } from "../types/user-roles-model.js";
 
 const { routeNotFound, internalError, authenticationRequired, aclPermissionDenied } = API_ERROR;
 
@@ -14,19 +21,19 @@ export default class Middlewares {
     /**
      * Creates JSON body parser middleware
      *
-     * @returns {import("express").RequestHandler} Express middleware
+     * @returns JSON body parser middleware
      */
-    static json() {
+    static json(): RequestHandler {
         return express.json();
     }
 
     /**
      * Creates multipart form-data middleware
      *
-     * @returns {import("express").RequestHandler} Multipart middleware
+     * @returns Multipart form-data middleware
      */
-    static multipart() {
-        return (req, res, next) => {
+    static multipart(): RequestHandler {
+        return (req: Request, res: Response, next: NextFunction): void => {
             if (!req.headers["content-type"]?.startsWith("multipart/form-data")) {
                 next();
                 return;
@@ -40,7 +47,7 @@ export default class Middlewares {
                 return;
             }
 
-            let fileStream;
+            let fileStream: Readable | undefined;
             let nextCalled = false;
             parser.on("file", (fieldName, stream, { filename, mimeType }) => {
                 if (nextCalled || fieldName !== "file" || !filename) {
@@ -61,7 +68,7 @@ export default class Middlewares {
             });
             parser.once("error", (error) => {
                 if (fileStream) {
-                    fileStream.destroy(error);
+                    fileStream.destroy(error as Error);
                     return;
                 }
 
@@ -77,33 +84,26 @@ export default class Middlewares {
     /**
      * Wraps an async Express handler and forwards errors to the next middleware
      *
-     * @param {Function} fn Async Express route handler
-     * @returns {Function} Express middleware
+     * @param fn Asynchronous Express handler
+     * @returns Error-forwarding middleware
      */
-    static asyncHandler(fn) {
-        return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+    static asyncHandler(fn: AsyncRequestHandler): RequestHandler {
+        return (req: Request, res: Response, next: NextFunction): void => {
+            void Promise.resolve(fn(req, res, next)).catch(next);
+        };
     }
 
     /**
      * Handles requests that do not match an application route
-     *
-     * @param {import("express").Request} req Express request
-     * @param {import("express").Response} res Express response
-     * @param {import("express").NextFunction} next Express next function
      */
-    static routeNotFound(req, res, next) {
+    static routeNotFound(req: Request, res: Response, next: NextFunction): void {
         next(new ApiError({ message: "Page not found", status: 404, apiError: routeNotFound }));
     }
 
     /**
      * Handles application errors
-     *
-     * @param {Error} err Application error
-     * @param {import("express").Request} req Express request
-     * @param {import("express").Response} res Express response
-     * @param {import("express").NextFunction} next Express next function
      */
-    static errorHandler(err, req, res, next) {
+    static errorHandler(err: MiddlewareError, req: Request, res: Response, next: NextFunction): void {
         if (res.headersSent) {
             next(err);
             return;
@@ -113,7 +113,7 @@ export default class Middlewares {
         const isApiError = err instanceof ApiError;
         const message = isApiError ? err.message : "Error inesperado";
         const code = isApiError ? err.code : internalError;
-        let result = { code, message };
+        let result: ApiErrorResponse = { code, message };
         if (err.details) {
             result = { ...result, details: err.details };
         }
@@ -124,11 +124,11 @@ export default class Middlewares {
     /**
      * Requires a valid bearer access token
      *
-     * @param {Object} params.accessTokenProvider Access token provider
-     * @returns {import("express").RequestHandler} Express middleware
+     * @param accessTokenProvider Access token provider
+     * @returns Authentication middleware
      */
-    static requireAuth({ accessTokenProvider }) {
-        return (req, res, next) => {
+    static requireAuth({ accessTokenProvider }: { accessTokenProvider: TokenProvider<AuthAccessTokenPayload> }): RequestHandler {
+        return (req: Request, res: Response, next: NextFunction): void => {
             try {
                 const { authorization } = req.headers;
                 if (!authorization?.startsWith("Bearer ")) {
@@ -151,11 +151,11 @@ export default class Middlewares {
     /**
      * Restricts access to users with the specified roles, requires the authentication middleware to run first
      *
-     * @param {string[]} roles
-     * @returns {import("express").RequestHandler}
+     * @param roles Roles allowed to access the route
+     * @returns Authorization middleware
      */
-    static authorizedRoles(roles) {
-        return (req, res, next) => {
+    static authorizedRoles(roles: Role[]): RequestHandler {
+        return (req: Request, res: Response, next: NextFunction): void => {
             try {
                 const { roles: userRoles } = req.user;
                 if (!roles.some((role) => userRoles.includes(role))) {
