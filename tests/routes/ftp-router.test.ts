@@ -1,11 +1,15 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
+import type { Server } from "node:http";
 import Middlewares from "../../src/middlewares/middlewares.js";
+import type { AuthAccessTokenPayload } from "../../src/types/auth.js";
+import type TokenProvider from "../../src/utils/token-providers/token-provider.js";
+import type { FtpRouterController } from "../types/routers.js";
 
 import createFtpRouter from "../../src/routes/ftp-router.js";
 
 describe("FtpRouter", () => {
-    const ftpController = {
+    const ftpController: FtpRouterController = {
         streamMedia: vi.fn((req, res) => res.status(204).send()),
         dir: vi.fn(),
         getThumbnail: vi.fn(),
@@ -20,17 +24,26 @@ describe("FtpRouter", () => {
         downloadEntry: vi.fn(),
         delete: vi.fn()
     };
-    let origin;
-    let server;
+    const accessTokenProvider: TokenProvider<AuthAccessTokenPayload> = {
+        create: vi.fn(),
+        verify: vi.fn()
+    };
+    let origin: string;
+    let server: Server;
 
     beforeAll(async () => {
         const app = express();
-        const requireAuth = Middlewares.requireAuth({ accessTokenProvider: { verify: vi.fn() } });
+        const requireAuth = Middlewares.requireAuth({ accessTokenProvider });
         app.use("/ftp", createFtpRouter({ ftpController, requireAuth }));
         app.use(Middlewares.routeNotFound, Middlewares.errorHandler);
         server = app.listen(0, "127.0.0.1");
         await new Promise((resolve) => server.once("listening", resolve));
-        origin = `http://127.0.0.1:${server.address().port}`;
+        const address = server.address();
+        if (!address || typeof address === "string") {
+            throw new Error("El servidor de prueba no tiene una dirección TCP");
+        }
+
+        origin = `http://127.0.0.1:${address.port}`;
     });
 
     beforeEach(() => {

@@ -7,7 +7,14 @@ import createDevicesRouter from "./routes/devices-router.js";
 import createUsersRouter from "./routes/users-router.js";
 import createAuthRouter from "./routes/auth-router.js";
 import createSocketSessionsRouter from "./routes/socket-sessions-router.js";
+import type { Express } from "express";
+import type { AppDependencies } from "./types/app.js";
 
+/**
+ * Creates the application
+ *
+ * @returns Configured Express application
+ */
 export function createApp({
     ftpController,
     whitelistController,
@@ -16,7 +23,7 @@ export function createApp({
     authController,
     socketSessionsController,
     accessTokenProvider
-}) {
+}: AppDependencies): Express {
     const app = express();
     const { json, errorHandler, routeNotFound, requireAuth: createRequireAuth } = Middlewares;
     const requireAuth = createRequireAuth({ accessTokenProvider });

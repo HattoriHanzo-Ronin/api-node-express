@@ -52,6 +52,7 @@ import SocketSessionsService from "./services/socket-sessions-service.js";
 import SocketSessionsController from "./controllers/socket-sessions-controller.js";
 import SocketSessionsFacade from "./facades/socket-sessions-facade.js";
 import WebSocketEventsGateway from "./utils/gateways/impl/socket-events-gateway.js";
+import type { AuthAccessTokenPayload, AuthRefreshTokenPayload } from "./types/auth.js";
 
 const tx = PostgresClient.executeTx;
 const { jwtAccessTokenExpiresIn, jwtRefreshTokenExpiresIn, routerCpanelServiceUrl } = ENV;
@@ -140,8 +141,8 @@ const refreshTokensService = new RefreshTokensService({
     entityError: refreshTokensEntityError
 });
 
-const accessTokenProvider = new JwtProvider({ secret: jwtSecret, expiresIn: jwtAccessTokenExpiresIn });
-const refreshTokenProvider = new JwtProvider({ secret: refreshJwtSecret, expiresIn: jwtRefreshTokenExpiresIn });
+const accessTokenProvider = new JwtProvider<AuthAccessTokenPayload>({ secret: jwtSecret, expiresIn: jwtAccessTokenExpiresIn });
+const refreshTokenProvider = new JwtProvider<AuthRefreshTokenPayload>({ secret: refreshJwtSecret, expiresIn: jwtRefreshTokenExpiresIn });
 const socketGateway = new WebSocketEventsGateway({ socketSessionsFacade, accessTokenProvider });
 const authFacade = new AuthFacade({
     usersFacade,
@@ -164,7 +165,7 @@ const server = createServer(app);
 socketGateway.attach({ server });
 server.listen(ENV.port);
 
-for (const signal of ["SIGINT", "SIGTERM"]) {
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.once(signal, async () => {
         await ftpConnectionManager.closeAll();
         socketSessionsService.closeAll();
