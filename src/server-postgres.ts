@@ -36,10 +36,10 @@ import UserRolesModel from "./models/postgres/user-roles/user-roles-model.js";
 import UserRolesService from "./services/user-roles-service.js";
 import UserRolesMapper from "./mappers/user-roles-mapper.js";
 import UserRolesFacade from "./facades/user-roles-facade.js";
-import UsersModel from "./models/postgres/users/users-model.js";
-import UsersMapper from "./mappers/users-mapper.js";
-import UsersService from "./services/users-service.js";
-import UsersFacade from "./facades/users-facade.js";
+import DefaultUsersModel from "./models/impl/postgres/users/default-users-model.js";
+import DefaultUsersMapper from "./mappers/impl/default-users-mapper.js";
+import DefaultUsersService from "./services/impl/default-users-service.js";
+import DefaultUsersFacade from "./facades/impl/default-users-facade.js";
 import UsersController from "./controllers/users-controller.js";
 import RefreshTokensModel from "./models/postgres/refresh-tokens/refresh-tokens-model.js";
 import RefreshTokensService from "./services/refresh-tokens-service.js";
@@ -125,12 +125,12 @@ const userRolesFacade = new UserRolesFacade({
     userRolesMapper: UserRolesMapper
 });
 
-const usersService = new UsersService({ usersModel: UsersModel, entityError: usersEntityError });
-const usersFacade = new UsersFacade({
+const usersService = new DefaultUsersService({ usersModel: DefaultUsersModel, entityError: usersEntityError });
+const usersFacade = new DefaultUsersFacade({
     usersService,
     dataVersionsFacade,
     userRolesFacade,
-    usersMapper: UsersMapper,
+    usersMapper: DefaultUsersMapper,
     socketSessionsFacade,
     tx
 });

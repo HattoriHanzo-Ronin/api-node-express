@@ -1,39 +1,50 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import UsersFacade from "../../src/facades/users-facade.js";
+import type { ITask } from "pg-promise";
+import UsersFacade from "../../src/facades/impl/default-users-facade.js";
+import type { UsersFacadeDependencies } from "../../src/types/default-users-facade.js";
+import type { AuthAccessTokenPayload } from "../../src/types/auth.js";
+
+const CLIENT_TX = {} as ITask<unknown>;
+const ADMIN_FTP: AuthAccessTokenPayload = { id: "1", roles: ["ADMIN"], scope: ["FTP"] };
+const createUsersServiceMock = () => ({
+    getAll: vi.fn(),
+    getById: vi.fn(),
+    authenticate: vi.fn(),
+    checkPassword: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn()
+});
+const createDataVersionsFacadeMock = () => ({ getById: vi.fn().mockResolvedValue({ version: "4" }) });
+const createUserRolesFacadeMock = () => ({
+    getByUsers: vi.fn().mockResolvedValue(new Map()),
+    createMany: vi.fn(),
+    replace: vi.fn()
+});
+const createUsersMapperMock = () => ({ userToDomain: vi.fn(), usersToDomain: vi.fn() });
+const createSocketSessionsFacadeMock = () => ({ notify: vi.fn() });
 
 describe("UsersFacade", () => {
-    let usersService;
-    let dataVersionsFacade;
-    let userRolesFacade;
-    let usersMapper;
-    let socketSessionsFacade;
-    let usersFacade;
+    let usersService: ReturnType<typeof createUsersServiceMock>;
+    let dataVersionsFacade: ReturnType<typeof createDataVersionsFacadeMock>;
+    let userRolesFacade: ReturnType<typeof createUserRolesFacadeMock>;
+    let usersMapper: ReturnType<typeof createUsersMapperMock>;
+    let socketSessionsFacade: ReturnType<typeof createSocketSessionsFacadeMock>;
+    let usersFacade: UsersFacade<ITask<unknown>>;
 
     beforeEach(() => {
-        usersService = {
-            getAll: vi.fn(),
-            getById: vi.fn(),
-            authenticate: vi.fn(),
-            checkPassword: vi.fn(),
-            create: vi.fn(),
-            update: vi.fn(),
-            delete: vi.fn()
-        };
-        dataVersionsFacade = { getById: vi.fn().mockResolvedValue({ version: "4" }) };
-        userRolesFacade = {
-            getByUsers: vi.fn().mockResolvedValue(new Map()),
-            createMany: vi.fn(),
-            replace: vi.fn()
-        };
-        usersMapper = { userToDomain: vi.fn(), usersToDomain: vi.fn() };
-        socketSessionsFacade = { notify: vi.fn() };
+        usersService = createUsersServiceMock();
+        dataVersionsFacade = createDataVersionsFacadeMock();
+        userRolesFacade = createUserRolesFacadeMock();
+        usersMapper = createUsersMapperMock();
+        socketSessionsFacade = createSocketSessionsFacadeMock();
         usersFacade = new UsersFacade({
             usersService,
-            dataVersionsFacade,
-            userRolesFacade,
+            dataVersionsFacade: dataVersionsFacade as unknown as UsersFacadeDependencies<ITask<unknown>>["dataVersionsFacade"],
+            userRolesFacade: userRolesFacade as unknown as UsersFacadeDependencies<ITask<unknown>>["userRolesFacade"],
             usersMapper,
-            socketSessionsFacade,
-            tx: async (cb) => cb({})
+            socketSessionsFacade: socketSessionsFacade as unknown as UsersFacadeDependencies<ITask<unknown>>["socketSessionsFacade"],
+            tx: async (cb) => cb(CLIENT_TX)
         });
     });
 
@@ -43,7 +54,7 @@ describe("UsersFacade", () => {
             usersService.getAll.mockResolvedValue(users);
             usersMapper.usersToDomain.mockReturnValue([{ id: "1", username: "user", roles: ["FTP"] }]);
 
-            await expect(usersFacade.getAll({ authUser: { scope: ["FTP"] } })).resolves.toEqual({
+            await expect(usersFacade.getAll({ authUser: ADMIN_FTP })).resolves.toEqual({
                 version: "4",
                 data: [{ id: "1", username: "user" }]
             });
@@ -56,14 +67,14 @@ describe("UsersFacade", () => {
         it("should return user", async () => {
             usersService.getById.mockResolvedValue({ id: "1", username: "user" });
             usersMapper.userToDomain.mockReturnValue({ id: "1", username: "user", roles: ["FTP"] });
-            const result = await usersFacade.getById({ authUser: { scope: ["FTP"] }, id: "1" });
+            const result = await usersFacade.getById({ authUser: ADMIN_FTP, id: "1" });
             expect(result.username).toBe("user");
         });
 
         it("should fail if user is outside managed scope", async () => {
             usersService.getById.mockResolvedValue({ id: "1", username: "user" });
             usersMapper.userToDomain.mockReturnValue({ id: "1", username: "user", roles: ["NET"] });
-            await expect(usersFacade.getById({ authUser: { scope: ["FTP"] }, id: "1" })).rejects.toThrow(
+            await expect(usersFacade.getById({ authUser: ADMIN_FTP, id: "1" })).rejects.toThrow(
                 "El usuario no existe"
             );
         });
@@ -84,8 +95,8 @@ describe("UsersFacade", () => {
             userRolesFacade.createMany.mockResolvedValue({ roles: ["FTP"] });
             usersMapper.userToDomain.mockReturnValue({ id: "1", username: "user", roles: ["FTP"] });
             const result = await usersFacade.create({
-                authUser: { scope: ["ADMIN"] },
-                user: { username: "user", roles: ["FTP"] }
+                authUser: { id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
+                user: { username: "user", password: "Password123!", active: true, roles: ["FTP"] }
             });
             expect(result.id).toBe("1");
             expect(userRolesFacade.createMany).toHaveBeenCalled();
@@ -93,7 +104,10 @@ describe("UsersFacade", () => {
 
         it("should fail when non super admin sends roles", async () => {
             await expect(
-                usersFacade.create({ authUser: { scope: ["FTP"] }, user: { username: "user", roles: ["NET"] } })
+                usersFacade.create({
+                    authUser: ADMIN_FTP,
+                    user: { username: "user", password: "Password123!", active: true, roles: ["NET"] }
+                })
             ).rejects.toThrow("No tiene permisos para realizar esa acción");
         });
 
@@ -101,7 +115,10 @@ describe("UsersFacade", () => {
             usersService.create.mockResolvedValue({ id: "1", username: "user" });
             userRolesFacade.createMany.mockResolvedValue({ roles: ["FTP"] });
             usersMapper.userToDomain.mockReturnValue({ id: "1", username: "user" });
-            await usersFacade.create({ authUser: { scope: ["FTP"] }, user: { username: "user" } });
+            await usersFacade.create({
+                authUser: ADMIN_FTP,
+                user: { username: "user", password: "Password123!", active: true }
+            });
             expect(userRolesFacade.createMany).toHaveBeenCalledWith({
                 clientTx: expect.anything(),
                 userId: "1",
@@ -236,8 +253,8 @@ describe("UsersFacade", () => {
 
     describe("changePassword", () => {
         it("should check current password and update it", async () => {
-            const authUser = { id: "1", roles: ["FTP"], scope: ["FTP"] };
-            usersService.checkPassword.mockResolvedValue();
+            const authUser: AuthAccessTokenPayload = { id: "1", roles: ["FTP"], scope: ["FTP"] };
+            usersService.checkPassword.mockResolvedValue(undefined);
             vi.spyOn(usersFacade, "update").mockResolvedValue({ username: "user" });
 
             await expect(
@@ -261,7 +278,7 @@ describe("UsersFacade", () => {
 
             await expect(
                 usersFacade.changePassword({
-                    authUser: { id: "1" },
+                    authUser: { id: "1", roles: ["FTP"] },
                     currentPassword: "WrongPassword1!",
                     newPassword: "NewPassword123!"
                 })
@@ -272,9 +289,15 @@ describe("UsersFacade", () => {
 
     describe("delete", () => {
         it("should delete user", async () => {
-            vi.spyOn(usersFacade, "getById").mockResolvedValue({ id: "1" });
+            vi.spyOn(usersFacade, "getById").mockResolvedValue({
+                id: "1",
+                username: "user",
+                active: true,
+                created_at: new Date("2024-01-01T00:00:00Z"),
+                updated_at: new Date("2024-01-01T00:00:00Z")
+            });
             usersService.delete.mockResolvedValue({ id: "1" });
-            const result = await usersFacade.delete({ authUser: { scope: ["FTP"] }, id: "1" });
+            const result = await usersFacade.delete({ authUser: ADMIN_FTP, id: "1" });
             expect(result).toEqual({ id: "1" });
             expect(usersService.delete).toHaveBeenCalledWith({ id: "1" });
         });

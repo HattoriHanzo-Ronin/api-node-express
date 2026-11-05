@@ -1,8 +1,9 @@
 import { Router } from "express";
+import type { UsersRouterDependencies } from "../types/users-router.js";
 import { USER_ROLE } from "../config/constants.js";
 import Middlewares from "../middlewares/middlewares.js";
 
-export default function createUsersRouter({ usersController, requireAuth }) {
+export default function createUsersRouter({ usersController, requireAuth }: UsersRouterDependencies) {
     const router = Router();
     const { admin } = USER_ROLE;
     const { asyncHandler, authorizedRoles, routeNotFound } = Middlewares;
