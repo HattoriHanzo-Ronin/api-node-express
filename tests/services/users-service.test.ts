@@ -1,21 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import UsersService from "../../src/services/users-service.js";
+import type { ITask } from "pg-promise";
+import UsersService from "../../src/services/impl/default-users-service.js";
 import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
 
+const CLIENT_TX = {} as ITask<unknown>;
+const USER = { username: "user", password: "Password123!", active: true };
+const createUsersModelMock = () => ({
+    getAll: vi.fn(),
+    getById: vi.fn(),
+    authenticate: vi.fn(),
+    checkPassword: vi.fn(),
+    insert: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn()
+});
+
 describe("UsersService", () => {
-    let usersModel;
-    let usersService;
+    let usersModel: ReturnType<typeof createUsersModelMock>;
+    let usersService: UsersService<ITask<unknown>>;
 
     beforeEach(() => {
-        usersModel = {
-            getAll: vi.fn(),
-            getById: vi.fn(),
-            authenticate: vi.fn(),
-            checkPassword: vi.fn(),
-            insert: vi.fn(),
-            update: vi.fn(),
-            delete: vi.fn()
-        };
+        usersModel = createUsersModelMock();
         usersService = new UsersService({ usersModel, entityError: PostgresErrors.users });
     });
 
@@ -23,7 +28,7 @@ describe("UsersService", () => {
         it("should return all users", async () => {
             const users = [{ id: "1", username: "user" }];
             usersModel.getAll.mockResolvedValue(users);
-            const result = await usersService.getAll();
+            const result = await usersService.getAll({});
             expect(result).toEqual(users);
         });
     });
@@ -82,14 +87,14 @@ describe("UsersService", () => {
     describe("create", () => {
         it("should create user", async () => {
             usersModel.insert.mockResolvedValue({ id: "1", username: "user" });
-            const result = await usersService.create({ clientTx: {}, user: { username: "user" } });
+            const result = await usersService.create({ clientTx: CLIENT_TX, user: USER });
             expect(result).toEqual({ id: "1", username: "user" });
-            expect(usersModel.insert).toHaveBeenCalledWith({ clientTx: {}, user: { username: "user" } });
+            expect(usersModel.insert).toHaveBeenCalledWith({ clientTx: CLIENT_TX, user: USER });
         });
 
         it("should fail if username already exists", async () => {
             usersModel.insert.mockRejectedValue({ code: "23505" });
-            await expect(usersService.create({ clientTx: {}, user: { username: "user" } })).rejects.toThrow(
+            await expect(usersService.create({ clientTx: CLIENT_TX, user: USER })).rejects.toThrow(
                 "El nombre de usuario ya está en uso"
             );
         });
@@ -98,20 +103,24 @@ describe("UsersService", () => {
     describe("update", () => {
         it("should update user", async () => {
             usersModel.update.mockResolvedValue({ id: "1", username: "updated" });
-            const result = await usersService.update({ clientTx: {}, id: "1", data: { username: "updated" } });
+            const result = await usersService.update({ clientTx: CLIENT_TX, id: "1", data: { username: "updated" } });
             expect(result).toEqual({ id: "1", username: "updated" });
-            expect(usersModel.update).toHaveBeenCalledWith({ clientTx: {}, id: "1", data: { username: "updated" } });
+            expect(usersModel.update).toHaveBeenCalledWith({
+                clientTx: CLIENT_TX,
+                id: "1",
+                data: { username: "updated" }
+            });
         });
 
         it("should fail if username already exists", async () => {
             usersModel.update.mockRejectedValue({ code: "23505" });
-            await expect(usersService.update({ clientTx: {}, id: "1", data: { username: "updated" } })).rejects.toThrow(
-                "El nombre de usuario ya está en uso"
-            );
+            await expect(
+                usersService.update({ clientTx: CLIENT_TX, id: "1", data: { username: "updated" } })
+            ).rejects.toThrow("El nombre de usuario ya está en uso");
         });
 
         it("should fail when update data is empty", async () => {
-            await expect(usersService.update({ clientTx: {}, id: "1", data: {} })).rejects.toMatchObject({
+            await expect(usersService.update({ clientTx: CLIENT_TX, id: "1", data: {} })).rejects.toMatchObject({
                 code: "USER_EMPTY_UPDATE",
                 status: 400
             });

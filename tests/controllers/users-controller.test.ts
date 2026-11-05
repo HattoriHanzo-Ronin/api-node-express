@@ -1,27 +1,45 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
+import type { NextFunction, Request, Response } from "express";
 import UsersController from "../../src/controllers/users-controller.js";
+import type { UserId } from "../../src/types/users-model.js";
+
+const createUsersFacadeMock = () => ({
+    getAll: vi.fn(),
+    getById: vi.fn(),
+    authenticate: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    changePassword: vi.fn(),
+    delete: vi.fn()
+});
+const NEXT: NextFunction = vi.fn();
 
 describe("UsersController validation", () => {
-    let usersFacade;
-    let controller;
-    let req;
-    let res;
+    let usersFacade: ReturnType<typeof createUsersFacadeMock>;
+    let controller: UsersController;
+    let req: Request<UserId & Record<string, never>>;
+    let res: Response;
 
     beforeEach(() => {
-        usersFacade = { getAll: vi.fn(), getById: vi.fn(), create: vi.fn(), update: vi.fn(), changePassword: vi.fn(), delete: vi.fn() };
+        usersFacade = createUsersFacadeMock();
         controller = new UsersController({ usersFacade });
         req = {
             user: { id: "550e8400-e29b-41d4-a716-446655440000", roles: ["ADMIN"], scope: ["ADMIN"] },
             params: {},
             body: {}
-        };
-        res = { json: vi.fn(), end: vi.fn(), set: vi.fn().mockReturnThis(), status: vi.fn().mockReturnThis() };
+        } as unknown as Request<UserId & Record<string, never>>;
+        res = {
+            json: vi.fn(),
+            end: vi.fn(),
+            set: vi.fn().mockReturnThis(),
+            status: vi.fn().mockReturnThis()
+        } as unknown as Response;
     });
 
     describe("getAll", () => {
         it("should get all users", async () => {
             usersFacade.getAll.mockResolvedValue({ version: "4", data: [] });
-            await controller.getAll(req, res);
+            await controller.getAll(req, res, NEXT);
             expect(usersFacade.getAll).toHaveBeenCalled();
             expect(res.set).toHaveBeenCalledWith("Data-Version", "4");
             expect(res.json).toHaveBeenCalledWith([]);
@@ -35,14 +53,14 @@ describe("UsersController validation", () => {
 
         it("should get user by id", async () => {
             usersFacade.getById.mockResolvedValue({ id: req.params.id });
-            await controller.getById(req, res);
+            await controller.getById(req, res, NEXT);
             expect(usersFacade.getById).toHaveBeenCalled();
             expect(res.json).toHaveBeenCalled();
         });
 
         it("should fail with invalid uuid", async () => {
             req.params.id = "BAD_ID";
-            await expect(controller.getById(req, res)).rejects.toThrow();
+            await expect(controller.getById(req, res, NEXT)).rejects.toThrow();
         });
     });
 
@@ -53,7 +71,7 @@ describe("UsersController validation", () => {
 
         it("should create user", async () => {
             usersFacade.create.mockResolvedValue(true);
-            await controller.create(req, res);
+            await controller.create(req, res, NEXT);
             expect(usersFacade.create).toHaveBeenCalled();
             expect(res.status).toHaveBeenCalledWith(201);
             expect(res.json).toHaveBeenCalledWith(true);
@@ -61,46 +79,46 @@ describe("UsersController validation", () => {
 
         it("should fail with invalid username type", async () => {
             req.body.username = 123;
-            await expect(controller.create(req, res)).rejects.toThrow();
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow();
         });
 
         it("should fail with short username", async () => {
             req.body.username = "ab";
-            await expect(controller.create(req, res)).rejects.toThrow();
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow();
         });
 
         it("should fail with invalid username format", async () => {
             req.body.username = "invalid user";
-            await expect(controller.create(req, res)).rejects.toThrow();
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow();
         });
 
         it("should fail with short password", async () => {
             req.body.password = "123";
-            await expect(controller.create(req, res)).rejects.toThrow();
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow();
         });
 
         it("should fail if admin role has no scope", async () => {
             req.body.roles = ["ADMIN"];
-            await expect(controller.create(req, res)).rejects.toThrow();
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow();
         });
 
         it("should fail if non admin role defines scope", async () => {
             req.body.roles = ["FTP"];
             req.body.scope = ["FTP"];
-            await expect(controller.create(req, res)).rejects.toThrow();
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow();
         });
 
         it("should validate admin role with scope", async () => {
             req.body.roles = ["ADMIN"];
             req.body.scope = ["FTP"];
             usersFacade.create.mockResolvedValue(true);
-            await controller.create(req, res);
+            await controller.create(req, res, NEXT);
             expect(usersFacade.create).toHaveBeenCalled();
         });
 
         it("should fail with invalid role enum", async () => {
             req.body.roles = ["INVALID_ROLE"];
-            await expect(controller.create(req, res)).rejects.toThrow();
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow();
         });
     });
 
@@ -110,38 +128,38 @@ describe("UsersController validation", () => {
         });
         it("should update user", async () => {
             usersFacade.update.mockResolvedValue(true);
-            await controller.update(req, res);
+            await controller.update(req, res, NEXT);
             expect(usersFacade.update).toHaveBeenCalled();
             expect(res.json).toHaveBeenCalledWith(true);
         });
 
         it("should fail with invalid uuid", async () => {
             req.body.id = "BAD_ID";
-            await expect(controller.update(req, res)).rejects.toThrow();
+            await expect(controller.update(req, res, NEXT)).rejects.toThrow();
         });
 
         it("should fail if admin role has no scope", async () => {
             req.body.roles = ["ADMIN"];
-            await expect(controller.update(req, res)).rejects.toThrow();
+            await expect(controller.update(req, res, NEXT)).rejects.toThrow();
         });
 
         it("should fail if non admin role defines scope", async () => {
             req.body.roles = ["FTP"];
             req.body.scope = ["FTP"];
-            await expect(controller.update(req, res)).rejects.toThrow();
+            await expect(controller.update(req, res, NEXT)).rejects.toThrow();
         });
 
         it("should validate admin role with scope", async () => {
             req.body.roles = ["ADMIN"];
             req.body.scope = ["FTP"];
             usersFacade.update.mockResolvedValue(true);
-            await controller.update(req, res);
+            await controller.update(req, res, NEXT);
             expect(usersFacade.update).toHaveBeenCalled();
         });
 
         it("should fail with invalid role enum", async () => {
             req.body.roles = ["INVALID_ROLE"];
-            await expect(controller.update(req, res)).rejects.toThrow();
+            await expect(controller.update(req, res, NEXT)).rejects.toThrow();
         });
     });
 
@@ -151,8 +169,8 @@ describe("UsersController validation", () => {
         });
 
         it("should change password", async () => {
-            usersFacade.changePassword.mockResolvedValue();
-            await controller.changePassword(req, res);
+            usersFacade.changePassword.mockResolvedValue(undefined);
+            await controller.changePassword(req, res, NEXT);
             expect(usersFacade.changePassword).toHaveBeenCalledWith({ authUser: req.user, ...req.body });
             expect(res.status).toHaveBeenCalledWith(200);
             expect(res.end).toHaveBeenCalled();
@@ -160,12 +178,12 @@ describe("UsersController validation", () => {
 
         it("should fail with invalid current password", async () => {
             req.body.currentPassword = "short";
-            await expect(controller.changePassword(req, res)).rejects.toThrow();
+            await expect(controller.changePassword(req, res, NEXT)).rejects.toThrow();
         });
 
         it("should fail with invalid new password", async () => {
             req.body.newPassword = "short";
-            await expect(controller.changePassword(req, res)).rejects.toThrow();
+            await expect(controller.changePassword(req, res, NEXT)).rejects.toThrow();
         });
     });
 
@@ -176,14 +194,14 @@ describe("UsersController validation", () => {
 
         it("should delete user", async () => {
             usersFacade.delete.mockResolvedValue(true);
-            await controller.delete(req, res);
+            await controller.delete(req, res, NEXT);
             expect(usersFacade.delete).toHaveBeenCalled();
             expect(res.json).toHaveBeenCalledWith(true);
         });
 
         it("should fail with invalid uuid", async () => {
             req.params.id = "BAD_ID";
-            await expect(controller.delete(req, res)).rejects.toThrow();
+            await expect(controller.delete(req, res, NEXT)).rejects.toThrow();
         });
     });
 });
