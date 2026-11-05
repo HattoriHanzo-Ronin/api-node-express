@@ -17,7 +17,7 @@ export default class DataVersionsFacade {
     /**
      * Returns data versions by their resource identifiers
      *
-     * @param {string | string[]} params.id Resource identifier or identifiers
+     * @param {{ id: string | string[] }} params Resource identifier or identifiers
      * @returns {Promise<{ version: string } | Object<string, string> | null>} Data version or versions
      */
     async getById({ id }) {

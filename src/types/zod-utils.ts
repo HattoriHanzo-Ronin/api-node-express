@@ -1,7 +1,7 @@
-import type { $ZodIssue } from "zod/v4/core";
+import type { $ZodRawIssue } from "zod/v4/core";
 
 export type ZodErrorMessages = {
-    typeRequired: { error: (issue: $ZodIssue) => string };
+    typeRequired: { error: (issue: $ZodRawIssue) => string };
     typeNotRequired: { error: string };
     format: string;
     length: (num: number, mode: "min" | "max") => string;

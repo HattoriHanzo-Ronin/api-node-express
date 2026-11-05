@@ -6,7 +6,7 @@ import ApiError from "../utils/error/api-error.js";
 import { API_ERROR } from "../config/errors.js";
 import type { ApiErrorResponse } from "../types/api-error.js";
 import type { AuthAccessTokenPayload } from "../types/auth.js";
-import type { AsyncRequestHandler, MiddlewareError } from "../types/middlewares.js";
+import type { MiddlewareError } from "../types/middlewares.js";
 import type TokenProvider from "../utils/token-providers/token-provider.js";
 import type { Role } from "../types/user-roles-model.js";
 
@@ -87,8 +87,10 @@ export default class Middlewares {
      * @param fn Asynchronous Express handler
      * @returns Error-forwarding middleware
      */
-    static asyncHandler(fn: AsyncRequestHandler): RequestHandler {
-        return (req: Request, res: Response, next: NextFunction): void => {
+    static asyncHandler<Params, ResBody, ReqBody, ReqQuery>(
+        fn: RequestHandler<Params, ResBody, ReqBody, ReqQuery>
+    ): RequestHandler<Params, ResBody, ReqBody, ReqQuery> {
+        return (req, res, next): void => {
             void Promise.resolve(fn(req, res, next)).catch(next);
         };
     }
