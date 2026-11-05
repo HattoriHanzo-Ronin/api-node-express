@@ -67,9 +67,7 @@ export default class SocketSessionsFacade {
     /**
      * Notifies subscribed sockets about an entity change
      *
-     * @param {string} params.entity Changed entity identifier
-     * @param {Object | undefined} [params.data] Additional event data
-     * @param {string | undefined} [params.ownerId] Owner identifier for private resources
+     * @param {{ entity: string, data?: object, ownerId?: string }} params Notification details
      */
     notify({ entity, data, ownerId }) {
         this.#socketSessionsService.notify({ entity, data, ownerId });

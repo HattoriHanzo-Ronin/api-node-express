@@ -1,4 +1,4 @@
-import pgPromise, { IDatabase, IHelpers } from "pg-promise";
+import pgPromise, { IDatabase, IHelpers, ITask } from "pg-promise";
 import { ENV } from "../../../config/environment.js";
 import { SECRETS } from "../../../config/secrets.js";
 
@@ -33,7 +33,7 @@ export default class PostgresClient {
      * @param callback Transaction callback
      * @returns Transaction result
      */
-    static executeTx<T>(callback: () => T | Promise<T>): Promise<T> {
+    static executeTx<T>(callback: (clientTx: ITask<unknown>) => T | Promise<T>): Promise<T> {
         return client.tx(callback);
     }
 

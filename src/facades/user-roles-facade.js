@@ -15,8 +15,8 @@ export default class UserRolesFacade {
     /**
      * Returns user ACL data indexed by user identifier
      *
-     * @param {string[]} params.usersId User identifiers
-     * @returns {Promise<Map<string, Object>>} User ACL data
+     * @param {{ usersId: string[] }} params User identifiers
+     * @returns {Promise<Map<string, import("../types/users-facade.js").UserAcl>>} User ACL data
      */
     async getByUsers({ usersId }) {
         return this.#userRolesMapper.rolesByUsersToDomain(await this.#userRolesService.getByUsers({ usersId }));
@@ -25,11 +25,8 @@ export default class UserRolesFacade {
     /**
      * Creates user roles
      *
-     * @param {import("pg-promise").ITask<unknown>} params.clientTx Database transaction
-     * @param {string} params.userId User identifier
-     * @param {string[]} params.roles User roles
-     * @param {string[] | undefined} params.scope Administrative scope
-     * @returns {Promise<Object>} User ACL data
+     * @param {import("../types/user-roles-facade.js").default} params User role assignment
+     * @returns {Promise<import("../types/users-facade.js").UserAcl | undefined>} User ACL data
      */
     async createMany({ clientTx, userId, roles, scope }) {
         const source = await this.#userRolesService.createMany({
@@ -42,11 +39,8 @@ export default class UserRolesFacade {
     /**
      * Replaces user roles
      *
-     * @param {import("pg-promise").ITask<unknown>} params.clientTx Database transaction
-     * @param {string} params.userId User identifier
-     * @param {string[]} params.roles User roles
-     * @param {string[] | undefined} params.scope Administrative scope
-     * @returns {Promise<Object>} User ACL data
+     * @param {import("../types/user-roles-facade.js").default} params User role assignment
+     * @returns {Promise<import("../types/users-facade.js").UserAcl | undefined>} User ACL data
      */
     async replace({ clientTx, userId, roles, scope }) {
         const source = await this.#userRolesService.replace({
