@@ -43,7 +43,7 @@ import DefaultUsersFacade from "./facades/impl/default-users-facade.js";
 import UsersController from "./controllers/users-controller.js";
 import DefaultRefreshTokensModel from "./models/impl/postgres/refresh-tokens/default-refresh-tokens-model.js";
 import DefaultRefreshTokensService from "./services/impl/default-refresh-tokens-service.js";
-import AuthFacade from "./facades/auth-facade.js";
+import DefaultAuthFacade from "./facades/impl/default-auth-facade.js";
 import AuthController from "./controllers/auth-controller.js";
 import { ENV } from "./config/environment.js";
 import { SECRETS } from "./config/secrets.js";
@@ -144,7 +144,7 @@ const refreshTokensService = new DefaultRefreshTokensService({
 const accessTokenProvider = new JwtProvider<AuthAccessTokenPayload>({ secret: jwtSecret, expiresIn: jwtAccessTokenExpiresIn });
 const refreshTokenProvider = new JwtProvider<AuthRefreshTokenPayload>({ secret: refreshJwtSecret, expiresIn: jwtRefreshTokenExpiresIn });
 const socketGateway = new WebSocketEventsGateway({ socketSessionsFacade, accessTokenProvider });
-const authFacade = new AuthFacade({
+const authFacade = new DefaultAuthFacade({
     usersFacade,
     refreshTokensService,
     accessTokenProvider,

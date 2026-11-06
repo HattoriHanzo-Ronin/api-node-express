@@ -1,7 +1,8 @@
 import { Router } from "express";
 import Middlewares from "../middlewares/middlewares.js";
+import type { AuthRouterDependencies } from "../types/auth-router.js";
 
-export default function createAuthRouter({ authController, requireAuth }) {
+export default function createAuthRouter({ authController, requireAuth }: AuthRouterDependencies) {
     const router = Router();
     const { asyncHandler, routeNotFound } = Middlewares;
 
