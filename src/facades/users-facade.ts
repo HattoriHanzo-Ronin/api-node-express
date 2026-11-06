@@ -4,6 +4,8 @@ import type {
     ChangePasswordParams,
     CreateUserParams,
     GetUserParams,
+    GetUserWithoutAuthParams,
+    User,
     UpdatedUserResponse,
     UpdateUserParams,
     UserCredentialsParams,
@@ -28,6 +30,7 @@ export default interface UsersFacade {
      * @param params.id User identifier
      * @returns User data
      */
+    getById(params: GetUserWithoutAuthParams): Promise<User>;
     getById(params: GetUserParams): Promise<UserResponse>;
 
     /**

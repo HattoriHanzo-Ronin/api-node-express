@@ -10,8 +10,10 @@ import type {
     ChangePasswordParams,
     CreateUserParams,
     GetUserParams,
+    GetUserWithoutAuthParams,
     UpdateUserParams,
     UserCredentialsParams,
+    User,
     UserResponse
 } from "../../types/users-facade.js";
 import type { Role } from "../../types/user-roles-model.js";
@@ -39,23 +41,29 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
         const aclByUser = await this.dependencies.userRolesFacade.getByUsers({ usersId: result.map(({ id }) => id) });
         const users = this.dependencies.usersMapper.usersToDomain({ users: result, aclByUser });
         const data = users
-            .filter(({ roles }) => this.allowedManage({ authUser, userRoles: roles! }))
+            .filter(({ roles }) => this.allowedManage({ authUser, userRoles: roles }))
             .map((user) => this.filterAcl({ authUser, source: user }));
         return { version, data };
     }
 
-    async getById({ authUser, id }: GetUserParams) {
+    async getById(params: GetUserWithoutAuthParams): Promise<User>;
+    async getById(params: GetUserParams): Promise<UserResponse>;
+    async getById({ authUser, id }: GetUserParams): Promise<UserResponse> {
         const result = await this.dependencies.usersService.getById({ id });
         const aclByUser = await this.dependencies.userRolesFacade.getByUsers({ usersId: [id] });
         const user = this.dependencies.usersMapper.userToDomain({ source: result, acl: aclByUser.get(id) });
         ApiError.handle([
             {
-                condition: Boolean(authUser && !this.allowedManage({ authUser, userRoles: user.roles! })),
+                condition: Boolean(authUser && !this.allowedManage({ authUser, userRoles: user.roles })),
                 message: "El usuario no existe",
                 status: 404,
                 apiError: userNotFound
             }
         ]);
+        if (!authUser) {
+            return user;
+        }
+
         return this.filterAcl({ authUser, source: user });
     }
 
@@ -91,7 +99,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
     }
 
     async update({ authUser, data, changePassword = false }: UpdateUserParams) {
-        let userRoles: Role[] | undefined;
+        let userRoles: Role[];
         let userScope: Role[] | undefined;
         const { id: updatedUserId, roles: updatedUserRoles, scope: updatedUserScope, ...newData } = data;
         const { id: authUserId, roles: authUserRoles, scope: authUserScope } = authUser;
@@ -135,7 +143,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
                             execute: () => {
                                 this.forbiddenError({
                                     condition: updatedUserRoles || updatedUserScope ||
-                                        !this.allowedManage({ authUser, userRoles: userRoles! })
+                                        !this.allowedManage({ authUser, userRoles })
                                 });
                             }
                         },
@@ -149,7 +157,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
                                     !updatedUserScope.includes(admin);
                                 const wouldLoseAdminRole =
                                     isSelf &&
-                                    userRoles!.includes(admin) &&
+                                    userRoles.includes(admin) &&
                                     updatedUserRoles &&
                                     !updatedUserRoles.includes(admin);
                                 this.forbiddenError({ condition: wouldLoseAdminScope || wouldLoseAdminRole });
@@ -172,8 +180,8 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
             if (superAdmin) {
                 const isUpdatedRoles =
                     updatedUserRoles &&
-                    (updatedUserRoles.length !== userRoles!.length ||
-                        !userRoles!.every((role) => updatedUserRoles.includes(role)));
+                    (updatedUserRoles.length !== userRoles.length ||
+                        !userRoles.every((role) => updatedUserRoles.includes(role)));
                 const currentUserScope = userScope ?? [];
                 const isUpdatedScope =
                     updatedUserScope &&
@@ -219,7 +227,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
     private allowedManage({ authUser, userRoles }: AllowedManageParams): boolean {
         return (
             authUser.scope!.includes(admin) ||
-            userRoles!.every((role) => authUser.scope!.includes(role))
+            userRoles.every((role) => authUser.scope!.includes(role))
         );
     }
 

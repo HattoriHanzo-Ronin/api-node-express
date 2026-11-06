@@ -1,14 +1,14 @@
-import type { UserAcl, UserRolesWriteParams } from "../types/user-roles-facade.js";
+import type { UserAcl, UserAclByUser, UserRolesWriteParams } from "../types/user-roles-facade.js";
 import type { UsersByIdParams } from "../types/user-roles-model.js";
 
 export default interface UserRolesFacade<Transaction> {
     /**
      * Returns user ACL data indexed by user identifier
      *
-     * @param params.usersId User identifiers
+     * @param params.usersId Validated user identifiers
      * @returns User ACL data
      */
-    getByUsers(params: UsersByIdParams): Promise<Map<string, UserAcl>>;
+    getByUsers(params: UsersByIdParams): Promise<UserAclByUser>;
 
     /**
      * Creates user roles
@@ -19,7 +19,7 @@ export default interface UserRolesFacade<Transaction> {
      * @param params.scope Administrative scope
      * @returns User ACL data
      */
-    createMany(params: UserRolesWriteParams<Transaction>): Promise<UserAcl | undefined>;
+    createMany(params: UserRolesWriteParams<Transaction>): Promise<UserAcl>;
 
     /**
      * Replaces user roles
@@ -30,5 +30,5 @@ export default interface UserRolesFacade<Transaction> {
      * @param params.scope Administrative scope
      * @returns User ACL data
      */
-    replace(params: UserRolesWriteParams<Transaction>): Promise<UserAcl | undefined>;
+    replace(params: UserRolesWriteParams<Transaction>): Promise<UserAcl>;
 }
