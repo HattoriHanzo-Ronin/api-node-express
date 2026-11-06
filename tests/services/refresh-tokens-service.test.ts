@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import RefreshTokensService from "../../src/services/refresh-tokens-service.js";
+import RefreshTokensService from "../../src/services/impl/default-refresh-tokens-service.js";
 import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
 
+const createRefreshTokensModelMock = () => ({ getByToken: vi.fn(), insert: vi.fn(), delete: vi.fn() });
+
 describe("RefreshTokensService", () => {
-    let refreshTokensModel;
-    let refreshTokensService;
+    let refreshTokensModel: ReturnType<typeof createRefreshTokensModelMock>;
+    let refreshTokensService: RefreshTokensService;
 
     beforeEach(() => {
-        refreshTokensModel = { getByToken: vi.fn(), insert: vi.fn(), delete: vi.fn() };
+        refreshTokensModel = createRefreshTokensModelMock();
         refreshTokensService = new RefreshTokensService({
             refreshTokensModel,
             entityError: PostgresErrors.refreshTokens
@@ -16,7 +18,7 @@ describe("RefreshTokensService", () => {
 
     describe("getByToken", () => {
         it("should validate an existing refresh token", async () => {
-            refreshTokensModel.getByToken.mockResolvedValue({ token: "refresh-token" });
+            refreshTokensModel.getByToken.mockResolvedValue({ user_id: "1", token: "refresh-token" });
             await expect(refreshTokensService.getByToken({ token: "refresh-token" })).resolves.toBeUndefined();
             expect(refreshTokensModel.getByToken).toHaveBeenCalledWith({ token: "refresh-token" });
         });
@@ -31,7 +33,7 @@ describe("RefreshTokensService", () => {
 
     describe("create", () => {
         it("should create a refresh token", async () => {
-            refreshTokensModel.insert.mockResolvedValue();
+            refreshTokensModel.insert.mockResolvedValue(null);
             await refreshTokensService.create({ userId: "1", token: "refresh-token" });
             expect(refreshTokensModel.insert).toHaveBeenCalledWith({
                 refreshToken: { user_id: "1", token: "refresh-token" }
@@ -55,8 +57,8 @@ describe("RefreshTokensService", () => {
 
     describe("delete", () => {
         it("should delete a refresh token", async () => {
-            refreshTokensModel.delete.mockResolvedValue();
-            await refreshTokensService.delete({ token: "refresh-token" });
+            refreshTokensModel.delete.mockResolvedValue(null);
+            await expect(refreshTokensService.delete({ token: "refresh-token" })).resolves.toBeNull();
             expect(refreshTokensModel.delete).toHaveBeenCalledWith({ token: "refresh-token" });
         });
     });
