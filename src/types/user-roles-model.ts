@@ -7,3 +7,8 @@ export type UserRole = {
     role: Role;
     scope: string | null;
 };
+
+export type UsersByIdParams = { usersId: string[] };
+export type InsertUserRolesParams<Transaction> = { clientTx: Transaction; userRoles: UserRole[] };
+export type DeleteUserRolesParams<Transaction> = { clientTx: Transaction; userId: string };
+export type ReplaceUserRolesParams<Transaction> = InsertUserRolesParams<Transaction> & DeleteUserRolesParams<Transaction>;
