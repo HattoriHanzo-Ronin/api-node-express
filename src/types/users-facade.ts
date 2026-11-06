@@ -9,6 +9,7 @@ export type CreateUser = UserInsert & Partial<UserAcl>;
 export type UpdateUser = UserId & UserUpdate & Partial<UserAcl>;
 export type AuthUserParams = { authUser: AuthAccessTokenPayload };
 export type GetUserParams = { authUser?: AuthAccessTokenPayload; id: string };
+export type GetUserWithoutAuthParams = { authUser?: never; id: string };
 export type CreateUserParams = AuthUserParams & { user: CreateUser };
 export type UpdateUserParams = AuthUserParams & { data: UpdateUser; changePassword?: boolean };
 export type ChangePasswordParams = AuthUserParams & { currentPassword: string; newPassword: string };
@@ -18,5 +19,5 @@ export type UpdatedUserResponse =
     | Pick<UserBasicInfo, "username">
     | (Partial<UserBasicInfo> & Partial<UserAcl>)
     | null;
-export type AuthenticatedUserResponse = Pick<UserBasicInfo, "id" | "username"> & Partial<UserAcl>;
+export type AuthenticatedUserResponse = Pick<UserBasicInfo, "id" | "username"> & UserAcl;
 export type UserCredentialsParams = UserCredentials;

@@ -64,6 +64,14 @@ describe("UsersFacade", () => {
     });
 
     describe("getById", () => {
+        it("should retain ACL data when no authenticated user is supplied", async () => {
+            usersService.getById.mockResolvedValue({ id: "1", username: "user" });
+            usersMapper.userToDomain.mockReturnValue({ id: "1", username: "user", roles: ["FTP"] });
+            await expect(usersFacade.getById({ id: "1" })).resolves.toEqual({
+                id: "1", username: "user", roles: ["FTP"]
+            });
+        });
+
         it("should return user", async () => {
             usersService.getById.mockResolvedValue({ id: "1", username: "user" });
             usersMapper.userToDomain.mockReturnValue({ id: "1", username: "user", roles: ["FTP"] });
@@ -83,9 +91,14 @@ describe("UsersFacade", () => {
     describe("authenticate", () => {
         it("should authenticate user", async () => {
             usersService.authenticate.mockResolvedValue({ id: "1" });
+            userRolesFacade.getByUsers.mockResolvedValue(new Map([["1", { roles: ["ADMIN"] }]]));
             usersMapper.userToDomain.mockReturnValue({ id: "1", username: "admin", roles: ["ADMIN"] });
             const result = await usersFacade.authenticate({ username: "admin", password: "1234" });
             expect(result.username).toBe("admin");
+            expect(usersMapper.userToDomain).toHaveBeenCalledWith({
+                source: { id: "1", username: "admin" },
+                acl: { roles: ["ADMIN"] }
+            });
         });
     });
 
