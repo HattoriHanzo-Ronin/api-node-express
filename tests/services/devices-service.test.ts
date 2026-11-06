@@ -1,22 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import DevicesService from "../../src/services/devices-service.js";
+import DevicesService from "../../src/services/impl/default-devices-service.js";
+import type { DeviceInsert } from "../../src/types/devices-model.js";
 import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
 
+const createDevicesModelMock = () => ({
+    getAll: vi.fn(), getById: vi.fn(), getAllowedDevices: vi.fn(), getNotAllowedDevices: vi.fn(),
+    getRoutersByAllowedDevice: vi.fn(), insert: vi.fn(), update: vi.fn(), delete: vi.fn()
+});
+
 describe("DevicesService", () => {
-    let devicesModel;
-    let devicesService;
+    let devicesModel: ReturnType<typeof createDevicesModelMock>;
+    let devicesService: DevicesService<object>;
 
     beforeEach(() => {
-        devicesModel = {
-            getAll: vi.fn(),
-            getById: vi.fn(),
-            getAllowedDevices: vi.fn(),
-            getNotAllowedDevices: vi.fn(),
-            getRoutersByAllowedDevice: vi.fn(),
-            insert: vi.fn(),
-            update: vi.fn(),
-            delete: vi.fn()
-        };
+        devicesModel = createDevicesModelMock();
         devicesService = new DevicesService({ devicesModel, entityError: PostgresErrors.devices });
     });
 
@@ -88,18 +85,19 @@ describe("DevicesService", () => {
 
     describe("create", () => {
         it("should create device", async () => {
-            const device = { id: "device-1", name: "Desktop" };
+            const device: DeviceInsert = {
+                name: "Desktop", type: "CLIENT", model: null, ip: null, ssid: null,
+                wifi_pass: null, admin_pass: null, mac_filter: null
+            };
             devicesModel.insert.mockResolvedValue(device);
             await expect(devicesService.create({ clientTx: {}, device })).resolves.toEqual(device);
             expect(devicesModel.insert).toHaveBeenCalledWith({ clientTx: {}, device });
         });
 
         it("should translate duplicated device name errors", async () => {
-            const error = new Error("duplicate");
-            error.code = "23505";
-            error.constraint = "devices_name_unique";
+            const error = Object.assign(new Error("duplicate"), { code: "23505", constraint: "devices_name_unique" });
             devicesModel.insert.mockRejectedValue(error);
-            await expect(devicesService.create({ clientTx: {}, device: {} })).rejects.toMatchObject({
+            await expect(devicesService.create({ clientTx: {}, device: {} as DeviceInsert })).rejects.toMatchObject({
                 code: "DEVICE_NAME_ALREADY_EXISTS"
             });
         });
@@ -116,9 +114,7 @@ describe("DevicesService", () => {
         });
 
         it("should translate duplicated device ip errors", async () => {
-            const error = new Error("duplicate");
-            error.code = "23505";
-            error.constraint = "devices_ip_unique";
+            const error = Object.assign(new Error("duplicate"), { code: "23505", constraint: "devices_ip_unique" });
             devicesModel.update.mockRejectedValue(error);
             await expect(
                 devicesService.update({ clientTx: {}, id: "device-1", data: { ip: "192.168.1.10" } })
@@ -131,6 +127,12 @@ describe("DevicesService", () => {
                 status: 400
             });
             expect(devicesModel.update).not.toHaveBeenCalled();
+        });
+
+        it("should reject a missing device returned by an update", async () => {
+            devicesModel.update.mockResolvedValue(null);
+            await expect(devicesService.update({ clientTx: {}, id: "device-1", data: { name: "Desktop" } }))
+                .rejects.toMatchObject({ code: "VALIDATION_FAILED", status: 400 });
         });
     });
 

@@ -20,10 +20,10 @@ import ConnectionsModel from "./models/postgres/connections/connections-model.js
 import ConnectionsService from "./services/connections-service.js";
 import ConnectionsMapper from "./mappers/connections-mapper.js";
 import ConnectionsFacade from "./facades/connections-facade.js";
-import DevicesModel from "./models/postgres/devices/devices-model.js";
-import DevicesService from "./services/devices-service.js";
-import DevicesMapper from "./mappers/devices-mapper.js";
-import DevicesFacade from "./facades/devices-facade.js";
+import DefaultDevicesModel from "./models/impl/postgres/devices/default-devices-model.js";
+import DefaultDevicesService from "./services/impl/default-devices-service.js";
+import DefaultDevicesMapper from "./mappers/impl/default-devices-mapper.js";
+import DefaultDevicesFacade from "./facades/impl/default-devices-facade.js";
 import DevicesController from "./controllers/devices-controller.js";
 import RouterAutomation from "./utils/devices-routers/automation/impl/router-automation-manager.js";
 import RouterCpanelClient from "./utils/devices-routers/cpanel/impl/router-cpanel-client.js";
@@ -92,11 +92,11 @@ const connectionsFacade = new ConnectionsFacade({
     connectionsMapper: ConnectionsMapper
 });
 
-const devicesService = new DevicesService({ devicesModel: DevicesModel, entityError: devicesEntityError });
+const devicesService = new DefaultDevicesService({ devicesModel: DefaultDevicesModel, entityError: devicesEntityError });
 const routerAutomation = RouterAutomation;
-const devicesMapper = new DevicesMapper({ routerAutomation });
+const devicesMapper = new DefaultDevicesMapper({ routerAutomation });
 const routerCpanel = new RouterCpanelClient({ routerCpanelServiceUrl });
-const devicesFacade = new DevicesFacade({
+const devicesFacade = new DefaultDevicesFacade({
     devicesService,
     dataVersionsFacade,
     devicesMapper,

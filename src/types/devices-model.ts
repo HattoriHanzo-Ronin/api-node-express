@@ -35,3 +35,8 @@ export type DeviceRouterInfo = Pick<RouterDevice, "id" | "name" | "model" | "ip"
 export type AllowedDevice = DeviceAllowedInfo & ConnectionData;
 
 export type RouterAllowedDevice = DeviceRouterInfo & RouterConnection;
+
+export type RouterIdParams = { routerId: string };
+export type AllowedDeviceIdParams = { allowedDeviceId: string };
+export type InsertDeviceParams<Transaction> = { clientTx: Transaction; device: DeviceInsert };
+export type UpdateDeviceParams<Transaction> = { clientTx: Transaction; id: string; data: DeviceUpdate };
