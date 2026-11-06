@@ -16,10 +16,10 @@ import DataVersionsService from "./services/data-versions-service.js";
 import DataVersionsMapper from "./mappers/data-versions-mapper.js";
 import DataVersionsFacade from "./facades/data-versions-facade.js";
 
-import ConnectionsModel from "./models/postgres/connections/connections-model.js";
-import ConnectionsService from "./services/connections-service.js";
-import ConnectionsMapper from "./mappers/connections-mapper.js";
-import ConnectionsFacade from "./facades/connections-facade.js";
+import DefaultConnectionsModel from "./models/impl/postgres/connections/default-connections-model.js";
+import DefaultConnectionsService from "./services/impl/default-connections-service.js";
+import DefaultConnectionsMapper from "./mappers/impl/default-connections-mapper.js";
+import DefaultConnectionsFacade from "./facades/impl/default-connections-facade.js";
 import DefaultDevicesModel from "./models/impl/postgres/devices/default-devices-model.js";
 import DefaultDevicesService from "./services/impl/default-devices-service.js";
 import DefaultDevicesMapper from "./mappers/impl/default-devices-mapper.js";
@@ -83,13 +83,13 @@ const dataVersionsFacade = new DataVersionsFacade({
     ftpFacade
 });
 
-const connectionsService = new ConnectionsService({
-    connectionsModel: ConnectionsModel,
+const connectionsService = new DefaultConnectionsService({
+    connectionsModel: DefaultConnectionsModel,
     entityError: connectionsEntityError
 });
-const connectionsFacade = new ConnectionsFacade({
+const connectionsFacade = new DefaultConnectionsFacade({
     connectionsService,
-    connectionsMapper: ConnectionsMapper
+    connectionsMapper: DefaultConnectionsMapper
 });
 
 const devicesService = new DefaultDevicesService({ devicesModel: DefaultDevicesModel, entityError: devicesEntityError });

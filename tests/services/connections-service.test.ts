@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import ConnectionsService from "../../src/services/connections-service.js";
+import ConnectionsService from "../../src/services/impl/default-connections-service.js";
+import type { Connection, ConnectionData } from "../../src/types/connections-model.js";
 import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
 
 describe("ConnectionsService getByDevices", () => {
@@ -25,15 +26,20 @@ describe("ConnectionsService createMany", () => {
 
     it("should fail if connections are not defined", async () => {
         const { connectionsService } = setup();
-        await expect(connectionsService.createMany({ clientTx: {} })).rejects.toMatchObject({
+        await expect(connectionsService.createMany({ clientTx: {}, connections: undefined as unknown as Connection[] })).rejects.toMatchObject({
             code: "CONNECTION_REQUIRED"
         });
     });
 
+    it("should wrap non-API errors even when their code matches the validation error", async () => {
+        const { connectionsModel, connectionsService } = setup();
+        connectionsModel.insertMany.mockRejectedValue(Object.assign(new Error("database error"), { code: "CONNECTION_REQUIRED" }));
+        await expect(connectionsService.createMany(createParams())).rejects.toMatchObject({ code: "CONNECTION_CREATE_FAILED" });
+    });
+
     it("should translate duplicated mac errors", async () => {
         const { connectionsModel, connectionsService } = setup();
-        const error = new Error("duplicate");
-        error.code = "23505";
+        const error = Object.assign(new Error("duplicate"), { code: "23505" });
         connectionsModel.insertMany.mockRejectedValue(error);
         await expect(connectionsService.createMany(createParams())).rejects.toMatchObject({
             code: "CONNECTION_MAC_ALREADY_EXISTS"
@@ -44,7 +50,7 @@ describe("ConnectionsService createMany", () => {
 describe("ConnectionsService update operations", () => {
     it("should return empty result when connections do not change", async () => {
         const { connectionsModel, connectionsService } = setup();
-        const connections = [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }];
+        const connections = [connection()];
         const params = updateParams({ connections, oldConnections: connections });
         await expect(connectionsService.update(params)).resolves.toEqual({});
         expect(connectionsModel.deleteMany).not.toHaveBeenCalled();
@@ -115,8 +121,7 @@ describe("ConnectionsService update combined operations and errors", () => {
 
     it("should translate duplicated mac errors", async () => {
         const { connectionsModel, connectionsService } = setup();
-        const error = new Error("duplicate");
-        error.code = "23505";
+        const error = Object.assign(new Error("duplicate"), { code: "23505" });
         connectionsModel.updateMany.mockRejectedValue(error);
         await expect(connectionsService.update(updateParams())).rejects.toMatchObject({
             code: "CONNECTION_MAC_ALREADY_EXISTS"
@@ -140,7 +145,7 @@ function setup() {
     };
 }
 
-function connection({ mac = "AA:BB:CC:DD:EE:01", ctype = "LAN" } = {}) {
+function connection({ mac = "AA:BB:CC:DD:EE:01", ctype = "LAN" }: Partial<ConnectionData> = {}): Connection {
     return { device_id: "device-1", mac, ctype };
 }
 
@@ -148,7 +153,7 @@ function createParams() {
     return { clientTx: {}, connections: [connection()] };
 }
 
-function updateParams({ connections, oldConnections } = {}) {
+function updateParams({ connections, oldConnections }: { connections?: Connection[]; oldConnections?: Connection[] } = {}) {
     return {
         clientTx: {},
         connections: connections ?? [connection({ mac: "AA:BB:CC:DD:EE:02" })],
