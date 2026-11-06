@@ -6,7 +6,7 @@ const {
     ERROR_MESSAGES: { typeRequired, emptyString }
 } = ZodUtils;
 const { username, password } = UsersSchema.getBaseSchema().shape;
-const authLoginSchema = z.object({ username, password });
-const authRefreshTokenSchema = z.object({ refreshToken: z.string(typeRequired).trim().min(1, emptyString) });
+const AUTH_LOGIN_SCHEMA = z.object({ username, password });
+const AUTH_REFRESH_TOKEN_SCHEMA = z.object({ refreshToken: z.string(typeRequired).trim().min(1, emptyString) });
 
-export { authLoginSchema, authRefreshTokenSchema };
+export { AUTH_LOGIN_SCHEMA, AUTH_REFRESH_TOKEN_SCHEMA };
