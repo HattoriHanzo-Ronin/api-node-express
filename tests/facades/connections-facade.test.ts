@@ -1,17 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import ConnectionsFacade from "../../src/facades/connections-facade.js";
-import ConnectionsMapper from "../../src/mappers/connections-mapper.js";
+import ConnectionsFacade from "../../src/facades/impl/default-connections-facade.js";
+import ConnectionsMapper from "../../src/mappers/impl/default-connections-mapper.js";
+
+const createConnectionsServiceMock = () => ({ getByDevices: vi.fn(), createMany: vi.fn(), update: vi.fn() });
 
 describe("ConnectionsFacade", () => {
-    let connectionsService;
-    let connectionsFacade;
+    let connectionsService: ReturnType<typeof createConnectionsServiceMock>;
+    let connectionsFacade: ConnectionsFacade<object>;
 
     beforeEach(() => {
-        connectionsService = {
-            getByDevices: vi.fn(),
-            createMany: vi.fn(),
-            update: vi.fn()
-        };
+        connectionsService = createConnectionsServiceMock();
         connectionsFacade = new ConnectionsFacade({
             connectionsService,
             connectionsMapper: ConnectionsMapper
