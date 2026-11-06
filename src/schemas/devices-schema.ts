@@ -1,4 +1,5 @@
-import z from "zod";
+import z, { type RefinementCtx } from "zod";
+import type { DeviceSchemaData } from "../types/devices-schema.js";
 import { CONNECTION_TYPE, DEVICE_TYPE } from "../config/constants.js";
 import ValidateUtils from "../utils/validate-utils.js";
 import ZodUtils from "../utils/zod-utils.js";
@@ -16,10 +17,10 @@ const {
     REGEX: { passwordRegex }
 } = ValidateUtils;
 const SAFE_TEXT_REGEX = /^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9 -]+$/;
-const connectionsCtype = Object.values(CONNECTION_TYPE);
-const devicesType = Object.values(DEVICE_TYPE);
+const CONNECTIONS_CTYPE = Object.values(CONNECTION_TYPE);
+const DEVICES_TYPE = Object.values(DEVICE_TYPE);
 const { router, server } = DEVICE_TYPE;
-const devicesSchema = z.object({
+const DEVICES_SCHEMA = z.object({
     name: z
         .string(typeRequired)
         .trim()
@@ -30,12 +31,12 @@ const devicesSchema = z.object({
         .array(
             z.object({
                 mac: macSchema.shape.mac,
-                ctype: zodEnumIgnoreCase(z.enum(connectionsCtype, invalidEnum(connectionsCtype)), typeRequired)
+                ctype: zodEnumIgnoreCase(z.enum(CONNECTIONS_CTYPE, invalidEnum(CONNECTIONS_CTYPE)), typeRequired)
             }),
             typeRequired
         )
         .min(1, emptyArray),
-    type: zodEnumIgnoreCase(z.enum(devicesType, invalidEnum(devicesType)), typeRequired),
+    type: zodEnumIgnoreCase(z.enum(DEVICES_TYPE, invalidEnum(DEVICES_TYPE)), typeRequired),
     model: z
         .string(typeNotRequired)
         .trim()
@@ -82,20 +83,21 @@ const devicesSchema = z.object({
  * @author HattoriHanzo-Ronin
  */
 export default class DevicesSchema {
-    static getValidatedSchema() {
-        return withSuperRefine(devicesSchema, DevicesSchema.#cases);
+    static getValidatedSchema(): typeof DEVICES_SCHEMA {
+        return withSuperRefine(DEVICES_SCHEMA, DevicesSchema.cases);
     }
 
-    static getPartialSchema() {
-        const partialSchema = useRequiredProperties(devicesSchema.partial(), idSchema.shape);
-        return withSuperRefine(partialSchema, DevicesSchema.#cases);
-    }
-    static getDeviceSchema() {
-        const schema = devicesSchema.omit({ connections: true }).extend(idSchema.shape);
-        return withSuperRefine(schema, DevicesSchema.#cases);
+    static getPartialSchema(): z.ZodObject<z.core.util.Extend<ReturnType<typeof DEVICES_SCHEMA.partial>["shape"], typeof idSchema.shape>> {
+        const partialSchema = useRequiredProperties(DEVICES_SCHEMA.partial(), idSchema.shape);
+        return withSuperRefine(partialSchema, DevicesSchema.cases);
     }
 
-    static #cases({ type, mac_filter, admin_pass, ip, ssid, wifi_pass, model, connections }, ctx) {
+    static getDeviceSchema(): z.ZodObject<z.core.util.Extend<Omit<typeof DEVICES_SCHEMA.shape, "connections">, typeof idSchema.shape>> {
+        const schema = DEVICES_SCHEMA.omit({ connections: true }).extend(idSchema.shape);
+        return withSuperRefine(schema, DevicesSchema.cases);
+    }
+
+    private static cases({ type, mac_filter, admin_pass, ip, ssid, wifi_pass, model, connections }: DeviceSchemaData, ctx: RefinementCtx): void {
         const isRouter = type === router;
         handleValidationIssues(
             [
@@ -130,7 +132,7 @@ export default class DevicesSchema {
                                     message: "Debe especificar el SSID"
                                 },
                                 {
-                                    condition: ssid !== null && Buffer.byteLength(ssid, "utf8") > 32,
+                                    condition: ssid !== null && Buffer.byteLength(ssid as string, "utf8") > 32,
                                     path: ["ssid"],
                                     message: "Longitud superada"
                                 }
@@ -177,8 +179,8 @@ export default class DevicesSchema {
                 {
                     condition: connections,
                     execute: () => {
-                        const repeatedCtypes = new Map();
-                        for (const { ctype } of connections) {
+                        const repeatedCtypes = new Map<string, number>();
+                        for (const { ctype } of connections!) {
                             repeatedCtypes.set(ctype, (repeatedCtypes.get(ctype) ?? 0) + 1);
                         }
                         handleValidationIssues(

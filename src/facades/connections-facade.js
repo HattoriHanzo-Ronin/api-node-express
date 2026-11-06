@@ -2,6 +2,7 @@
  * Connections facade
  *
  * @author HattoriHanzo-Ronin
+ * @template Transaction
  */
 export default class ConnectionsFacade {
     #connectionsService;
@@ -15,8 +16,8 @@ export default class ConnectionsFacade {
     /**
      * Returns device connections
      *
-     * @param {string[]} params.devicesId Device identifiers
-     * @returns {Promise<Map<string, Object[]>>} Domain connections by device identifier
+     * @param {import("../types/connections-facade.js").ConnectionsByDevicesParams} params Device identifiers
+     * @returns {Promise<Map<string, import("../types/connections-model.js").ConnectionData[]>>} Domain connections by device identifier
      */
     async getByDevices({ devicesId }) {
         const source = await this.#connectionsService.getByDevices({ devicesId });
@@ -26,8 +27,8 @@ export default class ConnectionsFacade {
     /**
      * Groups persistence connections by device and maps them to the domain model
      *
-     * @param {Object[]} params.source Persistence connections
-     * @returns {Map<string, Object[]>} Domain connections by device identifier
+     * @param {import("../types/connections-facade.js").ConnectionsSourceParams} params Persistence connections
+     * @returns {Map<string, import("../types/connections-model.js").ConnectionData[]>} Domain connections by device identifier
      */
     connectionsByDeviceToDomain({ source }) {
         return this.#connectionsMapper.connectionsByDeviceToDomain(source);
@@ -36,10 +37,8 @@ export default class ConnectionsFacade {
     /**
      * Creates device connections
      *
-     * @param {import("pg-promise").ITask<any>} params.clientTx Database transaction
-     * @param {string} params.deviceId Device identifier
-     * @param {Object[]} params.connections Domain connections
-     * @returns {Promise<Object[]>} Created connections
+     * @param {import("../types/connections-facade.js").CreateConnectionsParams<Transaction>} params Device connections
+     * @returns {Promise<import("../types/connections-model.js").ConnectionData[]>} Created connections
      */
     async createMany({ clientTx, deviceId, connections }) {
         const source = await this.#connectionsService.createMany({
@@ -52,11 +51,8 @@ export default class ConnectionsFacade {
     /**
      * Updates device connections
      *
-     * @param {import("pg-promise").ITask<any>} params.clientTx Database transaction
-     * @param {string} params.deviceId Device identifier
-     * @param {Object[]} params.connections Domain connections
-     * @param {Object[]} params.oldConnections Domain connections
-     * @returns {Promise<Object>} Updated connections
+     * @param {import("../types/connections-facade.js").UpdateConnectionsParams<Transaction>} params Device connections
+     * @returns {Promise<import("../types/connections-facade.js").ConnectionsUpdateResult>} Updated connections
      */
     async update({ clientTx, deviceId, connections, oldConnections }) {
         const source = await this.#connectionsService.update({

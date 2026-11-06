@@ -1,8 +1,9 @@
 import { Router } from "express";
+import type { DevicesRouterDependencies } from "../types/devices-router.js";
 import Middlewares from "../middlewares/middlewares.js";
 import { USER_ROLE } from "../config/constants.js";
 
-export default function createDevicesRouter({ devicesController, requireAuth }) {
+export default function createDevicesRouter({ devicesController, requireAuth }: DevicesRouterDependencies) {
     const devicesRouter = Router();
     const { net } = USER_ROLE;
     const { asyncHandler, authorizedRoles, routeNotFound } = Middlewares;

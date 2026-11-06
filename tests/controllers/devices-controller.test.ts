@@ -1,35 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { NextFunction, Request, Response } from "express";
 import DevicesController from "../../src/controllers/devices-controller.js";
 
+const NEXT: NextFunction = vi.fn();
 const UUID = "550e8400-e29b-41d4-a716-446655440000";
 
+const createDevicesFacadeMock = () => ({
+    getAll: vi.fn(), getById: vi.fn(), getAllowedDevices: vi.fn(), getNotAllowedDevices: vi.fn(),
+    create: vi.fn(), update: vi.fn(), delete: vi.fn(), createRouterCpanel: vi.fn(),
+    navigateRouterCpanel: vi.fn(), closeRouterCpanel: vi.fn()
+});
+
 describe("DevicesController", () => {
-    let devicesFacade;
-    let controller;
-    let req;
-    let res;
+    let devicesFacade: ReturnType<typeof createDevicesFacadeMock>;
+    let controller: DevicesController;
+    let req: Request<{ id: string; routerId: string; sessionId: string } & Record<string, never>>;
+    let res: Response;
 
     beforeEach(() => {
-        devicesFacade = {
-            getAll: vi.fn(),
-            getById: vi.fn(),
-            getAllowedDevices: vi.fn(),
-            getNotAllowedDevices: vi.fn(),
-            create: vi.fn(),
-            update: vi.fn(),
-            delete: vi.fn(),
-            createRouterCpanel: vi.fn(),
-            navigateRouterCpanel: vi.fn(),
-            closeRouterCpanel: vi.fn()
-        };
+        devicesFacade = createDevicesFacadeMock();
         controller = new DevicesController({ devicesFacade });
-        req = { params: {}, body: validClient(), user: { id: "user-id" } };
-        res = { json: vi.fn(), set: vi.fn().mockReturnThis(), status: vi.fn().mockReturnThis() };
+        req = { params: {}, body: validClient(), user: { id: "user-id" } } as unknown as typeof req;
+        res = { json: vi.fn(), set: vi.fn().mockReturnThis(), status: vi.fn().mockReturnThis() } as unknown as Response;
     });
 
     it("should get all devices", async () => {
         devicesFacade.getAll.mockResolvedValue({ version: "2", data: [] });
-        await controller.getAll(req, res);
+        await controller.getAll(req, res, NEXT);
         expect(devicesFacade.getAll).toHaveBeenCalled();
         expect(res.set).toHaveBeenCalledWith("Data-Version", "2");
         expect(res.json).toHaveBeenCalledWith([]);
@@ -38,7 +35,7 @@ describe("DevicesController", () => {
     it("should get device by id", async () => {
         req.params.id = UUID;
         devicesFacade.getById.mockResolvedValue({ id: UUID });
-        await controller.getById(req, res);
+        await controller.getById(req, res, NEXT);
         expect(devicesFacade.getById).toHaveBeenCalledWith({ id: UUID });
         expect(res.json).toHaveBeenCalledWith({ id: UUID });
     });
@@ -46,7 +43,7 @@ describe("DevicesController", () => {
     it("should get allowed devices", async () => {
         req.params.id = UUID;
         devicesFacade.getAllowedDevices.mockResolvedValue({ version: { devices: "2", whitelist: "3" }, data: [] });
-        await controller.getAllowedDevices(req, res);
+        await controller.getAllowedDevices(req, res, NEXT);
         expect(devicesFacade.getAllowedDevices).toHaveBeenCalledWith({ routerId: UUID });
         expect(res.set).toHaveBeenCalledWith({ "Devices-Version": "2", "Whitelist-Version": "3" });
         expect(res.json).toHaveBeenCalledWith([]);
@@ -55,7 +52,7 @@ describe("DevicesController", () => {
     it("should get not allowed devices", async () => {
         req.params.id = UUID;
         devicesFacade.getNotAllowedDevices.mockResolvedValue({ version: { devices: "2", whitelist: "3" }, data: [] });
-        await controller.getNotAllowedDevices(req, res);
+        await controller.getNotAllowedDevices(req, res, NEXT);
         expect(devicesFacade.getNotAllowedDevices).toHaveBeenCalledWith({ routerId: UUID });
         expect(res.set).toHaveBeenCalledWith({ "Devices-Version": "2", "Whitelist-Version": "3" });
         expect(res.json).toHaveBeenCalledWith([]);
@@ -63,7 +60,7 @@ describe("DevicesController", () => {
 
     it("should create device", async () => {
         devicesFacade.create.mockResolvedValue({ id: UUID });
-        await controller.create(req, res);
+        await controller.create(req, res, NEXT);
         expect(devicesFacade.create).toHaveBeenCalledWith({ device: expect.objectContaining(validClient()) });
         expect(res.status).toHaveBeenCalledWith(201);
         expect(res.json).toHaveBeenCalledWith({ id: UUID });
@@ -72,7 +69,7 @@ describe("DevicesController", () => {
     it("should update device", async () => {
         req.body = { id: UUID, name: "Desktop Updated" };
         devicesFacade.update.mockResolvedValue({ id: UUID });
-        await controller.update(req, res);
+        await controller.update(req, res, NEXT);
         expect(devicesFacade.update).toHaveBeenCalledWith({ data: expect.objectContaining(req.body) });
         expect(res.json).toHaveBeenCalledWith({ id: UUID });
     });
@@ -80,7 +77,7 @@ describe("DevicesController", () => {
     it("should delete device", async () => {
         req.params.id = UUID;
         devicesFacade.delete.mockResolvedValue({ id: UUID });
-        await controller.delete(req, res);
+        await controller.delete(req, res, NEXT);
         expect(devicesFacade.delete).toHaveBeenCalledWith({ id: UUID });
         expect(res.json).toHaveBeenCalledWith({ id: UUID });
     });
@@ -89,7 +86,7 @@ describe("DevicesController", () => {
         req.params.routerId = UUID;
         req.body = { clientType: "mobile", language: "es-ES", theme: "light" };
         devicesFacade.createRouterCpanel.mockResolvedValue({ id: "session-id" });
-        await controller.createRouterCpanel(req, res);
+        await controller.createRouterCpanel(req, res, NEXT);
         expect(devicesFacade.createRouterCpanel).toHaveBeenCalledWith({
             authUser: req.user,
             routerId: UUID,
@@ -105,7 +102,7 @@ describe("DevicesController", () => {
         req.params.routerId = UUID;
         req.body = {};
         devicesFacade.createRouterCpanel.mockResolvedValue({ id: "session-id" });
-        await controller.createRouterCpanel(req, res);
+        await controller.createRouterCpanel(req, res, NEXT);
         expect(devicesFacade.createRouterCpanel).toHaveBeenCalledWith({
             authUser: req.user,
             routerId: UUID,
@@ -119,7 +116,7 @@ describe("DevicesController", () => {
         req.params.sessionId = UUID;
         req.body = { action: "back" };
         res.send = vi.fn();
-        await controller.navigateRouterCpanel(req, res);
+        await controller.navigateRouterCpanel(req, res, NEXT);
         expect(devicesFacade.navigateRouterCpanel).toHaveBeenCalledWith({ authUser: req.user, sessionId: UUID, action: "back" });
         expect(res.status).toHaveBeenCalledWith(204);
         expect(res.send).toHaveBeenCalledWith();
@@ -128,7 +125,7 @@ describe("DevicesController", () => {
     it("should close a router control panel session", async () => {
         req.params.sessionId = UUID;
         res.send = vi.fn();
-        await controller.closeRouterCpanel(req, res);
+        await controller.closeRouterCpanel(req, res, NEXT);
         expect(devicesFacade.closeRouterCpanel).toHaveBeenCalledWith({ authUser: req.user, sessionId: UUID });
         expect(res.status).toHaveBeenCalledWith(204);
         expect(res.send).toHaveBeenCalledWith();
@@ -137,27 +134,27 @@ describe("DevicesController", () => {
     describe("schema validation", () => {
         it("should fail with invalid name format", async () => {
             req.body.name = "Desk@top";
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail with name below minimum length", async () => {
             req.body.name = "abc";
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail with invalid type enum", async () => {
             req.body.type = "INVALID";
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail with empty connections", async () => {
             req.body.connections = [];
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail with invalid uuid", async () => {
             req.body = { id: "BAD_ID" };
-            await expect(controller.update(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.update(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
     });
 
@@ -165,61 +162,61 @@ describe("DevicesController", () => {
         it("should fail when router does not specify mac filter support", async () => {
             req.body = validRouter();
             delete req.body.mac_filter;
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail when router with mac filter does not specify model", async () => {
             req.body = validRouter();
             delete req.body.model;
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail when router does not specify admin password", async () => {
             req.body = validRouter();
             delete req.body.admin_pass;
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail when router does not specify ip", async () => {
             req.body = validRouter();
             delete req.body.ip;
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail when router specifies Wi-Fi password without SSID", async () => {
             req.body = validRouter();
             delete req.body.ssid;
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail when router SSID exceeds 32 bytes", async () => {
             req.body = { ...validRouter(), ssid: "á".repeat(17) };
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail when client uses mac filtering", async () => {
             req.body.mac_filter = true;
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail when client uses admin password", async () => {
             req.body.admin_pass = "Password123!";
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail when client uses wifi password", async () => {
             req.body.wifi_pass = "WifiPass123!";
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail when client uses SSID", async () => {
             req.body.ssid = "Home Network";
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail when server does not specify ip", async () => {
             req.body = { ...validClient(), name: "Server Test", type: "SERVER" };
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
 
         it("should fail when connections contain duplicated ctypes", async () => {
@@ -227,12 +224,12 @@ describe("DevicesController", () => {
                 { mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" },
                 { mac: "AA:BB:CC:DD:EE:02", ctype: "LAN" }
             ];
-            await expect(controller.create(req, res)).rejects.toThrow("Error al validar los datos");
+            await expect(controller.create(req, res, NEXT)).rejects.toThrow("Error al validar los datos");
         });
     });
 });
 
-function validClient() {
+function validClient(): { name: string; connections: { mac: string; ctype: string }[]; type: string } {
     return {
         name: "Desktop Test",
         connections: [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }],
@@ -240,7 +237,7 @@ function validClient() {
     };
 }
 
-function validRouter() {
+function validRouter(): { name: string; model: string; connections: { mac: string; ctype: string }[]; type: string; ip: string; admin_pass: string; ssid: string; wifi_pass: string; mac_filter: boolean } {
     return {
         name: "Router Test",
         model: "TP-Link Archer AX53",

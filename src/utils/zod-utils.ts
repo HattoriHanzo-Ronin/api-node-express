@@ -74,8 +74,8 @@ export default class ZodUtils {
      * @returns Parsed data
      * @throws {ApiError} When validation is invalid
      */
-    static validateData<RawData extends object, ZodObj extends ZodObject>(
-        data: RawData,
+    static validateData<ZodObj extends ZodObject>(
+        data: unknown,
         schema: ZodObj
     ): output<ZodObj> {
         const result = schema.safeParse(data);
