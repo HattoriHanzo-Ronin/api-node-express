@@ -41,8 +41,8 @@ import DefaultUsersMapper from "./mappers/impl/default-users-mapper.js";
 import DefaultUsersService from "./services/impl/default-users-service.js";
 import DefaultUsersFacade from "./facades/impl/default-users-facade.js";
 import UsersController from "./controllers/users-controller.js";
-import RefreshTokensModel from "./models/postgres/refresh-tokens/refresh-tokens-model.js";
-import RefreshTokensService from "./services/refresh-tokens-service.js";
+import DefaultRefreshTokensModel from "./models/impl/postgres/refresh-tokens/default-refresh-tokens-model.js";
+import DefaultRefreshTokensService from "./services/impl/default-refresh-tokens-service.js";
 import AuthFacade from "./facades/auth-facade.js";
 import AuthController from "./controllers/auth-controller.js";
 import { ENV } from "./config/environment.js";
@@ -136,8 +136,8 @@ const usersFacade = new DefaultUsersFacade({
 });
 const usersController = new UsersController({ usersFacade });
 
-const refreshTokensService = new RefreshTokensService({
-    refreshTokensModel: RefreshTokensModel,
+const refreshTokensService = new DefaultRefreshTokensService({
+    refreshTokensModel: DefaultRefreshTokensModel,
     entityError: refreshTokensEntityError
 });
 
