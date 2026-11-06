@@ -5,7 +5,6 @@ export type UserAcl = { roles: Role[]; scope?: Role[] };
 export type UserRolesWriteParams<Transaction> = {
     clientTx: Transaction;
     userId: string;
-    roles: Role[] | undefined;
-    scope: Role[] | undefined;
+    roles?: Role[];
+    scope?: Role[];
 };
-

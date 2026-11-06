@@ -32,10 +32,10 @@ import WhitelistService from "./services/whitelist-service.js";
 import WhitelistFacade from "./facades/whitelist-facade.js";
 import WhitelistController from "./controllers/whitelist-controller.js";
 
-import UserRolesModel from "./models/postgres/user-roles/user-roles-model.js";
-import UserRolesService from "./services/user-roles-service.js";
-import UserRolesMapper from "./mappers/user-roles-mapper.js";
-import UserRolesFacade from "./facades/user-roles-facade.js";
+import DefaultUserRolesModel from "./models/impl/postgres/user-roles/default-user-roles-model.js";
+import DefaultUserRolesService from "./services/impl/default-user-roles-service.js";
+import DefaultUserRolesMapper from "./mappers/impl/default-user-roles-mapper.js";
+import DefaultUserRolesFacade from "./facades/impl/default-user-roles-facade.js";
 import DefaultUsersModel from "./models/impl/postgres/users/default-users-model.js";
 import DefaultUsersMapper from "./mappers/impl/default-users-mapper.js";
 import DefaultUsersService from "./services/impl/default-users-service.js";
@@ -119,10 +119,10 @@ const whitelistFacade = new WhitelistFacade({
 });
 const whitelistController = new WhitelistController({ whitelistFacade });
 
-const userRolesService = new UserRolesService({ userRolesModel: UserRolesModel });
-const userRolesFacade = new UserRolesFacade({
+const userRolesService = new DefaultUserRolesService({ userRolesModel: DefaultUserRolesModel });
+const userRolesFacade = new DefaultUserRolesFacade({
     userRolesService,
-    userRolesMapper: UserRolesMapper
+    userRolesMapper: DefaultUserRolesMapper
 });
 
 const usersService = new DefaultUsersService({ usersModel: DefaultUsersModel, entityError: usersEntityError });
