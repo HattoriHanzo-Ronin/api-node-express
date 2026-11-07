@@ -2,6 +2,7 @@ const DEVICE_TYPE = Object.freeze({ client: "CLIENT", router: "ROUTER", server: 
 const CONNECTION_TYPE = Object.freeze({ wan: "WAN", lan: "LAN", wifi: "WIFI" } as const);
 const USER_ROLE = Object.freeze({ admin: "ADMIN", ftp: "FTP", net: "NET" } as const);
 const FILE_TYPE = Object.freeze({ dir: "DIR", file: "FILE" } as const);
+const FTP_TRANSFER_TYPE = Object.freeze({ upload: "UPLOAD", download: "DOWNLOAD" } as const);
 const SOCKET_ENTITY = Object.freeze({
     devices: "devices",
     whitelist: "whitelist",
@@ -14,6 +15,7 @@ const ROUTER_CPANEL_THEME = Object.freeze({ dark: "dark", light: "light" } as co
 
 export {
     FILE_TYPE,
+    FTP_TRANSFER_TYPE,
     CONNECTION_TYPE,
     DEVICE_TYPE,
     SOCKET_ENTITY,

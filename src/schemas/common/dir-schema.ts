@@ -1,4 +1,4 @@
-import z from "zod";
+import z, { type RefinementCtx } from "zod";
 import path from "node:path";
 import ZodUtils from "../../utils/zod-utils.js";
 
@@ -7,7 +7,7 @@ const {
     withSuperRefine,
     ERROR_MESSAGES: { typeRequired, format, emptyString }
 } = ZodUtils;
-const pathSchema = withSuperRefine(
+const PATH_SCHEMA = withSuperRefine(
     z
         .string(typeRequired)
         .trim()
@@ -15,10 +15,10 @@ const pathSchema = withSuperRefine(
         .regex(/^[^\p{Cc}\\]+$/u, format),
     pathCases
 );
-const dirSchema = z.object({ dir: pathSchema.default(".") });
+const DIR_SCHEMA = z.object({ dir: PATH_SCHEMA.default(".") });
 
-function pathCases(source, ctx) {
-    return handleValidationIssues(
+function pathCases(source: string, ctx: RefinementCtx): void {
+    handleValidationIssues(
         [
             {
                 condition:
@@ -30,5 +30,4 @@ function pathCases(source, ctx) {
     );
 }
 
-export default dirSchema;
-export { pathSchema };
+export { DIR_SCHEMA, PATH_SCHEMA };

@@ -1,9 +1,10 @@
 import type {
     ExecuteFtpOperationParams,
+    ExecuteRequiredFtpOperationParams,
     FtpLockTransferParams,
+    FtpSessionUser,
     Release
 } from "../../../../types/ftp-connection-manager.js";
-import type { AuthenticatedUser } from "../../../../types/users-facade.js";
 
 /**
  * FTP connection manager contract
@@ -24,6 +25,7 @@ export default interface FtpConnectionManager<Client> {
      * @param callback Operation
      * @returns Operation result, or undefined when the operation is omitted
      */
+    execute<Result>(params: ExecuteRequiredFtpOperationParams<Client, Result>): Promise<Result>;
     execute<Result>(params: ExecuteFtpOperationParams<Client, Result>): Promise<Result | undefined>;
 
     /**
@@ -39,7 +41,7 @@ export default interface FtpConnectionManager<Client> {
      *
      * @param authUser Authenticated user
      */
-    touch(params: { authUser: AuthenticatedUser }): Promise<void>;
+    touch(params: { authUser: FtpSessionUser }): Promise<void>;
 
     /**
      * Locks paths for the lifetime of a transfer session
