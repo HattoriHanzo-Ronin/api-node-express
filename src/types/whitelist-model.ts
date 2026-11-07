@@ -4,8 +4,9 @@ export type Whitelist = {
     key: string | null;
 };
 
-export type WhitelistInsert = Whitelist;
-
 export type WhitelistKey = {
     key: string;
 };
+
+export type InsertWhitelistParams<Transaction> = { clientTx: Transaction; whitelist: Whitelist };
+export type DeleteWhitelistParams<Transaction> = { clientTx: Transaction; routerId: string; mac: string };
