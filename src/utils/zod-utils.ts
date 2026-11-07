@@ -56,13 +56,13 @@ export default class ZodUtils {
     }
 
     /**
-     * Extends a schema with cross-field validation rules
+     * Extends a schema with custom validation rules
      *
      * @param schema Base schema
      * @param cases Custom validation callback
      * @returns Extended schema
      */
-    static withSuperRefine<T extends ZodObject>(schema: T, cases: (data: z.infer<T>, ctx: RefinementCtx) => void): T {
+    static withSuperRefine<T extends z.ZodType>(schema: T, cases: (data: z.infer<T>, ctx: RefinementCtx) => void): T {
         return schema.superRefine((data, ctx) => cases(data, ctx));
     }
 
@@ -74,10 +74,7 @@ export default class ZodUtils {
      * @returns Parsed data
      * @throws {ApiError} When validation is invalid
      */
-    static validateData<ZodObj extends ZodObject>(
-        data: unknown,
-        schema: ZodObj
-    ): output<ZodObj> {
+    static validateData<ZodObj extends ZodObject>(data: unknown, schema: ZodObj): output<ZodObj> {
         const result = schema.safeParse(data);
         if (!result.success) {
             const details = result.error.issues.map((issue) => {
