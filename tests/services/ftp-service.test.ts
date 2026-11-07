@@ -1,7 +1,9 @@
+import type { FtpEntry, FtpTransferEntry } from "../../src/types/ftp-service.js";
+import type { Role } from "../../src/types/user-roles-model.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PassThrough, Readable, Writable } from "node:stream";
 
-const authUser = { id: "user-id", username: "ronin" };
+const authUser = { id: "user-id", roles: ["FTP"] as Role[] };
 const { mockClient, mockCloseClient } = vi.hoisted(() => ({
     mockClient: {
         list: vi.fn(),
@@ -48,11 +50,11 @@ vi.mock("../../src/config/environment.js", () => ({
 
 import FtpClient from "../../src/utils/connection/ftp/ftp-client.js";
 import FtpPooledConnectionManager from "../../src/utils/connection/ftp/manager/impl/ftp-pooled-connection-manager.js";
-import FtpService from "../../src/services/ftp-service.js";
+import FtpService from "../../src/services/impl/default-ftp-service.js";
 
 describe("FtpService", () => {
-    let ftpConnectionManager;
-    let ftpService;
+    let ftpConnectionManager: FtpPooledConnectionManager;
+    let ftpService: FtpService;
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -60,7 +62,14 @@ describe("FtpService", () => {
         ftpService = new FtpService({ ftpConnectionManager });
         mockClient.list.mockResolvedValue([]);
         mockClient.exists.mockResolvedValue("d");
-        mockClient.createWriteStream.mockImplementation(() => new Writable({ write(chunk, encoding, callback) { callback(); } }));
+        mockClient.createWriteStream.mockImplementation(
+            () =>
+                new Writable({
+                    write(chunk, encoding, callback) {
+                        callback();
+                    }
+                })
+        );
     });
 
     afterEach(async () => {
@@ -110,28 +119,35 @@ describe("FtpService", () => {
 
         it("delegates thumbnail generation to the isolated service", async () => {
             const thumbnail = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
-            vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(thumbnail))));
+            vi.stubGlobal(
+                "fetch",
+                vi.fn(() => Promise.resolve(new Response(thumbnail)))
+            );
             const thumbnails = new Map();
             await ftpService.getThumbnails({
                 dir: "media",
                 names: ["photo.PNG", "video.mp4"],
                 authUser,
-                callback: async ({ name, thumbnail: result }) => thumbnails.set(name, result)
+                callback: async ({ name, thumbnail: result }) => {
+                    thumbnails.set(name, result);
+                }
             });
-            expect(thumbnails).toEqual(new Map([
-                ["photo.PNG", thumbnail],
-                ["video.mp4", thumbnail]
-            ]));
+            expect(thumbnails).toEqual(
+                new Map([
+                    ["photo.PNG", thumbnail],
+                    ["video.mp4", thumbnail]
+                ])
+            );
             expect(fetch).toHaveBeenCalledTimes(2);
-            for (const [url, options] of fetch.mock.calls) {
+            for (const [url, options] of vi.mocked(fetch).mock.calls) {
                 expect(url).toMatch(/^http:\/\/thumbnail-generator:3000\/thumbnail\/[\da-f-]{36}$/);
                 expect(options).toEqual({
                     method: "POST",
                     signal: expect.any(AbortSignal)
                 });
             }
-            const id = fetch.mock.calls[0][0].split("/").at(-1);
-            const expiredStream = new PassThrough();
+            const id = String(vi.mocked(fetch).mock.calls[0][0]).split("/").at(-1)!;
+            const expiredStream = new PassThrough() as PassThrough & import("node:http").ServerResponse;
             await ftpService.streamMedia({ id, method: "GET", stream: expiredStream });
             expect(expiredStream.statusCode).toBe(204);
             expect(expiredStream.writableEnded).toBe(true);
@@ -139,21 +155,24 @@ describe("FtpService", () => {
 
         it("streams registered media ranges while thumbnail generation is active", async () => {
             const thumbnail = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
-            vi.stubGlobal("fetch", vi.fn(async (url) => {
-                const id = url.split("/").at(-1);
-                const output = new PassThrough();
-                const chunks = [];
-                output.writeHead = vi.fn();
-                output.on("data", (chunk) => chunks.push(chunk));
-                await ftpService.streamMedia({ id, range: "bytes=0-9", method: "GET", stream: output });
-                expect(Buffer.concat(chunks)).toEqual(media.subarray(0, 10));
-                expect(output.writeHead).toHaveBeenCalledWith(206, {
-                    "Accept-Ranges": "bytes",
-                    "Content-Length": 10,
-                    "Content-Range": expect.stringMatching(/^bytes 0-9\/\d+$/)
-                });
-                return new Response(thumbnail);
-            }));
+            vi.stubGlobal(
+                "fetch",
+                vi.fn(async (url) => {
+                    const id = url.split("/").at(-1);
+                    const output = new PassThrough() as PassThrough & import("node:http").ServerResponse;
+                    const chunks: Buffer[] = [];
+                    output.writeHead = vi.fn();
+                    output.on("data", (chunk) => chunks.push(chunk));
+                    await ftpService.streamMedia({ id, range: "bytes=0-9", method: "GET", stream: output });
+                    expect(Buffer.concat(chunks)).toEqual(media.subarray(0, 10));
+                    expect(output.writeHead).toHaveBeenCalledWith(206, {
+                        "Accept-Ranges": "bytes",
+                        "Content-Length": 10,
+                        "Content-Range": expect.stringMatching(/^bytes 0-9\/\d+$/)
+                    });
+                    return new Response(thumbnail);
+                })
+            );
             const callback = vi.fn();
             await ftpService.getThumbnails({ dir: "media", names: ["photo.PNG"], authUser, callback });
             expect(callback).toHaveBeenCalledWith({ name: "photo.PNG", thumbnail });
@@ -161,7 +180,10 @@ describe("FtpService", () => {
         });
 
         it("returns null when the generator response exceeds the allowed size", async () => {
-            vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(Buffer.alloc(5 * 1024 * 1024 + 1)))));
+            vi.stubGlobal(
+                "fetch",
+                vi.fn(() => Promise.resolve(new Response(Buffer.alloc(5 * 1024 * 1024 + 1))))
+            );
             const callback = vi.fn();
             await ftpService.getThumbnails({ dir: "media", names: ["oversized.mp4"], authUser, callback });
             expect(callback).toHaveBeenCalledWith({ name: "oversized.mp4", thumbnail: null });
@@ -174,7 +196,6 @@ describe("FtpService", () => {
             expect(mockClient.stat).toHaveBeenCalledWith("media/missing.mp4");
             expect(callback).toHaveBeenCalledWith({ name: "missing.mp4", thumbnail: null });
         });
-
     });
 
     describe("makeDir", () => {
@@ -196,11 +217,7 @@ describe("FtpService", () => {
         });
 
         it("should generate incremental copy names", async () => {
-            mockClient.list.mockResolvedValue([
-                { name: "images" },
-                { name: "images (1)" },
-                { name: "images (2)" }
-            ]);
+            mockClient.list.mockResolvedValue([{ name: "images" }, { name: "images (1)" }, { name: "images (2)" }]);
             await ftpService.makeDir({ dir: "files", name: "images", authUser });
             expect(mockClient.mkdir).toHaveBeenCalledWith("files/images (3)");
         });
@@ -216,17 +233,26 @@ describe("FtpService", () => {
 
     describe("move", () => {
         it("should protect the destination path until completion processing finishes", async () => {
-            let resume;
-            const pending = new Promise((resolve) => { resume = resolve; });
+            let resume!: () => void;
+            const pending = new Promise<void>((resolve) => {
+                resume = resolve;
+            });
             const onComplete = vi.fn(async () => pending);
             const moving = ftpService.move({
-                dir: "source", destination: "files/sub", entries: [{ name: "file.txt", type: "FILE" }],
-                authUser, onEntry: vi.fn(), onComplete
+                dir: "source",
+                destination: "files/sub",
+                entries: [{ name: "file.txt", type: "FILE" }],
+                authUser,
+                onEntry: vi.fn(),
+                onComplete
             });
             await vi.waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
             mockClient.rename.mockClear();
             const rename = ftpService.rename({
-                dir: ".", entry: { name: "files", type: "DIR" }, newName: "renamed", authUser
+                dir: ".",
+                entry: { name: "files", type: "DIR" },
+                newName: "renamed",
+                authUser
             });
             await ftpService.dir({ dir: "other", authUser });
             expect(mockClient.rename).not.toHaveBeenCalled();
@@ -236,16 +262,27 @@ describe("FtpService", () => {
         });
 
         it("should protect all moved entries and both parent paths until the move finishes", async () => {
-            let resume;
-            const paused = new Promise((resolve) => { resume = resolve; });
+            let resume!: () => void;
+            const paused = new Promise<void>((resolve) => {
+                resume = resolve;
+            });
             const onEntry = vi.fn().mockImplementationOnce(() => paused);
             const moving = ftpService.move({
-                dir: "files/source", destination: "backup/target", authUser, onEntry,
-                entries: [{ name: "first.txt", type: "FILE" }, { name: "second.txt", type: "FILE" }]
+                dir: "files/source",
+                destination: "backup/target",
+                authUser,
+                onEntry,
+                entries: [
+                    { name: "first.txt", type: "FILE" },
+                    { name: "second.txt", type: "FILE" }
+                ]
             });
             await vi.waitFor(() => expect(onEntry).toHaveBeenCalledTimes(1));
             const deletion = ftpService.delete({
-                dir: "backup/target", entries: [{ name: "first.txt", type: "FILE" }], authUser, onEntry: vi.fn()
+                dir: "backup/target",
+                entries: [{ name: "first.txt", type: "FILE" }],
+                authUser,
+                onEntry: vi.fn()
             });
             await ftpService.dir({ dir: "backup/other", authUser });
             expect(mockClient.delete).not.toHaveBeenCalled();
@@ -257,7 +294,7 @@ describe("FtpService", () => {
 
         it("should move entries and avoid destination name collisions", async () => {
             mockClient.list.mockResolvedValue([{ name: "file.txt" }]);
-            const entries = [{ name: "file.txt", type: "FILE" }];
+            const entries: FtpEntry[] = [{ name: "file.txt", type: "FILE" }];
             const onEntry = vi.fn();
             await expect(
                 ftpService.move({ dir: "files", destination: "backup", entries, authUser, onEntry })
@@ -269,7 +306,7 @@ describe("FtpService", () => {
 
         it("should move multiple entries using incremental collision names", async () => {
             mockClient.list.mockResolvedValue([{ name: "image.png" }]);
-            const entries = [
+            const entries: FtpEntry[] = [
                 { name: "image.png", type: "FILE" },
                 { name: "image.png", type: "FILE" }
             ];
@@ -284,10 +321,10 @@ describe("FtpService", () => {
 
     describe("rename", () => {
         it("should rename an entry", async () => {
-            const entry = { name: "file.txt", type: "FILE" };
-            await expect(
-                ftpService.rename({ dir: "files", entry, newName: "renamed.txt", authUser })
-            ).resolves.toEqual({ name: "renamed.txt", type: "FILE" });
+            const entry: FtpEntry = { name: "file.txt", type: "FILE" };
+            await expect(ftpService.rename({ dir: "files", entry, newName: "renamed.txt", authUser })).resolves.toEqual(
+                { name: "renamed.txt", type: "FILE" }
+            );
             expect(mockClient.list).toHaveBeenCalledWith("files");
             expect(mockClient.rename).toHaveBeenCalledWith("files/file.txt", "files/renamed.txt");
         });
@@ -307,13 +344,18 @@ describe("FtpService", () => {
     describe("upload", () => {
         it("should protect the directory until completion processing finishes", async () => {
             const session = await ftpService.createUpload({ dir: "files/sub", entries: [], authUser });
-            let resume;
-            const pending = new Promise((resolve) => { resume = resolve; });
+            let resume!: (value: string) => void;
+            const pending = new Promise<string>((resolve) => {
+                resume = resolve;
+            });
             const onComplete = vi.fn(async () => pending);
             const completion = ftpService.completeUpload({ id: session.id, authUser, onComplete });
             await vi.waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
             const rename = ftpService.rename({
-                dir: ".", entry: { name: "files", type: "DIR" }, newName: "renamed", authUser
+                dir: ".",
+                entry: { name: "files", type: "DIR" },
+                newName: "renamed",
+                authUser
             });
             await ftpService.dir({ dir: "other", authUser });
             expect(mockClient.rename).not.toHaveBeenCalled();
@@ -325,11 +367,20 @@ describe("FtpService", () => {
 
         it("should release upload locks if completion processing fails", async () => {
             const session = await ftpService.createUpload({ dir: "files/sub", entries: [], authUser });
-            await expect(ftpService.completeUpload({
-                id: session.id, authUser, onComplete: async () => { throw new Error("list failed"); }
-            })).rejects.toThrow("list failed");
+            await expect(
+                ftpService.completeUpload({
+                    id: session.id,
+                    authUser,
+                    onComplete: async () => {
+                        throw new Error("list failed");
+                    }
+                })
+            ).rejects.toThrow("list failed");
             await ftpService.rename({
-                dir: ".", entry: { name: "files", type: "DIR" }, newName: "renamed", authUser
+                dir: ".",
+                entry: { name: "files", type: "DIR" },
+                newName: "renamed",
+                authUser
             });
             expect(mockClient.rename).toHaveBeenCalledWith("files", "renamed");
         });
@@ -337,21 +388,31 @@ describe("FtpService", () => {
         it("should protect an uploaded file between chunks until completion", async () => {
             mockClient.list.mockImplementation(async () => []);
             const session = await ftpService.createUpload({
-                dir: "files", entries: [{ path: "photo.jpg", type: "FILE", size: 4 }], authUser
+                dir: "files",
+                entries: [{ path: "photo.jpg", type: "FILE", size: 4 }],
+                authUser
             });
             await ftpService.upload({
-                id: session.id, entryPath: "photo.jpg", authUser,
-                file: { originalname: "photo.jpg", stream: Readable.from("ab") }
+                id: session.id,
+                entryPath: "photo.jpg",
+                authUser,
+                file: { originalname: "photo.jpg", mimetype: "application/octet-stream", stream: Readable.from("ab") }
             });
             expect(mockClient.put).toHaveBeenCalledWith(Buffer.alloc(0), "files/photo.jpg", expect.any(Object));
             const deletion = ftpService.delete({
-                dir: "files", entries: [{ name: "photo.jpg", type: "FILE" }], authUser, onEntry: vi.fn()
+                dir: "files",
+                entries: [{ name: "photo.jpg", type: "FILE" }],
+                authUser,
+                onEntry: vi.fn()
             });
             await ftpService.dir({ dir: "other", authUser });
             expect(mockClient.delete).not.toHaveBeenCalled();
             await ftpService.upload({
-                id: session.id, entryPath: "photo.jpg", offset: 2, authUser,
-                file: { originalname: "photo.jpg", stream: Readable.from("cd") }
+                id: session.id,
+                entryPath: "photo.jpg",
+                offset: 2,
+                authUser,
+                file: { originalname: "photo.jpg", mimetype: "application/octet-stream", stream: Readable.from("cd") }
             });
             await ftpService.completeUpload({ id: session.id, authUser });
             await deletion;
@@ -360,20 +421,30 @@ describe("FtpService", () => {
 
         it("should protect all parent directories between upload chunks", async () => {
             const session = await ftpService.createUpload({
-                dir: "fotos/fotitos", entries: [{ path: "photo.jpg", type: "FILE", size: 4 }], authUser
+                dir: "fotos/fotitos",
+                entries: [{ path: "photo.jpg", type: "FILE", size: 4 }],
+                authUser
             });
             await ftpService.upload({
-                id: session.id, entryPath: "photo.jpg", authUser,
-                file: { originalname: "photo.jpg", stream: Readable.from("ab") }
+                id: session.id,
+                entryPath: "photo.jpg",
+                authUser,
+                file: { originalname: "photo.jpg", mimetype: "application/octet-stream", stream: Readable.from("ab") }
             });
             const rename = ftpService.rename({
-                dir: ".", entry: { name: "fotos", type: "DIR" }, newName: "fotitos", authUser
+                dir: ".",
+                entry: { name: "fotos", type: "DIR" },
+                newName: "fotitos",
+                authUser
             });
             await ftpService.dir({ dir: "fotos/other", authUser });
             expect(mockClient.rename).not.toHaveBeenCalled();
             await ftpService.upload({
-                id: session.id, entryPath: "photo.jpg", offset: 2, authUser,
-                file: { originalname: "photo.jpg", stream: Readable.from("cd") }
+                id: session.id,
+                entryPath: "photo.jpg",
+                offset: 2,
+                authUser,
+                file: { originalname: "photo.jpg", mimetype: "application/octet-stream", stream: Readable.from("cd") }
             });
             expect(mockClient.rename).not.toHaveBeenCalled();
             await ftpService.completeUpload({ id: session.id, authUser });
@@ -383,7 +454,7 @@ describe("FtpService", () => {
 
         it("should create directories and upload each file independently", async () => {
             mockClient.list.mockResolvedValue([{ name: "images" }, { name: "images (1)" }]);
-            const entries = [
+            const entries: FtpTransferEntry[] = [
                 { path: "images", type: "DIR" },
                 { path: "images/photo.jpg", type: "FILE" }
             ];
@@ -395,13 +466,19 @@ describe("FtpService", () => {
             expect(mockClient.mkdir).toHaveBeenCalledWith("upload/new", true);
             expect(mockClient.mkdir).toHaveBeenCalledWith("upload/new/images (2)", true);
 
-            const file = { originalname: "photo.jpg", stream: Readable.from("photo") };
-            await expect(ftpService.upload({
-                id: session.id,
-                entryPath: "images (2)/photo.jpg",
-                file,
-                authUser
-            })).resolves.toEqual({ nextOffset: 5 });
+            const file = {
+                originalname: "photo.jpg",
+                mimetype: "application/octet-stream",
+                stream: Readable.from("photo")
+            };
+            await expect(
+                ftpService.upload({
+                    id: session.id,
+                    entryPath: "images (2)/photo.jpg",
+                    file,
+                    authUser
+                })
+            ).resolves.toEqual({ nextOffset: 5 });
             expect(mockClient.put).toHaveBeenCalledWith(Buffer.alloc(0), "upload/new/images (2)/photo.jpg", {
                 writeStreamOptions: { flags: "wx" }
             });
@@ -433,7 +510,11 @@ describe("FtpService", () => {
                 entries: [{ path: "file.txt", type: "FILE" }],
                 authUser
             });
-            const file = { originalname: "file.txt", stream: Readable.from("content") };
+            const file = {
+                originalname: "file.txt",
+                mimetype: "application/octet-stream",
+                stream: Readable.from("content")
+            };
             mockClient.list.mockResolvedValueOnce([{ name: "file.txt" }]);
             await ftpService.upload({ id: session.id, entryPath: "file.txt", file, authUser });
             await ftpService.completeUpload({ id: session.id, authUser });
@@ -459,7 +540,11 @@ describe("FtpService", () => {
             await ftpService.upload({
                 id: session.id,
                 entryPath: "file.txt",
-                file: { originalname: "file.txt", stream: Readable.from("content") },
+                file: {
+                    originalname: "file.txt",
+                    mimetype: "application/octet-stream",
+                    stream: Readable.from("content")
+                },
                 authUser
             });
             expect(mockClient.put).toHaveBeenNthCalledWith(1, Buffer.alloc(0), "upload/file.txt", {
@@ -481,23 +566,35 @@ describe("FtpService", () => {
                 entries: [{ path: "large.bin", type: "FILE", size: 11 }],
                 authUser
             });
-            await expect(ftpService.upload({
-                id: session.id,
-                entryPath: "large.bin",
-                offset: 0,
-                file: { originalname: "large.bin", stream: Readable.from("hello") },
-                authUser
-            })).resolves.toEqual({ nextOffset: 5 });
+            await expect(
+                ftpService.upload({
+                    id: session.id,
+                    entryPath: "large.bin",
+                    offset: 0,
+                    file: {
+                        originalname: "large.bin",
+                        mimetype: "application/octet-stream",
+                        stream: Readable.from("hello")
+                    },
+                    authUser
+                })
+            ).resolves.toEqual({ nextOffset: 5 });
             await expect(ftpService.completeUpload({ id: session.id, authUser })).rejects.toThrow(
                 "La subida contiene archivos pendientes"
             );
-            await expect(ftpService.upload({
-                id: session.id,
-                entryPath: "large.bin",
-                offset: 5,
-                file: { originalname: "large.bin", stream: Readable.from(" world") },
-                authUser
-            })).resolves.toEqual({ nextOffset: 11 });
+            await expect(
+                ftpService.upload({
+                    id: session.id,
+                    entryPath: "large.bin",
+                    offset: 5,
+                    file: {
+                        originalname: "large.bin",
+                        mimetype: "application/octet-stream",
+                        stream: Readable.from(" world")
+                    },
+                    authUser
+                })
+            ).resolves.toEqual({ nextOffset: 11 });
             const [remotePath] = mockClient.createWriteStream.mock.calls[0];
             expect(mockClient.createWriteStream).toHaveBeenNthCalledWith(2, remotePath, {
                 flags: "r+",
@@ -512,14 +609,20 @@ describe("FtpService", () => {
                 entries: [{ path: "large.bin", type: "FILE", size: 10 }],
                 authUser
             });
-            const file = { originalname: "large.bin", stream: Readable.from("chunk") };
-            await expect(ftpService.upload({
-                id: session.id,
-                entryPath: "large.bin",
-                offset: 5,
-                file,
-                authUser
-            })).rejects.toThrow("Offset no válido, se esperaba 0");
+            const file = {
+                originalname: "large.bin",
+                mimetype: "application/octet-stream",
+                stream: Readable.from("chunk")
+            };
+            await expect(
+                ftpService.upload({
+                    id: session.id,
+                    entryPath: "large.bin",
+                    offset: 5,
+                    file,
+                    authUser
+                })
+            ).rejects.toThrow("Offset no válido, se esperaba 0");
             expect(mockClient.createWriteStream).not.toHaveBeenCalled();
             await ftpService.cancelTransfer({ id: session.id, authUser });
         });
@@ -530,18 +633,24 @@ describe("FtpService", () => {
                 entries: [{ path: "file.txt", type: "FILE" }],
                 authUser
             });
-            const otherUser = { id: "other-user-id", username: authUser.username };
-            await expect(ftpService.upload({
-                id: session.id,
-                entryPath: "file.txt",
-                file: { originalname: "file.txt", stream: Readable.from("content") },
-                authUser: otherUser
-            })).rejects.toThrow("Sesión de transferencia no válida");
+            const otherUser = { id: "other-user-id", roles: authUser.roles };
+            await expect(
+                ftpService.upload({
+                    id: session.id,
+                    entryPath: "file.txt",
+                    file: {
+                        originalname: "file.txt",
+                        mimetype: "application/octet-stream",
+                        stream: Readable.from("content")
+                    },
+                    authUser: otherUser
+                })
+            ).rejects.toThrow("Sesión de transferencia no válida");
             await ftpService.cancelTransfer({ id: session.id, authUser });
         });
 
         it("should roll back every resource created by a cancelled upload", async () => {
-            mockClient.exists.mockImplementation(async (remotePath) => remotePath === "upload" ? "d" : false);
+            mockClient.exists.mockImplementation(async (remotePath) => (remotePath === "upload" ? "d" : false));
             const session = await ftpService.createUpload({
                 dir: "upload/new",
                 entries: [
@@ -551,8 +660,16 @@ describe("FtpService", () => {
                 ],
                 authUser
             });
-            const photo = { originalname: "photo.jpg", stream: Readable.from("photo") };
-            const document = { originalname: "document.txt", stream: Readable.from("document") };
+            const photo = {
+                originalname: "photo.jpg",
+                mimetype: "application/octet-stream",
+                stream: Readable.from("photo")
+            };
+            const document = {
+                originalname: "document.txt",
+                mimetype: "application/octet-stream",
+                stream: Readable.from("document")
+            };
             mockClient.list.mockResolvedValue([]);
             await ftpService.upload({ id: session.id, entryPath: "images/photo.jpg", file: photo, authUser });
             await ftpService.upload({ id: session.id, entryPath: "document.txt", file: document, authUser });
@@ -573,41 +690,67 @@ describe("FtpService", () => {
                 ],
                 authUser
             });
-            const first = { originalname: "first.txt", stream: Readable.from("first") };
+            const first = {
+                originalname: "first.txt",
+                mimetype: "application/octet-stream",
+                stream: Readable.from("first")
+            };
             mockClient.list.mockResolvedValue([]);
             await ftpService.upload({ id: session.id, entryPath: "first.txt", file: first, authUser });
-            mockClient.createWriteStream.mockImplementationOnce(() => new Writable({
-                write(chunk, encoding, callback) { callback(new Error("connection lost")); }
-            }));
-            const second = { originalname: "second.txt", stream: Readable.from("second") };
-            await expect(ftpService.upload({
-                id: session.id,
-                entryPath: "second.txt",
-                file: second,
-                authUser
-            })).rejects.toThrow("Error al subir los datos");
+            mockClient.createWriteStream.mockImplementationOnce(
+                () =>
+                    new Writable({
+                        write(chunk, encoding, callback) {
+                            callback(new Error("connection lost"));
+                        }
+                    })
+            );
+            const second = {
+                originalname: "second.txt",
+                mimetype: "application/octet-stream",
+                stream: Readable.from("second")
+            };
+            await expect(
+                ftpService.upload({
+                    id: session.id,
+                    entryPath: "second.txt",
+                    file: second,
+                    authUser
+                })
+            ).rejects.toThrow("Error al subir los datos");
             expect(mockClient.delete).toHaveBeenCalledWith("upload/first.txt");
             expect(mockClient.delete).toHaveBeenCalledWith("upload/second.txt");
-            await expect(ftpService.upload({
-                id: session.id,
-                entryPath: "second.txt",
-                file: second,
-                authUser
-            })).rejects.toThrow("Sesión de transferencia no válida");
+            await expect(
+                ftpService.upload({
+                    id: session.id,
+                    entryPath: "second.txt",
+                    file: second,
+                    authUser
+                })
+            ).rejects.toThrow("Sesión de transferencia no válida");
         });
     });
 
     describe("delete", () => {
         it("should protect the directory path until completion processing finishes", async () => {
-            let resume;
-            const pending = new Promise((resolve) => { resume = resolve; });
+            let resume!: () => void;
+            const pending = new Promise<void>((resolve) => {
+                resume = resolve;
+            });
             const onComplete = vi.fn(async () => pending);
             const deleting = ftpService.delete({
-                dir: "files/sub", entries: [{ name: "file.txt", type: "FILE" }], authUser, onEntry: vi.fn(), onComplete
+                dir: "files/sub",
+                entries: [{ name: "file.txt", type: "FILE" }],
+                authUser,
+                onEntry: vi.fn(),
+                onComplete
             });
             await vi.waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
             const rename = ftpService.rename({
-                dir: ".", entry: { name: "files", type: "DIR" }, newName: "renamed", authUser
+                dir: ".",
+                entry: { name: "files", type: "DIR" },
+                newName: "renamed",
+                authUser
             });
             await ftpService.dir({ dir: "other", authUser });
             expect(mockClient.rename).not.toHaveBeenCalled();
@@ -617,7 +760,7 @@ describe("FtpService", () => {
         });
 
         it("should delete files", async () => {
-            const entries = [{ name: "test.txt", type: "FILE" }];
+            const entries: FtpEntry[] = [{ name: "test.txt", type: "FILE" }];
             const onEntry = vi.fn();
             await expect(ftpService.delete({ dir: "files", entries, authUser, onEntry })).resolves.toBeUndefined();
             expect(mockClient.delete).toHaveBeenCalledWith("files/test.txt");
@@ -625,7 +768,7 @@ describe("FtpService", () => {
         });
 
         it("should delete directories", async () => {
-            const entries = [{ name: "images", type: "DIR" }];
+            const entries: FtpEntry[] = [{ name: "images", type: "DIR" }];
             const onEntry = vi.fn();
             await expect(ftpService.delete({ dir: "files", entries, authUser, onEntry })).resolves.toBeUndefined();
             expect(mockClient.rmdir).toHaveBeenCalledWith("files/images", true);
@@ -636,10 +779,15 @@ describe("FtpService", () => {
     describe("download", () => {
         it("should release directory locks when the manifest contains no files", async () => {
             const session = await ftpService.createDownload({
-                dir: "files", entries: [{ name: "empty", type: "DIR" }], authUser
+                dir: "files",
+                entries: [{ name: "empty", type: "DIR" }],
+                authUser
             });
             await ftpService.delete({
-                dir: "files", entries: [{ name: "empty", type: "DIR" }], authUser, onEntry: vi.fn()
+                dir: "files",
+                entries: [{ name: "empty", type: "DIR" }],
+                authUser,
+                onEntry: vi.fn()
             });
             expect(mockClient.rmdir).toHaveBeenCalledWith("files/empty", true);
             await ftpService.cancelTransfer({ id: session.id, authUser });
@@ -649,13 +797,18 @@ describe("FtpService", () => {
             mockClient.stat.mockResolvedValue({ size: 4 });
             mockClient.createReadStream.mockImplementation(() => Readable.from("cd"));
             const session = await ftpService.createDownload({
-                dir: "files", entries: [{ name: "file.txt", type: "FILE" }], authUser
+                dir: "files",
+                entries: [{ name: "file.txt", type: "FILE" }],
+                authUser
             });
             const stream = new PassThrough();
             stream.resume();
             await ftpService.download({ id: session.id, entryPath: "file.txt", offset: 2, authUser, stream });
             await ftpService.delete({
-                dir: "files", entries: [{ name: "file.txt", type: "FILE" }], authUser, onEntry: vi.fn()
+                dir: "files",
+                entries: [{ name: "file.txt", type: "FILE" }],
+                authUser,
+                onEntry: vi.fn()
             });
             expect(mockClient.delete).toHaveBeenCalledWith("files/file.txt");
             await ftpService.cancelTransfer({ id: session.id, authUser });
@@ -665,13 +818,21 @@ describe("FtpService", () => {
             mockClient.stat.mockResolvedValue({ size: 1 });
             mockClient.createReadStream.mockImplementation(() => Readable.from("x"));
             const session = await ftpService.createDownload({
-                dir: "files", entries: [{ name: "first", type: "FILE" }, { name: "second", type: "FILE" }], authUser
+                dir: "files",
+                entries: [
+                    { name: "first", type: "FILE" },
+                    { name: "second", type: "FILE" }
+                ],
+                authUser
             });
             const first = new PassThrough();
             first.resume();
             await ftpService.download({ id: session.id, entryPath: "first", authUser, stream: first });
             const deletion = ftpService.delete({
-                dir: "files", entries: [{ name: "first", type: "FILE" }], authUser, onEntry: vi.fn()
+                dir: "files",
+                entries: [{ name: "first", type: "FILE" }],
+                authUser,
+                onEntry: vi.fn()
             });
             await ftpService.dir({ dir: "other", authUser });
             expect(mockClient.delete).not.toHaveBeenCalled();
@@ -687,14 +848,22 @@ describe("FtpService", () => {
             mockClient.list.mockResolvedValue([{ name: "nested.txt", type: "-" }]);
             mockClient.stat.mockResolvedValue({ size: 1 });
             const session = await ftpService.createDownload({
-                dir: "files/sub", entries: [{ name: "docs", type: "DIR" }], authUser
+                dir: "files/sub",
+                entries: [{ name: "docs", type: "DIR" }],
+                authUser
             });
             const onEntry = vi.fn();
             const deletion = ftpService.delete({
-                dir: "files/sub/docs", entries: [{ name: "nested.txt", type: "FILE" }], authUser, onEntry
+                dir: "files/sub/docs",
+                entries: [{ name: "nested.txt", type: "FILE" }],
+                authUser,
+                onEntry
             });
             const parentDeletion = ftpService.delete({
-                dir: ".", entries: [{ name: "files", type: "DIR" }], authUser, onEntry
+                dir: ".",
+                entries: [{ name: "files", type: "DIR" }],
+                authUser,
+                onEntry
             });
             await ftpService.dir({ dir: "files/sub/other", authUser });
             expect(mockClient.delete).not.toHaveBeenCalled();
@@ -732,9 +901,9 @@ describe("FtpService", () => {
                     { path: "docs/nested.txt", type: "FILE", size: 6 }
                 ]
             });
-            const stream = new PassThrough();
+            const stream = new PassThrough() as PassThrough & { setHeader: (name: string, value: number) => void };
             stream.setHeader = vi.fn();
-            const chunks = [];
+            const chunks: Buffer[] = [];
             stream.on("data", (chunk) => chunks.push(chunk));
             await ftpService.download({ id: session.id, entryPath: "docs/nested.txt", offset: 2, authUser, stream });
             expect(mockClient.createReadStream).toHaveBeenCalledWith("files/docs/nested.txt", { start: 2 });
@@ -759,7 +928,7 @@ describe("FtpService", () => {
                     { path: "docs/empty.txt", type: "FILE", size: 0 }
                 ]
             });
-            const stream = new PassThrough();
+            const stream = new PassThrough() as PassThrough & { setHeader: (name: string, value: number) => void };
             stream.setHeader = vi.fn();
             await ftpService.download({ id: session.id, entryPath: "docs/empty.txt", authUser, stream });
             expect(stream.setHeader).toHaveBeenCalledWith("Content-Length", 0);
@@ -774,12 +943,14 @@ describe("FtpService", () => {
                 entries: [{ name: "file.txt", type: "FILE" }],
                 authUser
             });
-            await expect(ftpService.download({
-                id: session.id,
-                entryPath: "file.txt",
-                authUser,
-                stream: new PassThrough()
-            })).rejects.toMatchObject({ code: "FTP_DOWNLOAD_STALE", status: 409 });
+            await expect(
+                ftpService.download({
+                    id: session.id,
+                    entryPath: "file.txt",
+                    authUser,
+                    stream: new PassThrough()
+                })
+            ).rejects.toMatchObject({ code: "FTP_DOWNLOAD_STALE", status: 409 });
         });
 
         it("should reject a download when a manifest file was deleted", async () => {
@@ -789,36 +960,46 @@ describe("FtpService", () => {
                 entries: [{ name: "file.txt", type: "FILE" }],
                 authUser
             });
-            await expect(ftpService.download({
-                id: session.id,
-                entryPath: "file.txt",
-                authUser,
-                stream: new PassThrough()
-            })).rejects.toMatchObject({ code: "FTP_DOWNLOAD_STALE", status: 409 });
+            await expect(
+                ftpService.download({
+                    id: session.id,
+                    entryPath: "file.txt",
+                    authUser,
+                    stream: new PassThrough()
+                })
+            ).rejects.toMatchObject({ code: "FTP_DOWNLOAD_STALE", status: 409 });
         });
 
         it("should invalidate the whole session when a download fails", async () => {
             mockClient.stat.mockResolvedValue({ size: 4 });
-            mockClient.createReadStream.mockReturnValue(Readable.from((async function* () {
-                throw new Error("connection lost");
-            })()));
+            mockClient.createReadStream.mockReturnValue(
+                Readable.from(
+                    (async function* () {
+                        throw new Error("connection lost");
+                    })()
+                )
+            );
             const session = await ftpService.createDownload({
                 dir: "files",
                 entries: [{ name: "file.txt", type: "FILE" }],
                 authUser
             });
-            await expect(ftpService.download({
-                id: session.id,
-                entryPath: "file.txt",
-                authUser,
-                stream: new PassThrough()
-            })).rejects.toMatchObject({ code: "FTP_DOWNLOAD_FAILED" });
-            await expect(ftpService.download({
-                id: session.id,
-                entryPath: "file.txt",
-                authUser,
-                stream: new PassThrough()
-            })).rejects.toThrow("Sesión de transferencia no válida");
+            await expect(
+                ftpService.download({
+                    id: session.id,
+                    entryPath: "file.txt",
+                    authUser,
+                    stream: new PassThrough()
+                })
+            ).rejects.toMatchObject({ code: "FTP_DOWNLOAD_FAILED" });
+            await expect(
+                ftpService.download({
+                    id: session.id,
+                    entryPath: "file.txt",
+                    authUser,
+                    stream: new PassThrough()
+                })
+            ).rejects.toThrow("Sesión de transferencia no válida");
         });
 
         it("should stop an active download when its session is cancelled", async () => {
@@ -836,7 +1017,10 @@ describe("FtpService", () => {
                 authUser,
                 stream: new PassThrough()
             });
-            const settled = download.then(() => null, (error) => error);
+            const settled = download.then(
+                () => null,
+                (error) => error
+            );
             await vi.waitFor(() => expect(mockClient.createReadStream).toHaveBeenCalledOnce());
             await ftpService.cancelTransfer({ id: session.id, authUser });
             expect(source.destroyed).toBe(true);
@@ -845,14 +1029,16 @@ describe("FtpService", () => {
 
         it("should reject unsafe download totals", async () => {
             mockClient.stat.mockResolvedValue({ size: Number.MAX_SAFE_INTEGER });
-            await expect(ftpService.createDownload({
-                dir: "files",
-                entries: [
-                    { name: "first.bin", type: "FILE" },
-                    { name: "second.bin", type: "FILE" }
-                ],
-                authUser
-            })).rejects.toThrow("Error al preparar la descarga");
+            await expect(
+                ftpService.createDownload({
+                    dir: "files",
+                    entries: [
+                        { name: "first.bin", type: "FILE" },
+                        { name: "second.bin", type: "FILE" }
+                    ],
+                    authUser
+                })
+            ).rejects.toThrow("Error al preparar la descarga");
         });
     });
 });

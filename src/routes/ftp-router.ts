@@ -1,8 +1,9 @@
 import { Router } from "express";
+import type { FtpRouterDependencies } from "../types/ftp-router.js";
 import Middlewares from "../middlewares/middlewares.js";
 import { USER_ROLE } from "../config/constants.js";
 
-export default function createFtpRouter({ ftpController, requireAuth }) {
+export default function createFtpRouter({ ftpController, requireAuth }: FtpRouterDependencies) {
     const router = Router();
     const { ftp } = USER_ROLE;
     const { asyncHandler, authorizedRoles, multipart, routeNotFound } = Middlewares;
@@ -10,16 +11,32 @@ export default function createFtpRouter({ ftpController, requireAuth }) {
     router.get("/media/:id", asyncHandler(ftpController.streamMedia));
     router.get("/", requireAuth, authorizedRoles([ftp]), asyncHandler(ftpController.dir));
     router.get("/thumbnail/:name", requireAuth, authorizedRoles([ftp]), asyncHandler(ftpController.getThumbnail));
-    router.get("/downloads/:id/entries", requireAuth, authorizedRoles([ftp]), asyncHandler(ftpController.downloadEntry));
+    router.get(
+        "/downloads/:id/entries",
+        requireAuth,
+        authorizedRoles([ftp]),
+        asyncHandler(ftpController.downloadEntry)
+    );
 
     router.post("/mkdir", requireAuth, authorizedRoles([ftp]), asyncHandler(ftpController.makeDir));
     router.post("/move", requireAuth, authorizedRoles([ftp]), asyncHandler(ftpController.move));
     router.post("/rename", requireAuth, authorizedRoles([ftp]), asyncHandler(ftpController.rename));
     router.post("/uploads", requireAuth, authorizedRoles([ftp]), asyncHandler(ftpController.createUpload));
-    router.post("/uploads/:id/complete", requireAuth, authorizedRoles([ftp]), asyncHandler(ftpController.completeUpload));
+    router.post(
+        "/uploads/:id/complete",
+        requireAuth,
+        authorizedRoles([ftp]),
+        asyncHandler(ftpController.completeUpload)
+    );
     router.post("/downloads", requireAuth, authorizedRoles([ftp]), asyncHandler(ftpController.createDownload));
 
-    router.put("/uploads/:id/entries", requireAuth, authorizedRoles([ftp]), multipart(), asyncHandler(ftpController.uploadEntry));
+    router.put(
+        "/uploads/:id/entries",
+        requireAuth,
+        authorizedRoles([ftp]),
+        multipart(),
+        asyncHandler(ftpController.uploadEntry)
+    );
 
     router.delete("/uploads/:id", requireAuth, authorizedRoles([ftp]), asyncHandler(ftpController.cancelTransfer));
     router.delete("/downloads/:id", requireAuth, authorizedRoles([ftp]), asyncHandler(ftpController.cancelTransfer));

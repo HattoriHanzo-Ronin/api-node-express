@@ -5,10 +5,10 @@ import PostgresClient from "./utils/connection/postgres/postgres-client.js";
 import PostgresErrors from "./utils/error/postgres/postgres-errors.js";
 
 import FtpController from "./controllers/ftp-controller.js";
-import FtpService from "./services/ftp-service.js";
+import DefaultFtpService from "./services/impl/default-ftp-service.js";
 import FtpPooledConnectionManager from "./utils/connection/ftp/manager/impl/ftp-pooled-connection-manager.js";
-import FtpMapper from "./mappers/ftp-mapper.js";
-import FtpFacade from "./facades/ftp-facade.js";
+import DefaultFtpMapper from "./mappers/impl/default-ftp-mapper.js";
+import DefaultFtpFacade from "./facades/impl/default-ftp-facade.js";
 import MemoryCache from "./utils/cache/impl/memory-cache.js";
 import DirectoryCache from "./utils/cache/impl/directory-cache.js";
 import DataVersionsModel from "./models/postgres/data-versions/data-versions-model.js";
@@ -72,8 +72,14 @@ const socketSessionsController = new SocketSessionsController({ socketSessionsFa
 const memoryCache = new MemoryCache();
 const directoryCache = new DirectoryCache();
 const ftpConnectionManager = new FtpPooledConnectionManager();
-const ftpService = new FtpService({ ftpConnectionManager });
-const ftpFacade = new FtpFacade({ ftpService, ftpMapper: FtpMapper, memoryCache, directoryCache, socketSessionsFacade });
+const ftpService = new DefaultFtpService({ ftpConnectionManager });
+const ftpFacade = new DefaultFtpFacade({
+    ftpService,
+    ftpMapper: DefaultFtpMapper,
+    memoryCache,
+    directoryCache,
+    socketSessionsFacade
+});
 const ftpController = new FtpController({ ftpFacade });
 
 const dataVersionsService = new DataVersionsService({ dataVersionsModel: DataVersionsModel });
@@ -92,7 +98,10 @@ const connectionsFacade = new DefaultConnectionsFacade({
     connectionsMapper: DefaultConnectionsMapper
 });
 
-const devicesService = new DefaultDevicesService({ devicesModel: DefaultDevicesModel, entityError: devicesEntityError });
+const devicesService = new DefaultDevicesService({
+    devicesModel: DefaultDevicesModel,
+    entityError: devicesEntityError
+});
 const routerAutomation = RouterAutomation;
 const devicesMapper = new DefaultDevicesMapper({ routerAutomation });
 const routerCpanel = new RouterCpanelClient({ routerCpanelServiceUrl });
@@ -108,7 +117,10 @@ const devicesFacade = new DefaultDevicesFacade({
 });
 const devicesController = new DevicesController({ devicesFacade });
 
-const whitelistService = new DefaultWhitelistService({ whitelistModel: DefaultWhitelistModel, entityError: whitelistEntityError });
+const whitelistService = new DefaultWhitelistService({
+    whitelistModel: DefaultWhitelistModel,
+    entityError: whitelistEntityError
+});
 const whitelistFacade = new DefaultWhitelistFacade({
     whitelistService,
     dataVersionsFacade,
@@ -141,8 +153,14 @@ const refreshTokensService = new DefaultRefreshTokensService({
     entityError: refreshTokensEntityError
 });
 
-const accessTokenProvider = new JwtProvider<AuthAccessTokenPayload>({ secret: jwtSecret, expiresIn: jwtAccessTokenExpiresIn });
-const refreshTokenProvider = new JwtProvider<AuthRefreshTokenPayload>({ secret: refreshJwtSecret, expiresIn: jwtRefreshTokenExpiresIn });
+const accessTokenProvider = new JwtProvider<AuthAccessTokenPayload>({
+    secret: jwtSecret,
+    expiresIn: jwtAccessTokenExpiresIn
+});
+const refreshTokenProvider = new JwtProvider<AuthRefreshTokenPayload>({
+    secret: refreshJwtSecret,
+    expiresIn: jwtRefreshTokenExpiresIn
+});
 const socketGateway = new WebSocketEventsGateway({ socketSessionsFacade, accessTokenProvider });
 const authFacade = new DefaultAuthFacade({
     usersFacade,

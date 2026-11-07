@@ -1,4 +1,7 @@
-import type { AuthenticatedUser } from "./users-facade.js";
+import type { AuthAccessTokenPayload } from "./auth.js";
+import type { UserId } from "./users-model.js";
+
+export type FtpSessionUser = AuthAccessTokenPayload | UserId;
 
 export type FtpPoolType = "internal" | "read" | "write";
 
@@ -11,7 +14,7 @@ export type FtpLockRequest = {
 };
 
 export type ExecuteFtpOperationParams<Client, Result> = {
-    authUser: AuthenticatedUser;
+    authUser: FtpSessionUser;
     pool: FtpPoolType;
     paths?: string[];
     sharedPaths?: string[];
@@ -21,8 +24,13 @@ export type ExecuteFtpOperationParams<Client, Result> = {
     callback: (params: { client: Client }) => Promise<Result>;
 };
 
+export type ExecuteRequiredFtpOperationParams<Client, Result> = ExecuteFtpOperationParams<Client, Result> & {
+    pool: "read" | "write";
+    skipLocked?: false;
+};
+
 export type FtpLockTransferParams = {
-    authUser: AuthenticatedUser;
+    authUser: FtpSessionUser;
     paths: string[];
     sharedPaths: string[];
     treePaths: string[];
