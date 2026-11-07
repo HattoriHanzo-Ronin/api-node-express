@@ -1,8 +1,9 @@
 import { Router } from "express";
+import type { WhitelistRouterDependencies } from "../types/whitelist-router.js";
 import Middlewares from "../middlewares/middlewares.js";
 import { USER_ROLE } from "../config/constants.js";
 
-export default function createWhitelistRouter({ whitelistController, requireAuth }) {
+export default function createWhitelistRouter({ whitelistController, requireAuth }: WhitelistRouterDependencies) {
     const whitelistRouter = Router();
     const { net } = USER_ROLE;
     const { asyncHandler, authorizedRoles, routeNotFound } = Middlewares;

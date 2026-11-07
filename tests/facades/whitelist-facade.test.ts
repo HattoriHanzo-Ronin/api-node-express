@@ -1,25 +1,34 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import WhitelistFacade from "../../src/facades/whitelist-facade.js";
+import type { WhitelistFacadeDependencies } from "../../src/types/default-whitelist-facade.js";
+import ApiError from "../../src/utils/error/api-error.js";
+import { API_ERROR } from "../../src/config/errors.js";
+import WhitelistFacade from "../../src/facades/impl/default-whitelist-facade.js";
+
+const createWhitelistServiceMock = () => ({ getKey: vi.fn(), create: vi.fn(), delete: vi.fn() });
+const createVersionsFacadeMock = () => ({ getById: vi.fn().mockResolvedValue({ version: "3" }) });
+const createDevicesFacadeMock = () => ({ getById: vi.fn() });
+const createRouterAutomationMock = () => {
+    const routerImpl = { generateKey: vi.fn(() => "white_list_1"), create: vi.fn(), delete: vi.fn() };
+    return vi.fn(function RouterAutomation() { return routerImpl; });
+};
+const createSocketSessionsMock = () => ({ notify: vi.fn() });
 
 describe("WhitelistFacade", () => {
-    let whitelistService;
-    let dataVersionsFacade;
-    let devicesFacade;
-    let routerAutomation;
-    let socketSessionsFacade;
-    let whitelistFacade;
-    const tx = async (cb) => cb({});
+    let whitelistService: ReturnType<typeof createWhitelistServiceMock>;
+    let dataVersionsFacade: ReturnType<typeof createVersionsFacadeMock>;
+    let devicesFacade: ReturnType<typeof createDevicesFacadeMock>;
+    let routerAutomation: ReturnType<typeof createRouterAutomationMock>;
+    let socketSessionsFacade: ReturnType<typeof createSocketSessionsMock>;
+    let whitelistFacade: WhitelistFacade<object>;
+    const tx = async <Result>(cb: (clientTx: object) => Result | Promise<Result>): Promise<Result> => cb({});
 
     beforeEach(() => {
         vi.clearAllMocks();
-        whitelistService = { getKey: vi.fn(), create: vi.fn(), delete: vi.fn() };
-        dataVersionsFacade = { getById: vi.fn().mockResolvedValue({ version: "3" }) };
-        devicesFacade = { getById: vi.fn() };
-        const routerImpl = { generateKey: vi.fn(() => "white_list_1"), create: vi.fn(), delete: vi.fn() };
-        routerAutomation = vi.fn(function RouterAutomation() {
-            return routerImpl;
-        });
-        socketSessionsFacade = { notify: vi.fn() };
+        whitelistService = createWhitelistServiceMock();
+        dataVersionsFacade = createVersionsFacadeMock();
+        devicesFacade = createDevicesFacadeMock();
+        routerAutomation = createRouterAutomationMock();
+        socketSessionsFacade = createSocketSessionsMock();
         whitelistFacade = new WhitelistFacade({
             whitelistService,
             dataVersionsFacade,
@@ -27,7 +36,7 @@ describe("WhitelistFacade", () => {
             routerAutomation,
             socketSessionsFacade,
             tx
-        });
+        } as unknown as WhitelistFacadeDependencies<object>);
     });
 
     it("should create whitelist entry and synchronize router", async () => {
@@ -106,6 +115,16 @@ describe("WhitelistFacade", () => {
         expect(whitelistService.getKey).not.toHaveBeenCalled();
     });
 
+    it("should rethrow non-API router errors", async () => {
+        const error = Object.assign(new Error("unexpected"), { code: "DEVICE_NOT_FOUND" });
+        devicesFacade.getById
+            .mockResolvedValueOnce({ id: "device-1", name: "Desktop", connections: [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }] })
+            .mockRejectedValueOnce(error);
+        await expect(whitelistFacade.create({
+            routerId: "router-1", allowedDevice: { id: "device-1", mac: "AA:BB:CC:DD:EE:01" }
+        })).rejects.toBe(error);
+    });
+
     it("should translate router not found errors", async () => {
         devicesFacade.getById
             .mockResolvedValueOnce({
@@ -113,7 +132,7 @@ describe("WhitelistFacade", () => {
                 name: "Desktop",
                 connections: [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }]
             })
-            .mockRejectedValueOnce(Object.assign(new Error("El dispositivo no existe"), { code: "DEVICE_NOT_FOUND" }));
+            .mockRejectedValueOnce(new ApiError({ message: "El dispositivo no existe", apiError: API_ERROR.deviceNotFound }));
 
         await expect(
             whitelistFacade.create({
