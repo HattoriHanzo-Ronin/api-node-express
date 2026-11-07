@@ -27,9 +27,9 @@ import DefaultDevicesFacade from "./facades/impl/default-devices-facade.js";
 import DevicesController from "./controllers/devices-controller.js";
 import RouterAutomation from "./utils/devices-routers/automation/impl/router-automation-manager.js";
 import RouterCpanelClient from "./utils/devices-routers/cpanel/impl/router-cpanel-client.js";
-import WhitelistModel from "./models/postgres/whitelist/whitelist-model.js";
-import WhitelistService from "./services/whitelist-service.js";
-import WhitelistFacade from "./facades/whitelist-facade.js";
+import DefaultWhitelistModel from "./models/impl/postgres/whitelist/default-whitelist-model.js";
+import DefaultWhitelistService from "./services/impl/default-whitelist-service.js";
+import DefaultWhitelistFacade from "./facades/impl/default-whitelist-facade.js";
 import WhitelistController from "./controllers/whitelist-controller.js";
 
 import DefaultUserRolesModel from "./models/impl/postgres/user-roles/default-user-roles-model.js";
@@ -108,8 +108,8 @@ const devicesFacade = new DefaultDevicesFacade({
 });
 const devicesController = new DevicesController({ devicesFacade });
 
-const whitelistService = new WhitelistService({ whitelistModel: WhitelistModel, entityError: whitelistEntityError });
-const whitelistFacade = new WhitelistFacade({
+const whitelistService = new DefaultWhitelistService({ whitelistModel: DefaultWhitelistModel, entityError: whitelistEntityError });
+const whitelistFacade = new DefaultWhitelistFacade({
     whitelistService,
     dataVersionsFacade,
     devicesFacade,
