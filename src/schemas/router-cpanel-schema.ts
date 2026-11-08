@@ -5,7 +5,7 @@ import ZodUtils from "../utils/zod-utils.js";
 const {
     ERROR_MESSAGES: { typeRequired, typeNotRequired, format, length }
 } = ZodUtils;
-const routerCpanelSessionSchema = z.object({
+const ROUTER_CPANEL_SESSION_SCHEMA = z.object({
     clientType: z.enum(Object.values(ROUTER_CPANEL_CLIENT_TYPE), typeRequired).optional().default("desktop"),
     theme: z.enum(Object.values(ROUTER_CPANEL_THEME), typeRequired).optional().default("dark"),
     language: z
@@ -16,6 +16,6 @@ const routerCpanelSessionSchema = z.object({
         .regex(/^[a-z]{2,3}(?:-[A-Z]{2})?$/, format)
         .optional()
 });
-const routerCpanelNavigationSchema = z.object({ action: z.enum(Object.values(ROUTER_CPANEL_ACTION), typeRequired) });
+const ROUTER_CPANEL_NAVIGATION_SCHEMA = z.object({ action: z.enum(Object.values(ROUTER_CPANEL_ACTION), typeRequired) });
 
-export { routerCpanelSessionSchema, routerCpanelNavigationSchema };
+export { ROUTER_CPANEL_SESSION_SCHEMA, ROUTER_CPANEL_NAVIGATION_SCHEMA };
