@@ -37,7 +37,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
             this.dependencies.dataVersionsFacade.getById({ id: SOCKET_ENTITY.users }),
             this.dependencies.usersService.getAll({})
         ]);
-        const { version } = versionResult!;
+        const { version } = versionResult;
         const aclByUser = await this.dependencies.userRolesFacade.getByUsers({ usersId: result.map(({ id }) => id) });
         const users = this.dependencies.usersMapper.usersToDomain({ users: result, aclByUser });
         const data = users
@@ -220,7 +220,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
     }
 
     private async notify(): Promise<void> {
-        const { version } = (await this.dependencies.dataVersionsFacade.getById({ id: SOCKET_ENTITY.users }))!;
+        const { version } = await this.dependencies.dataVersionsFacade.getById({ id: SOCKET_ENTITY.users });
         this.dependencies.socketSessionsFacade.notify({ entity: SOCKET_ENTITY.users, data: { version } });
     }
 
