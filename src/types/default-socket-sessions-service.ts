@@ -13,7 +13,7 @@ export type ConnectedSocketSession = SocketSession & { webSocket: WebSocket };
 export type SocketSessionParams = { session: SocketSession };
 export type SocketSessionMaybeParams = { session?: SocketSession };
 export type SocketSessionDisconnectParams = SocketSessionMaybeParams & {
-    webSocket: WebSocket | null;
+    webSocket: WebSocket;
     terminate?: boolean;
 };
 export type SocketSessionTouchParams = SocketSessionParams & { exp: number };
