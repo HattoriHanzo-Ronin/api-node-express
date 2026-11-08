@@ -109,9 +109,10 @@ export default class DefaultSocketSessionsService implements SocketSessionsServi
         ]);
         this.connectingSessions.add(id);
         try {
-            if (session.webSocket !== null && session.webSocket !== webSocket) {
-                const active = await this.isSocketActive(session.webSocket);
-                if (active) {
+            const currentSocket = session.webSocket;
+            if (currentSocket !== null && currentSocket !== webSocket) {
+                const active = await this.isSocketActive(currentSocket);
+                if (active && session.webSocket === currentSocket) {
                     throw new ApiError({
                         message: "La sesión de notificaciones ya tiene una conexión activa",
                         status: 409,
@@ -119,7 +120,7 @@ export default class DefaultSocketSessionsService implements SocketSessionsServi
                     });
                 }
 
-                this.disconnectSession({ session, webSocket: session.webSocket });
+                this.disconnectSession({ session, webSocket: currentSocket });
             }
 
             const releaseConnection = await this.reserveConnection({ ownerId: authUser.id });
@@ -249,14 +250,17 @@ export default class DefaultSocketSessionsService implements SocketSessionsServi
                 session.webSocket !== null && (ownerId === undefined || session.ownerId === ownerId)
         );
         const active = await Promise.all(
-            sessions.map(async (session) => ({ session, active: await this.isSocketActive(session.webSocket) }))
+            sessions.map(async (session) => {
+                const webSocket = session.webSocket;
+                return { session, webSocket, active: await this.isSocketActive(webSocket) };
+            })
         );
         active
             .filter(({ active }) => !active)
-            .forEach(({ session }) =>
+            .forEach(({ session, webSocket }) =>
                 this.disconnectSession({
                     session,
-                    webSocket: session.webSocket,
+                    webSocket,
                     terminate: true
                 })
             );
@@ -304,7 +308,7 @@ export default class DefaultSocketSessionsService implements SocketSessionsServi
         if (session?.webSocket === webSocket) {
             session.webSocket = null;
             if (terminate) {
-                webSocket!.terminate?.();
+                webSocket.terminate?.();
             }
         }
     }

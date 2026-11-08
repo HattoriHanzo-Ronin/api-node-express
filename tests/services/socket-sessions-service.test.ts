@@ -105,6 +105,31 @@ describe("SocketSessionsService", () => {
         await expect(connection).resolves.toBeUndefined();
     });
 
+    it("handles a socket disconnecting while checking capacity", async () => {
+        const sessions = Array.from({ length: 4 }, () => service.create({ authUser }));
+        const inactiveSocket = createWebSocket({ responds: false });
+        await service.connect({ authUser, id: sessions[0].id, webSocket: inactiveSocket });
+        await service.connect({ authUser, id: sessions[1].id, webSocket: createWebSocket() });
+        await service.connect({ authUser, id: sessions[2].id, webSocket: createWebSocket() });
+        const connection = service.connect({ authUser, id: sessions[3].id, webSocket: createWebSocket() });
+        service.disconnect({ id: sessions[0].id, webSocket: inactiveSocket });
+        await vi.advanceTimersByTimeAsync(1000);
+        await expect(connection).resolves.toBeUndefined();
+        expect(inactiveSocket.terminate).not.toHaveBeenCalled();
+    });
+
+    it("allows reconnecting when the previous socket disconnects while being checked", async () => {
+        const { id } = service.create({ authUser });
+        const previous = createWebSocket({ responds: false });
+        const replacement = createWebSocket();
+        await service.connect({ authUser, id, webSocket: previous });
+        const connection = service.connect({ authUser, id, webSocket: replacement });
+        service.disconnect({ id, webSocket: previous });
+        await vi.advanceTimersByTimeAsync(1000);
+        await expect(connection).resolves.toBeUndefined();
+        service.subscribe({ id, webSocket: replacement, entities: ["devices"] });
+    });
+
     it("should preserve reserved global capacity for protected users", async () => {
         Object.assign(testEnvironment, {
             socketMaxConnections: 3,
