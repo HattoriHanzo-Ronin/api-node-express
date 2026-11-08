@@ -5,7 +5,7 @@ import type SocketSessionsController from "../controllers/socket-sessions-contro
 import type UsersController from "../controllers/users-controller.js";
 import type WhitelistController from "../controllers/whitelist-controller.js";
 import type TokenProvider from "../utils/token-providers/token-provider.js";
-import type { AuthAccessTokenPayload } from "./auth.js";
+import type { AuthAccessTokenPayload, VerifiedAccessToken } from "./auth.js";
 
 /**
  * Application dependencies
@@ -19,5 +19,5 @@ export type AppDependencies = {
     usersController: UsersController;
     authController: AuthController;
     socketSessionsController: SocketSessionsController;
-    accessTokenProvider: TokenProvider<AuthAccessTokenPayload>;
+    accessTokenProvider: TokenProvider<AuthAccessTokenPayload, VerifiedAccessToken>;
 };

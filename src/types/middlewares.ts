@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import type { Readable } from "node:stream";
 import type ApiError from "../utils/error/api-error.js";
-import type { AuthAccessTokenPayload } from "./auth.js";
+import type { VerifiedAccessToken } from "./auth.js";
 
 export type AsyncRequestHandler = (req: Request, res: Response, next: NextFunction) => void | Promise<void>;
 
@@ -17,7 +17,7 @@ export type UploadedFile = {
 declare global {
     namespace Express {
         interface Request {
-            user: AuthAccessTokenPayload;
+            user: VerifiedAccessToken;
             file?: UploadedFile;
         }
     }

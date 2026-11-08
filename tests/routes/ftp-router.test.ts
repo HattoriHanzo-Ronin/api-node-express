@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import express from "express";
 import type { Server } from "node:http";
 import Middlewares from "../../src/middlewares/middlewares.js";
-import type { AuthAccessTokenPayload } from "../../src/types/auth.js";
+import type { AuthAccessTokenPayload, VerifiedAccessToken } from "../../src/types/auth.js";
 import type TokenProvider from "../../src/utils/token-providers/token-provider.js";
 import type { FtpRouterDependencies } from "../../src/types/ftp-router.js";
 import type { FtpRouterController } from "../types/routers.js";
@@ -25,7 +25,7 @@ describe("FtpRouter", () => {
         downloadEntry: vi.fn(),
         delete: vi.fn()
     };
-    const accessTokenProvider: TokenProvider<AuthAccessTokenPayload> = {
+    const accessTokenProvider: TokenProvider<AuthAccessTokenPayload, VerifiedAccessToken> = {
         create: vi.fn(),
         verify: vi.fn()
     };

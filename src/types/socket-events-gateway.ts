@@ -1,7 +1,7 @@
 import type { WebSocket, RawData } from "ws";
 import type SocketSessionsFacade from "../facades/socket-sessions-facade.js";
 import type TokenProvider from "../utils/token-providers/token-provider.js";
-import type { AuthAccessTokenPayload } from "./auth.js";
+import type { AuthAccessTokenPayload, VerifiedAccessToken } from "./auth.js";
 
 type WebSocketParam = {
     webSocket: WebSocket;
@@ -14,7 +14,7 @@ type WebSocketParam = {
  */
 export type SocketEventsGatewayDependencies = {
     socketSessionsFacade: SocketSessionsFacade;
-    accessTokenProvider: TokenProvider<AuthAccessTokenPayload>;
+    accessTokenProvider: TokenProvider<AuthAccessTokenPayload, VerifiedAccessToken>;
 };
 
 export type SocketEventsMessagesParams = {
