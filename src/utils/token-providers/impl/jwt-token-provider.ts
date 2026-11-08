@@ -11,7 +11,10 @@ import type { JwtProviderDependencies } from "../../../types/jwt-provider.js";
  *
  * @author HattoriHanzo-Ronin
  */
-export default class JwtProvider<Payload extends object> implements TokenProvider<Payload> {
+export default class JwtProvider<
+    Payload extends object,
+    VerifiedPayload extends Payload = Payload
+> implements TokenProvider<Payload, VerifiedPayload> {
     private readonly secret: string;
     private readonly expiresIn: SignOptions["expiresIn"];
 
@@ -27,7 +30,7 @@ export default class JwtProvider<Payload extends object> implements TokenProvide
     verify({ token }: VerifyTokenParams) {
         try {
             const payload = jwt.verify(token, this.secret);
-            return payload as Payload;
+            return payload as VerifiedPayload;
         } catch (err) {
             ApiError.handle([
                 {

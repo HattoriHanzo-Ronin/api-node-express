@@ -5,7 +5,7 @@ import type { NextFunction, Request, RequestHandler, Response } from "express";
 import ApiError from "../utils/error/api-error.js";
 import { API_ERROR } from "../config/errors.js";
 import type { ApiErrorResponse } from "../types/api-error.js";
-import type { AuthAccessTokenPayload } from "../types/auth.js";
+import type { AuthAccessTokenPayload, VerifiedAccessToken } from "../types/auth.js";
 import type { MiddlewareError } from "../types/middlewares.js";
 import type TokenProvider from "../utils/token-providers/token-provider.js";
 import type { Role } from "../types/user-roles-model.js";
@@ -129,7 +129,7 @@ export default class Middlewares {
      * @param accessTokenProvider Access token provider
      * @returns Authentication middleware
      */
-    static requireAuth({ accessTokenProvider }: { accessTokenProvider: TokenProvider<AuthAccessTokenPayload> }): RequestHandler {
+    static requireAuth({ accessTokenProvider }: { accessTokenProvider: TokenProvider<AuthAccessTokenPayload, VerifiedAccessToken> }): RequestHandler {
         return (req: Request, res: Response, next: NextFunction): void => {
             try {
                 const { authorization } = req.headers;

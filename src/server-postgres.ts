@@ -52,7 +52,7 @@ import SocketSessionsService from "./services/socket-sessions-service.js";
 import SocketSessionsController from "./controllers/socket-sessions-controller.js";
 import SocketSessionsFacade from "./facades/socket-sessions-facade.js";
 import WebSocketEventsGateway from "./utils/gateways/impl/socket-events-gateway.js";
-import type { AuthAccessTokenPayload, AuthRefreshTokenPayload } from "./types/auth.js";
+import type { AuthAccessTokenPayload, AuthRefreshTokenPayload, VerifiedAccessToken } from "./types/auth.js";
 
 const tx = PostgresClient.executeTx;
 const { jwtAccessTokenExpiresIn, jwtRefreshTokenExpiresIn, routerCpanelServiceUrl } = ENV;
@@ -153,7 +153,7 @@ const refreshTokensService = new DefaultRefreshTokensService({
     entityError: refreshTokensEntityError
 });
 
-const accessTokenProvider = new JwtProvider<AuthAccessTokenPayload>({
+const accessTokenProvider = new JwtProvider<AuthAccessTokenPayload, VerifiedAccessToken>({
     secret: jwtSecret,
     expiresIn: jwtAccessTokenExpiresIn
 });

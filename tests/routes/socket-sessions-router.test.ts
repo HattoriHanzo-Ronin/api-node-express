@@ -2,19 +2,19 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import express from "express";
 import type { Server } from "node:http";
 import Middlewares from "../../src/middlewares/middlewares.js";
-import type { AuthAccessTokenPayload } from "../../src/types/auth.js";
+import type { AuthAccessTokenPayload, VerifiedAccessToken } from "../../src/types/auth.js";
 import type TokenProvider from "../../src/utils/token-providers/token-provider.js";
 import type { SocketSessionsRouterController } from "../types/routers.js";
 import createSocketSessionsRouter from "../../src/routes/socket-sessions-router.js";
 
 describe("SocketSessionsRouter", () => {
-    const authUser: AuthAccessTokenPayload = { id: "user-id", roles: ["NET"] };
+    const authUser: VerifiedAccessToken = { id: "user-id", roles: ["NET"], iat: 1_800_000_000, exp: 1_900_000_000 };
     const socketSessionsController: SocketSessionsRouterController = {
         create: vi.fn((req, res) => res.status(201).send()),
         refresh: vi.fn(),
         close: vi.fn()
     };
-    const accessTokenProvider: TokenProvider<AuthAccessTokenPayload> = {
+    const accessTokenProvider: TokenProvider<AuthAccessTokenPayload, VerifiedAccessToken> = {
         create: vi.fn(),
         verify: vi.fn(() => authUser)
     };

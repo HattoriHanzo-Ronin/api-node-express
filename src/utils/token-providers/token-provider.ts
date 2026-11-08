@@ -5,7 +5,7 @@ import type { CreateTokenParams, VerifyTokenParams } from "../../types/token-pro
  *
  * @author HattoriHanzo-Ronin
  */
-export default interface TokenProvider<Payload extends object> {
+export default interface TokenProvider<Payload extends object, VerifiedPayload extends Payload = Payload> {
     /**
      * Creates a signed token
      *
@@ -21,5 +21,5 @@ export default interface TokenProvider<Payload extends object> {
      * @returns Decoded token payload
      * @throws {ApiError} When the token is invalid
      */
-    verify(params: VerifyTokenParams): Payload;
+    verify(params: VerifyTokenParams): VerifiedPayload;
 }
