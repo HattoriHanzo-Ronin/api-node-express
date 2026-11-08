@@ -17,10 +17,23 @@
 * Extract repeated logic only when it provides real value
 * Do not create layers, helpers, or abstractions that only add noise
 * Avoid code duplication
+
+## Naming conventions for injectable implementations
+
+* Controllers do not use interfaces or an `impl/` directory; keep their responsibility names and type their handlers in the concrete controller.
+* Injectable facade, service, model, and mapper contracts retain their responsibility names: `UsersFacade`, `UsersService`, `UsersModel`, and `UsersMapper`.
+* Model interfaces belong directly in `models/`; database-specific implementations belong under `models/impl/`, grouped by database.
+* Concrete facade, service, model, and mapper classes in `impl/` use the `Default` prefix: `DefaultUsersFacade`, `DefaultUsersService`, `DefaultUsersModel`, and `DefaultUsersMapper`.
+* Outside MVC, name implementations for their concrete responsibility; do not apply an `Impl` suffix by default.
+* Reserve the `Utils` suffix for pure utility classes.
+* The `impl/` directory identifies concrete implementations, but does not require an `Impl` suffix.
+* When a module has a single export, use `export default`; for a type alias, use a named `export type` on its declaration because TypeScript does not support `export default type`.
+* Declare exports at the end of a file when exporting constants; other exports do not need to be placed at the end.
 * Avoid unnecessary abstractions
 * Maintain the project's compact style
 * If it fits on one line and remains readable, keep it inline
 * Do not write inline `if` statements; always use a block with braces
+* Preserve intentional `value == null` and `value != null` comparisons: they deliberately match both `null` and `undefined`; do not replace them solely to satisfy `eqeqeq`
 * Allow simple `if/else` statements when they clearly express two paths
 * Avoid `else if` chains and trees with new nested `if/else` statements inside both branches; prefer independent conditions, returns, or `continue` to keep the flow flat
 * Use `switch` when it more clearly represents several discrete cases
@@ -35,7 +48,7 @@
 * Do not add unnecessary line breaks
 * Do not add comments to explain obvious code
 * Do not split strings or expressions only for style if the line is readable and does not clearly exceed the horizontal limit
-* In arrow callbacks, destructure the properties used when the full object is not needed; when it must be retained, use a descriptive name instead of `it`
+* In methods, functions, arrow callbacks, and iterators, destructure the properties used when the full object is not needed; when it must be retained, use a descriptive name instead of `it`
 * Do not create intermediate variables only to satisfy lint rules if direct destructuring with `let` is clearer
 * Do not add unreachable returns only to satisfy lint after a call that throws an error; TypeScript will control that flow when appropriate
 * When importing an object-type constant, access the property directly if it is only used once
@@ -89,6 +102,7 @@ Apply the principles of object-oriented programming encapsulation consistently, 
 ### 4. Interfaces and inheritance
 
 * Interfaces must define public contracts without exposing internal implementation details.
+* Do not bind an interface or its public data types to an implementation-specific package or technology; use a generic parameter when the implementation determines the type, as with token providers and socket gateways.
 * Declare properties as `readonly` when consumers should only read them.
 * Public getters and setters can be represented as properties in interfaces.
 * Do not include `private` or `protected` members in interfaces.
@@ -121,7 +135,20 @@ Prioritize architectural consistency, maintainability, and compatibility over th
 
 ## Typing and JSDoc
 
-* Type parameters whenever possible
+* Define each data type under the entity that owns its data, even when another entity needs it before the owning entity is migrated; add only the types needed at that stage and complete the rest when that entity is migrated
+
+* Reuse dependency types already defined in `types/`; do not redeclare their individual types in implementations
+* When a class receives more than one dependency, store them as a single object using its existing dependency type
+* When a class receives one dependency, type its property using the existing dependency type's property
+* Use generic types only when the contract must preserve a caller-defined type, defer an implementation-specific dependency to the implementation, or model a genuinely variable result
+* Do not introduce a generic when a concrete application-owned type expresses the complete contract
+* When a method supports a fixed set of input and output types, prefer concrete overloads that preserve each input-to-output relationship over introducing a generic; for example, a mapper can overload its method for each supported model and mapped result
+* Implementations must reuse the parameter and data-contract types declared for their public interface; do not recreate equivalent types locally
+* Model the actual control flow and contracts with precise types and narrowing whenever possible; do not use type assertions or non-null assertions as a substitute for correct typing
+* Use an assertion only when the existing flow or a verified contract guarantees the value but TypeScript cannot express or infer that guarantee; assertions must not invent a guarantee or replace necessary validation
+* When an error class is available, prefer checking the error with `instanceof` in the condition before accessing its properties rather than asserting its type
+* Public methods of a class that implements an interface or extends an abstract contract omit explicit return types when that contract already defines them; private methods and methods without a contract must declare their return type explicitly
+* A non-null assertion is allowed after a validation such as `ApiError.handle` when its verified contract guarantees that a null or undefined value causes an exception, but TypeScript cannot infer that guarantee; do not replace it with a fabricated fallback value
 * Use the most specific available type that respects the complete contract of the parameter
 * Typing and JSDoc must reflect the complete contract received by the method, not only the properties it uses internally
 * If a parameter receives a complete object, preserve and reference its complete type; do not replace it with a partial type, a reduced inline object, or the type of a used property
