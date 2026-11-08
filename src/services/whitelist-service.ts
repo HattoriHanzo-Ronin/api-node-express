@@ -1,5 +1,5 @@
-import type { DeleteWhitelistParams, InsertWhitelistParams, Whitelist } from "../types/whitelist-model.js";
-import type { GetWhitelistKeyParams } from "../types/whitelist-service.js";
+import type { DeleteWhitelistParams, InsertWhitelistParams, Whitelist } from "../types/whitelist/whitelist-model.js";
+import type { GetWhitelistKeyParams } from "../types/whitelist/whitelist-service.js";
 
 export default interface WhitelistService<Transaction> {
     /**

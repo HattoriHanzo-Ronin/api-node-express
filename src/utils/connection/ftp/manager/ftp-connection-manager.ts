@@ -4,7 +4,7 @@ import type {
     FtpLockTransferParams,
     FtpSessionUser,
     Release
-} from "../../../../types/ftp-connection-manager.js";
+} from "../../../../types/ftp/ftp-connection-manager.js";
 
 /**
  * FTP connection manager contract

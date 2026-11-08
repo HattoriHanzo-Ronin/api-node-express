@@ -1,4 +1,4 @@
-import type { DeleteUserRolesParams, InsertUserRolesParams, UserRole, UsersByIdParams } from "../types/user-roles-model.js";
+import type { DeleteUserRolesParams, InsertUserRolesParams, UserRole, UsersByIdParams } from "../types/user-roles/user-roles-model.js";
 
 export default interface UserRolesModel<Transaction> {
     /**

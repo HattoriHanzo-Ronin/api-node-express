@@ -1,5 +1,5 @@
 import { API_ERROR } from "../../config/errors.js";
-import type { ApiErrorCode, ApiErrorOptions, ErrorCondition, ErrorDetail } from "../../types/api-error.js";
+import type { ApiErrorCode, ApiErrorOptions, ErrorCondition, ErrorDetail } from "../../types/utils/api-error.js";
 
 /**
  * API error response

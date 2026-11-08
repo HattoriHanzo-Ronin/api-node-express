@@ -1,4 +1,4 @@
-import type { FtpDomainEntry, FtpEntrySource } from "../types/ftp-mapper.js";
+import type { FtpDomainEntry, FtpEntrySource } from "../types/ftp/ftp-mapper.js";
 
 export default interface FtpMapper<SourceEntry> {
     /**

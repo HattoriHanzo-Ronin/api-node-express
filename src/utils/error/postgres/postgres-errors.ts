@@ -1,6 +1,6 @@
 import { API_ERROR } from "../../../config/errors.js";
 import ApiError from "../api-error.js";
-import type { PostgresError } from "../../../types/postgres-error.js";
+import type { PostgresError } from "../../../types/utils/postgres-error.js";
 
 const {
     whitelistAlreadyAllowed,

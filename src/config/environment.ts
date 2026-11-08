@@ -1,7 +1,7 @@
 import { API_ERROR } from "./errors.js";
 import ApiError from "../utils/error/api-error.js";
-import type { Environment, ProtectedService, ProtectedUserReservations, ProtectedUsers } from "../types/enviroments.js";
-import type { JwtExpiresIn } from "../types/jwt-provider.js";
+import type { Environment, ProtectedService, ProtectedUserReservations, ProtectedUsers } from "../types/config/enviroments.js";
+import type { JwtExpiresIn } from "../types/utils/jwt-provider.js";
 
 const {
     PORT,

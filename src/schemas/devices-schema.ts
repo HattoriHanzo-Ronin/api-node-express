@@ -1,5 +1,5 @@
 import z, { type RefinementCtx } from "zod";
-import type { DeviceSchemaData } from "../types/devices-schema.js";
+import type { DeviceSchemaData } from "../types/devices/devices-schema.js";
 import { CONNECTION_TYPE, DEVICE_TYPE } from "../config/constants.js";
 import ValidateUtils from "../utils/validate-utils.js";
 import ZodUtils from "../utils/zod-utils.js";
@@ -87,17 +87,24 @@ export default class DevicesSchema {
         return withSuperRefine(DEVICES_SCHEMA, DevicesSchema.cases);
     }
 
-    static getPartialSchema(): z.ZodObject<z.core.util.Extend<ReturnType<typeof DEVICES_SCHEMA.partial>["shape"], typeof idSchema.shape>> {
+    static getPartialSchema(): z.ZodObject<
+        z.core.util.Extend<ReturnType<typeof DEVICES_SCHEMA.partial>["shape"], typeof idSchema.shape>
+    > {
         const partialSchema = useRequiredProperties(DEVICES_SCHEMA.partial(), idSchema.shape);
         return withSuperRefine(partialSchema, DevicesSchema.cases);
     }
 
-    static getDeviceSchema(): z.ZodObject<z.core.util.Extend<Omit<typeof DEVICES_SCHEMA.shape, "connections">, typeof idSchema.shape>> {
+    static getDeviceSchema(): z.ZodObject<
+        z.core.util.Extend<Omit<typeof DEVICES_SCHEMA.shape, "connections">, typeof idSchema.shape>
+    > {
         const schema = DEVICES_SCHEMA.omit({ connections: true }).extend(idSchema.shape);
         return withSuperRefine(schema, DevicesSchema.cases);
     }
 
-    private static cases({ type, mac_filter, admin_pass, ip, ssid, wifi_pass, model, connections }: DeviceSchemaData, ctx: RefinementCtx): void {
+    private static cases(
+        { type, mac_filter, admin_pass, ip, ssid, wifi_pass, model, connections }: DeviceSchemaData,
+        ctx: RefinementCtx
+    ): void {
         const isRouter = type === router;
         handleValidationIssues(
             [
@@ -132,7 +139,7 @@ export default class DevicesSchema {
                                     message: "Debe especificar el SSID"
                                 },
                                 {
-                                    condition: ssid !== null && Buffer.byteLength(ssid as string, "utf8") > 32,
+                                    condition: typeof ssid === "string" && Buffer.byteLength(ssid, "utf8") > 32,
                                     path: ["ssid"],
                                     message: "Longitud superada"
                                 }

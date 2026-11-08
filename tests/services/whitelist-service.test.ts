@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import WhitelistService from "../../src/services/impl/default-whitelist-service.js";
-import type { Whitelist } from "../../src/types/whitelist-model.js";
+import type { Whitelist } from "../../src/types/whitelist/whitelist-model.js";
 import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
 
 const createWhitelistModelMock = () => ({ getKeys: vi.fn(), insert: vi.fn(), delete: vi.fn() });

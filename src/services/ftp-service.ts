@@ -17,7 +17,7 @@ import type {
     FtpTransferParams,
     FtpUploadParams,
     FtpUploadSession
-} from "../types/ftp-service.js";
+} from "../types/ftp/ftp-service.js";
 
 export default interface FtpService<MediaStream, DownloadStream, UploadFile, Thumbnail, SourceEntry> {
     /**

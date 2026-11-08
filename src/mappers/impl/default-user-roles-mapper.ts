@@ -1,6 +1,6 @@
-import type { UserRolesMapperParams } from "../../types/user-roles-mapper.js";
-import type { Role, UserRole } from "../../types/user-roles-model.js";
-import type { UserAcl } from "../../types/user-roles-facade.js";
+import type { UserRolesMapperParams } from "../../types/user-roles/user-roles-mapper.js";
+import type { Role, UserRole } from "../../types/user-roles/user-roles-model.js";
+import type { UserAcl } from "../../types/user-roles/user-roles-mapper.js";
 import { USER_ROLE } from "../../config/constants.js";
 
 /**
@@ -26,8 +26,8 @@ export default class DefaultUserRolesMapper {
         return aclByUser;
     }
 
-    static rolesToPersistence({ userId, roles, scope }: UserRolesMapperParams): UserRole[] {
-        return roles!.map((role) => ({
+    static rolesToPersistence({ userId, roles, scope }: UserRolesMapperParams): UserRole[] | undefined {
+        return roles?.map((role) => ({
             user_id: userId,
             role,
             scope: role === USER_ROLE.admin ? scope!.join(",") : null

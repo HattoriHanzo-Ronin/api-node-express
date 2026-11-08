@@ -1,4 +1,4 @@
-import type { AllowedDevice, WhitelistParams } from "../types/whitelist-facade.js";
+import type { AllowedDevice, WhitelistParams } from "../types/whitelist/whitelist-facade.js";
 
 export default interface WhitelistFacade {
     /**

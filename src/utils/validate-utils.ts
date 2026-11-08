@@ -1,6 +1,6 @@
 import ApiError from "./error/api-error.js";
-import type { ApiErrorCode } from "../types/api-error.js";
-import type { ValidateRegex } from "../types/validate-utils.js";
+import type { ApiErrorCode } from "../types/utils/api-error.js";
+import type { ValidateRegex } from "../types/utils/validate-utils.js";
 
 /**
  * Validation utilities

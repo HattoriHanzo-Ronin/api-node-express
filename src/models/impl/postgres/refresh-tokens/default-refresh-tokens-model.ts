@@ -1,6 +1,6 @@
 import PostgresClient from "../../../../utils/connection/postgres/postgres-client.js";
 import REFRESH_TOKENS_COLUMNS from "./columns.js";
-import type { InsertRefreshTokenParams, RefreshToken, RefreshTokenParams } from "../../../../types/refresh-tokens-model.js";
+import type { InsertRefreshTokenParams, RefreshToken, RefreshTokenParams } from "../../../../types/refresh-tokens/refresh-tokens-model.js";
 
 /**
  * Default PostgreSQL refresh tokens model

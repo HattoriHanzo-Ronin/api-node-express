@@ -1,6 +1,6 @@
 import type { Browser, Page } from "puppeteer-core";
 import AbstractRouter from "../abstract-router.js";
-import { AddAllowParams, DeleteAllowParams, GeneratedKeysParams } from "../../../../../types/router-automation.js";
+import { AddAllowParams, DeleteAllowParams, GeneratedKeysParams } from "../../../../../types/utils/router-automation.js";
 
 /**
  * TP-Link Archer AX53 router implementation

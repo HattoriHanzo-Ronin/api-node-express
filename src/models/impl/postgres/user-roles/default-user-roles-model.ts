@@ -1,7 +1,7 @@
 import type { ITask } from "pg-promise";
 import PostgresClient from "../../../../utils/connection/postgres/postgres-client.js";
 import USER_ROLES_COLUMNS from "./columns.js";
-import type { DeleteUserRolesParams, InsertUserRolesParams, UserRole, UsersByIdParams } from "../../../../types/user-roles-model.js";
+import type { DeleteUserRolesParams, InsertUserRolesParams, UserRole, UsersByIdParams } from "../../../../types/user-roles/user-roles-model.js";
 
 /**
  * Default PostgreSQL user roles model

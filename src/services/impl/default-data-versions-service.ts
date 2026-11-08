@@ -1,6 +1,6 @@
 import type DataVersionsService from "../data-versions-service.js";
-import type { DataVersionId, DataVersionIds } from "../../types/data-versions-model.js";
-import type { DataVersionsServiceDependencies } from "../../types/default-data-versions-service.js";
+import type { DataVersionId, DataVersionIds } from "../../types/data-versions/data-versions-model.js";
+import type { DataVersionsServiceDependencies } from "../../types/data-versions/default-data-versions-service.js";
 
 /**
  * Default data versions service

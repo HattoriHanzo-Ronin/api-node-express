@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { FtpRouterDependencies } from "../types/ftp-router.js";
+import type { FtpRouterDependencies } from "../types/ftp/ftp-router.js";
 import Middlewares from "../middlewares/middlewares.js";
 import { USER_ROLE } from "../config/constants.js";
 

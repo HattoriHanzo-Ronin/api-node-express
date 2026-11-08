@@ -2,9 +2,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import express from "express";
 import type { Server } from "node:http";
 import Middlewares from "../../src/middlewares/middlewares.js";
-import type { AuthAccessTokenPayload, VerifiedAccessToken } from "../../src/types/auth.js";
+import type { AuthAccessTokenPayload, VerifiedAccessToken } from "../../src/types/auth/auth-facade.js";
 import type TokenProvider from "../../src/utils/token-providers/token-provider.js";
-import type { SocketSessionsRouterDependencies } from "../../src/types/socket-sessions-router.js";
+import type { SocketSessionsRouterDependencies } from "../../src/types/socket-sessions/socket-sessions-router.js";
 import type { SocketSessionsRouterController } from "../types/routers.js";
 import createSocketSessionsRouter from "../../src/routes/socket-sessions-router.js";
 

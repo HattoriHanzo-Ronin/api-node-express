@@ -1,6 +1,6 @@
+import type { AuthUserParams } from "../../types/auth/auth-facade.js";
 import type SocketSessionsService from "../socket-sessions-service.js";
 import type {
-    SocketSessionAuthParams,
     SocketSessionConnectionParams,
     SocketSessionConnectParams,
     SocketSessionId,
@@ -8,7 +8,7 @@ import type {
     SocketSessionOwnedParams,
     SocketSessionResponse,
     SocketSessionSubscribeParams
-} from "../../types/socket-sessions-service.js";
+} from "../../types/socket-sessions/socket-sessions-service.js";
 import type {
     SocketSession,
     ConnectedSocketSession,
@@ -19,7 +19,7 @@ import type {
     SocketSessionOwnerParams,
     SocketSessionRequiredOwnerParams,
     SocketSessionRelease
-} from "../../types/default-socket-sessions-service.js";
+} from "../../types/socket-sessions/default-socket-sessions-service.js";
 import { randomUUID } from "node:crypto";
 import { WebSocket } from "ws";
 import { ENV } from "../../config/environment.js";
@@ -70,7 +70,7 @@ export default class DefaultSocketSessionsService implements SocketSessionsServi
         ]);
     }
 
-    create({ authUser }: SocketSessionAuthParams) {
+    create({ authUser }: AuthUserParams) {
         const { id: ownerId, exp } = authUser;
         const ownerSessions = this.ownerSessions.get(ownerId) ?? new Set();
 

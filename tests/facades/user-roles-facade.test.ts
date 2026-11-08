@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ITask } from "pg-promise";
 import UserRolesFacade from "../../src/facades/impl/default-user-roles-facade.js";
+import UserRolesService from "../../src/services/impl/default-user-roles-service.js";
 import UserRolesMapper from "../../src/mappers/impl/default-user-roles-mapper.js";
 
 const CLIENT_TX = {} as ITask<unknown>;
@@ -31,9 +32,20 @@ describe("UserRolesFacade", () => {
         userRolesService.createMany.mockResolvedValue(source);
 
         await expect(
-            userRolesFacade.createMany({ clientTx: CLIENT_TX, userId: "user-1", roles: ["FTP"], scope: undefined })
+            userRolesFacade.createMany({ clientTx: CLIENT_TX, userId: "user-1", roles: ["FTP"] })
         ).resolves.toEqual({ roles: ["FTP"] });
         expect(userRolesService.createMany).toHaveBeenCalledWith({ clientTx: CLIENT_TX, userRoles: source });
+    });
+
+    it("validates missing roles in the service before inserting", async () => {
+        const model = { getByUsers: vi.fn(), insertMany: vi.fn(), deleteByUser: vi.fn() };
+        const service = new UserRolesService({ userRolesModel: model });
+        const facade = new UserRolesFacade({ userRolesService: service, userRolesMapper: UserRolesMapper });
+
+        await expect(facade.createMany({ clientTx: CLIENT_TX, userId: "user-1" })).rejects.toMatchObject({
+            code: "ACL_ROLE_REQUIRED"
+        });
+        expect(model.insertMany).not.toHaveBeenCalled();
     });
 
     it("should map domain roles before replacing them", async () => {
@@ -43,6 +55,10 @@ describe("UserRolesFacade", () => {
         await expect(
             userRolesFacade.replace({ clientTx: CLIENT_TX, userId: "user-1", roles: ["ADMIN"], scope: ["FTP"] })
         ).resolves.toEqual({ roles: ["ADMIN"], scope: ["FTP"] });
-        expect(userRolesService.replace).toHaveBeenCalledWith({ clientTx: CLIENT_TX, userId: "user-1", userRoles: source });
+        expect(userRolesService.replace).toHaveBeenCalledWith({
+            clientTx: CLIENT_TX,
+            userId: "user-1",
+            userRoles: source
+        });
     });
 });

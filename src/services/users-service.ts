@@ -1,4 +1,4 @@
-import type { GetAllUsersParams } from "../types/users-service.js";
+import type { GetAllUsersParams } from "../types/users/users-service.js";
 import type {
     InsertUserParams,
     UpdateUserParams,
@@ -7,7 +7,7 @@ import type {
     UserCredentials,
     UserId,
     UserPasswordCheck
-} from "../types/users-model.js";
+} from "../types/users/users-model.js";
 
 export default interface UsersService<Transaction> {
     /**

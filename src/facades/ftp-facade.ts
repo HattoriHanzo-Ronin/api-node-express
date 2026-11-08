@@ -11,8 +11,8 @@ import type {
     FtpFacadeTransferParams,
     FtpFacadeUploadParams,
     FtpThumbnailParams
-} from "../types/ftp-facade.js";
-import type { FtpDownloadSession, FtpMediaParams, FtpUploadSession } from "../types/ftp-service.js";
+} from "../types/ftp/ftp-facade.js";
+import type { FtpDownloadSession, FtpMediaParams, FtpUploadSession } from "../types/ftp/ftp-service.js";
 
 export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, UploadFile, Thumbnail> {
     /**

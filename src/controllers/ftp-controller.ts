@@ -13,7 +13,7 @@ import type {
     FtpCreateDownloadHandler,
     FtpDownloadEntryHandler,
     FtpDeleteHandler
-} from "../types/ftp-controller.js";
+} from "../types/ftp/ftp-controller.js";
 import path from "node:path";
 import FtpSchema from "../schemas/ftp-schema.js";
 import ZodUtils from "../utils/zod-utils.js";

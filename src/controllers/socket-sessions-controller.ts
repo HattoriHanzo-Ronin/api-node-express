@@ -3,7 +3,7 @@ import type {
     SocketSessionCreateHandler,
     SocketSessionRefreshHandler,
     SocketSessionCloseHandler
-} from "../types/socket-sessions-controller.js";
+} from "../types/socket-sessions/socket-sessions-controller.js";
 import idSchema from "../schemas/common/id-schema.js";
 import ZodUtils from "../utils/zod-utils.js";
 

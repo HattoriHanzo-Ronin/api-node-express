@@ -1,6 +1,7 @@
 import type UserRolesService from "../user-roles-service.js";
-import type { UserRolesServiceDependencies } from "../../types/default-user-roles-service.js";
-import type { InsertUserRolesParams, ReplaceUserRolesParams, UsersByIdParams } from "../../types/user-roles-model.js";
+import type { UserRolesServiceDependencies } from "../../types/user-roles/default-user-roles-service.js";
+import type { UsersByIdParams } from "../../types/user-roles/user-roles-model.js";
+import type { CreateUserRolesParams, ReplaceUserRolesParams } from "../../types/user-roles/user-roles-service.js";
 import ApiError from "../../utils/error/api-error.js";
 import { API_ERROR } from "../../config/errors.js";
 
@@ -22,20 +23,24 @@ export default class DefaultUserRolesService<Transaction> implements UserRolesSe
         return this.userRolesModel.getByUsers({ usersId });
     }
 
-    async createMany({ clientTx, userRoles }: InsertUserRolesParams<Transaction>) {
+    async createMany({ clientTx, userRoles }: CreateUserRolesParams<Transaction>) {
         try {
-            ApiError.handle([{
-                condition: !userRoles,
-                message: "Se debe especificar al menos un rol para el usuario",
-                apiError: aclRoleRequired
-            }]);
-            return await this.userRolesModel.insertMany({ clientTx, userRoles });
+            ApiError.handle([
+                {
+                    condition: !userRoles,
+                    message: "Se debe especificar al menos un rol para el usuario",
+                    apiError: aclRoleRequired
+                }
+            ]);
+            return await this.userRolesModel.insertMany({ clientTx, userRoles: userRoles! });
         } catch (err) {
-            ApiError.handle([{
-                condition: !(err instanceof ApiError && err.code === aclRoleRequired),
-                message: "Error al crear los roles del usuario",
-                apiError: aclRoleCreateFailed
-            }]);
+            ApiError.handle([
+                {
+                    condition: !(err instanceof ApiError && err.code === aclRoleRequired),
+                    message: "Error al crear los roles del usuario",
+                    apiError: aclRoleCreateFailed
+                }
+            ]);
             throw err;
         }
     }
@@ -45,11 +50,13 @@ export default class DefaultUserRolesService<Transaction> implements UserRolesSe
             await this.userRolesModel.deleteByUser({ clientTx, userId });
             return await this.createMany({ clientTx, userRoles });
         } catch (err) {
-            ApiError.handle([{
-                condition: !(err instanceof ApiError && err.code === aclRoleRequired),
-                message: "Error al actualizar los roles del usuario",
-                apiError: aclRoleUpdateFailed
-            }]);
+            ApiError.handle([
+                {
+                    condition: !(err instanceof ApiError && err.code === aclRoleRequired),
+                    message: "Error al actualizar los roles del usuario",
+                    apiError: aclRoleUpdateFailed
+                }
+            ]);
             throw err;
         }
     }

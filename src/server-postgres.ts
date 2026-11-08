@@ -52,7 +52,7 @@ import DefaultSocketSessionsService from "./services/impl/default-socket-session
 import SocketSessionsController from "./controllers/socket-sessions-controller.js";
 import DefaultSocketSessionsFacade from "./facades/impl/default-socket-sessions-facade.js";
 import WebSocketEventsGateway from "./utils/gateways/impl/socket-events-gateway.js";
-import type { AuthAccessTokenPayload, AuthRefreshTokenPayload, VerifiedAccessToken } from "./types/auth.js";
+import type { AuthAccessTokenPayload, AuthRefreshTokenPayload, VerifiedAccessToken } from "./types/auth/auth-facade.js";
 
 const tx = PostgresClient.executeTx;
 const { jwtAccessTokenExpiresIn, jwtRefreshTokenExpiresIn, routerCpanelServiceUrl } = ENV;

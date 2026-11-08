@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AuthFacade from "../../src/facades/impl/default-auth-facade.js";
-import type { AuthFacadeDependencies } from "../../src/types/default-auth-facade.js";
+import type { AuthFacadeDependencies } from "../../src/types/auth/default-auth-facade.js";
 import ApiError from "../../src/utils/error/api-error.js";
 import { API_ERROR } from "../../src/config/errors.js";
 

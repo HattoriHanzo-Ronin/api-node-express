@@ -1,5 +1,5 @@
-import type { Connection, ConnectionData } from "../types/connections-model.js";
-import type { ConnectionsToPersistenceParams } from "../types/connections-mapper.js";
+import type { Connection, ConnectionData } from "../types/connections/connections-model.js";
+import type { ConnectionsToPersistenceParams } from "../types/connections/connections-mapper.js";
 
 export default interface ConnectionsMapper {
     /**

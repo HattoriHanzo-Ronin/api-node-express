@@ -1,5 +1,5 @@
 import z, { type RefinementCtx } from "zod";
-import type { FtpMoveSchemaData, FtpRenameSchemaData } from "../types/ftp-schema.js";
+import type { FtpMoveSchemaData, FtpRenameSchemaData } from "../types/ftp/ftp-schema.js";
 import ZodUtils from "../utils/zod-utils.js";
 import { FILE_TYPE } from "../config/constants.js";
 import { DIR_SCHEMA, PATH_SCHEMA } from "./common/dir-schema.js";

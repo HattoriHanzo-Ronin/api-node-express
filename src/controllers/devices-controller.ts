@@ -1,4 +1,4 @@
-import type { CloseCpanelHandler, CreateCpanelHandler, CreateDeviceHandler, DeleteDeviceHandler, DeviceHandler, DevicesControllerDependencies, DevicesHandler, NavigateCpanelHandler, RouterDevicesHandler, RouterDevicesRequest, UpdateDeviceHandler } from "../types/devices-controller.js";
+import type { CloseCpanelHandler, CreateCpanelHandler, CreateDeviceHandler, DeleteDeviceHandler, DeviceHandler, DevicesControllerDependencies, DevicesHandler, NavigateCpanelHandler, RouterDevicesHandler, RouterDevicesRequest, UpdateDeviceHandler } from "../types/devices/devices-controller.js";
 import ZodUtils from "../utils/zod-utils.js";
 import DevicesSchema from "../schemas/devices-schema.js";
 import idSchema from "../schemas/common/id-schema.js";

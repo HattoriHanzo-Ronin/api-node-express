@@ -1,5 +1,5 @@
-import type { UserCredentials } from "../types/users-model.js";
-import type { AuthRefreshParams, AuthSession } from "../types/auth-facade.js";
+import type { UserCredentials } from "../types/users/users-model.js";
+import type { AuthRefreshParams, AuthSession } from "../types/auth/auth-facade.js";
 
 export default interface AuthFacade {
     /**

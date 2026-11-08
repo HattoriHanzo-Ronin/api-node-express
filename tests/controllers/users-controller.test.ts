@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import type { NextFunction, Request, Response } from "express";
 import UsersController from "../../src/controllers/users-controller.js";
-import type { UserId } from "../../src/types/users-model.js";
+import type { UserId } from "../../src/types/users/users-model.js";
 
 const createUsersFacadeMock = () => ({
     getAll: vi.fn(),

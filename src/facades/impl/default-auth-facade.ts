@@ -1,8 +1,8 @@
 import type AuthFacade from "../auth-facade.js";
-import type { AuthFacadeDependencies } from "../../types/default-auth-facade.js";
-import type { AuthRefreshParams, AuthSession } from "../../types/auth-facade.js";
-import type { UserCredentials } from "../../types/users-model.js";
-import type { AuthenticatedUserResponse } from "../../types/users-facade.js";
+import type { AuthFacadeDependencies } from "../../types/auth/default-auth-facade.js";
+import type { AuthRefreshParams, AuthSession } from "../../types/auth/auth-facade.js";
+import type { UserCredentials } from "../../types/users/users-model.js";
+import type { MappedUserIdentity } from "../../types/users/users-mapper.js";
 import ApiError from "../../utils/error/api-error.js";
 import { API_ERROR } from "../../config/errors.js";
 
@@ -38,7 +38,7 @@ export default class DefaultAuthFacade implements AuthFacade {
         return this.dependencies.refreshTokensService.delete({ token: refreshToken });
     }
 
-    private async createPayload({ id, username, roles, scope }: AuthenticatedUserResponse): Promise<AuthSession> {
+    private async createPayload({ id, username, roles, scope }: MappedUserIdentity): Promise<AuthSession> {
         const refreshToken = this.dependencies.refreshTokenProvider.create({ payload: { id } });
         await this.dependencies.refreshTokensService.create({ userId: id, token: refreshToken });
         return {

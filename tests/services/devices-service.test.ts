@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DevicesService from "../../src/services/impl/default-devices-service.js";
-import type { DeviceInsert } from "../../src/types/devices-model.js";
+import type { DeviceInsert } from "../../src/types/devices/devices-model.js";
 import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
 
 const createDevicesModelMock = () => ({

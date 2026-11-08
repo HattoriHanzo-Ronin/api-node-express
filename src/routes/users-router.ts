@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { UsersRouterDependencies } from "../types/users-router.js";
+import type { UsersRouterDependencies } from "../types/users/users-router.js";
 import { USER_ROLE } from "../config/constants.js";
 import Middlewares from "../middlewares/middlewares.js";
 

@@ -1,4 +1,4 @@
-import type { DataVersion, DataVersionId, DataVersionIds } from "../types/data-versions-model.js";
+import type { DataVersion, DataVersionId, DataVersionIds } from "../types/data-versions/data-versions-model.js";
 
 export default interface DataVersionsService {
     /**

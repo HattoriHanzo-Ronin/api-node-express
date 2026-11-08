@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ITask } from "pg-promise";
+import type { UserRole } from "../../src/types/user-roles/user-roles-model.js";
 import UserRolesService from "../../src/services/impl/default-user-roles-service.js";
 
 const CLIENT_TX = {} as ITask<unknown>;
@@ -16,9 +17,9 @@ describe("UserRolesService", () => {
 
     describe("getByUsers", () => {
         it("should return user roles", async () => {
-            const roles = [
-                { user_id: "1", role: "FTP" },
-                { user_id: "2", role: "DEVICE" }
+            const roles: UserRole[] = [
+                { user_id: "1", role: "FTP", scope: null },
+                { user_id: "2", role: "NET", scope: null }
             ];
             userRolesModel.getByUsers.mockResolvedValue(roles);
             const result = await userRolesService.getByUsers({ usersId: ["1", "2"] });
@@ -47,9 +48,10 @@ describe("UserRolesService", () => {
         });
 
         it("should fail if roles are not defined", async () => {
-            await expect(userRolesService.createMany({ clientTx: CLIENT_TX, userRoles: undefined as never })).rejects.toThrow(
+            await expect(userRolesService.createMany({ clientTx: CLIENT_TX, userRoles: undefined })).rejects.toThrow(
                 "Se debe especificar al menos un rol para el usuario"
             );
+            expect(userRolesModel.insertMany).not.toHaveBeenCalled();
         });
 
         it("should translate model errors even when they have the required-role code", async () => {
@@ -64,14 +66,20 @@ describe("UserRolesService", () => {
         it("should replace user roles", async () => {
             const createdRoles = [{ user_id: "1", role: "FTP" as const, scope: null }];
             userRolesModel.insertMany.mockResolvedValue(createdRoles);
-            const result = await userRolesService.replace({ clientTx: CLIENT_TX, userId: "1", userRoles: createdRoles });
+            const result = await userRolesService.replace({
+                clientTx: CLIENT_TX,
+                userId: "1",
+                userRoles: createdRoles
+            });
             expect(userRolesModel.deleteByUser).toHaveBeenCalledWith({ clientTx: CLIENT_TX, userId: "1" });
             expect(result).toEqual(createdRoles);
         });
 
         it("should translate non-API model errors", async () => {
             userRolesModel.deleteByUser.mockRejectedValue(null);
-            await expect(userRolesService.replace({ clientTx: CLIENT_TX, userId: "1", userRoles: [] })).rejects.toMatchObject({
+            await expect(
+                userRolesService.replace({ clientTx: CLIENT_TX, userId: "1", userRoles: [] })
+            ).rejects.toMatchObject({
                 code: "ACL_ROLE_UPDATE_FAILED"
             });
         });

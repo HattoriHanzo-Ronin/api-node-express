@@ -1,5 +1,5 @@
 import type { ITask } from "pg-promise";
-import type { Connection, ConnectionsByDevicesParams, DeleteConnectionsParams, WriteConnectionsParams } from "../../../../types/connections-model.js";
+import type { Connection, ConnectionsByDevicesParams, DeleteConnectionsParams, WriteConnectionsParams } from "../../../../types/connections/connections-model.js";
 import PostgresClient from "../../../../utils/connection/postgres/postgres-client.js";
 import CONNECTIONS_COLUMNS from "./columns.js";
 

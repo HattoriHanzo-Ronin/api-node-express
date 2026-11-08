@@ -4,7 +4,7 @@ import type {
     UserIdentityMapperParams,
     UserMapperParams,
     UsersMapperParams
-} from "../types/users-mapper.js";
+} from "../types/users/users-mapper.js";
 
 export default interface UsersMapper {
     /**

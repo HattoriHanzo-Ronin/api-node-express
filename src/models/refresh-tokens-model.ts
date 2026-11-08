@@ -1,4 +1,4 @@
-import type { InsertRefreshTokenParams, RefreshToken, RefreshTokenParams } from "../types/refresh-tokens-model.js";
+import type { InsertRefreshTokenParams, RefreshToken, RefreshTokenParams } from "../types/refresh-tokens/refresh-tokens-model.js";
 
 export default interface RefreshTokensModel {
     /**

@@ -1,11 +1,24 @@
 import type DevicesFacade from "../devices-facade.js";
-import type { DevicesFacadeDependencies, MapDeviceResult, MapDevicesResult, RouterOperation, RouterRollback, UpdatedRouter } from "../../types/default-devices-facade.js";
-import type { CloseDeviceRouterCpanelParams, CreateDeviceParams, CreateDeviceRouterCpanelParams, Device, NavigateDeviceRouterCpanelParams, UpdateDeviceFacadeParams } from "../../types/devices-facade.js";
-import type { DeviceId, RouterIdParams } from "../../types/devices-model.js";
-import type { GetAllDevicesParams } from "../../types/devices-service.js";
-import type { ConnectionData } from "../../types/connections-model.js";
-import type { RouterAutomationPayload } from "../../types/router-automation.js";
-import type { ApiErrorCode } from "../../types/api-error.js";
+import type {
+    DevicesFacadeDependencies,
+    MapDeviceResult,
+    MapDevicesResult,
+    RouterOperation,
+    RouterRollback,
+    UpdatedRouter
+} from "../../types/devices/default-devices-facade.js";
+import type {
+    CloseDeviceRouterCpanelParams,
+    CreateDeviceParams,
+    CreateDeviceRouterCpanelParams,
+    Device,
+    NavigateDeviceRouterCpanelParams,
+    UpdateDeviceFacadeParams
+} from "../../types/devices/devices-facade.js";
+import type { DeviceId, RouterIdParams } from "../../types/devices/devices-model.js";
+import type { GetAllDevicesParams } from "../../types/devices/devices-service.js";
+import type { ConnectionData } from "../../types/connections/connections-model.js";
+import type { RouterAutomationPayload } from "../../types/utils/router-automation.js";
 import ApiError from "../../utils/error/api-error.js";
 import { DEVICE_TYPE, SOCKET_ENTITY } from "../../config/constants.js";
 import { API_ERROR } from "../../config/errors.js";
@@ -40,7 +53,9 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
             this.dependencies.devicesService.getAllowedDevices({ routerId })
         ]);
         const { devices, connections } = this.dependencies.devicesMapper.createDeviceSource(result);
-        const connectionsByDevice = this.dependencies.connectionsFacade.connectionsByDeviceToDomain({ source: connections });
+        const connectionsByDevice = this.dependencies.connectionsFacade.connectionsByDeviceToDomain({
+            source: connections
+        });
         return { version, data: this.dependencies.devicesMapper.devicesToDomain({ devices, connectionsByDevice }) };
     }
 
@@ -50,18 +65,22 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
             this.dependencies.devicesService.getNotAllowedDevices({ routerId })
         ]);
         const { devices, connections } = this.dependencies.devicesMapper.createDeviceSource(result);
-        const connectionsByDevice = this.dependencies.connectionsFacade.connectionsByDeviceToDomain({ source: connections });
+        const connectionsByDevice = this.dependencies.connectionsFacade.connectionsByDeviceToDomain({
+            source: connections
+        });
         return { version, data: this.dependencies.devicesMapper.devicesToDomain({ devices, connectionsByDevice }) };
     }
 
     async createRouterCpanel({ authUser, routerId, language, clientType, theme }: CreateDeviceRouterCpanelParams) {
         const router = await this.getById({ id: routerId });
-        ApiError.handle([{
-            condition: router.type !== DEVICE_TYPE.router,
-            message: "El dispositivo no es un router",
-            status: 400,
-            apiError: routerCpanelNotRouter
-        }]);
+        ApiError.handle([
+            {
+                condition: router.type !== DEVICE_TYPE.router,
+                message: "El dispositivo no es un router",
+                status: 400,
+                apiError: routerCpanelNotRouter
+            }
+        ]);
 
         const { name, ip, admin_pass } = router;
         return this.dependencies.routerCpanel.create({
@@ -140,7 +159,10 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
                     oldConnections
                 });
                 if (deletedConnections) {
-                    device = this.dependencies.devicesMapper.deviceToDomain({ source: result, connections: deletedConnections });
+                    device = this.dependencies.devicesMapper.deviceToDomain({
+                        source: result,
+                        connections: deletedConnections
+                    });
                     await this.deleteRouterWhitelist(device);
                     oldConnections = excludeProcessedConnections(deletedConnections);
                 }
@@ -169,7 +191,11 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
         return result;
     }
 
-    private async executeRouterOperation({ id, name, connections }: Device, callback: RouterOperation, rollbackCallback: RouterRollback): Promise<void> {
+    private async executeRouterOperation(
+        { id, name, connections }: Device,
+        callback: RouterOperation,
+        rollbackCallback: RouterRollback
+    ): Promise<void> {
         const source = await this.dependencies.devicesService.getRoutersByAllowedDevice({
             allowedDeviceId: id
         });
@@ -179,7 +205,9 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
         for (const router of routers) {
             const { name: routerName, connections: oldConnections } = router;
             try {
-                const routerImpl = new this.dependencies.routerAutomation({ router: router as RouterAutomationPayload });
+                const routerImpl = new this.dependencies.routerAutomation({
+                    router: router as RouterAutomationPayload
+                });
                 for (const { mac: oldMac, key, ctype } of oldConnections) {
                     const allowedDevice = connections.find(({ ctype: connectionCtype }) => connectionCtype === ctype);
                     if (allowedDevice) {
@@ -199,11 +227,10 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
             } catch (err) {
                 const restoredRouters: string[] = [];
                 const addFailed = err instanceof ApiError && err.code === routerAddFailed;
-                const apiError = err instanceof ApiError && "apiError" in err ? err.apiError as ApiErrorCode : undefined;
+                const apiError = err instanceof ApiError ? err.code : undefined;
                 const affectedRouters = addFailed ? [routerName] : [];
                 let message;
-                for (const updatedRouterName of updatedRouters.keys()) {
-                    const { routerImpl, updatedMacs } = updatedRouters.get(updatedRouterName)!;
+                for (const [updatedRouterName, { routerImpl, updatedMacs }] of updatedRouters) {
                     let currentUpdatedMac;
                     try {
                         for (const { key, addDevice, delDevice } of updatedMacs) {
@@ -227,7 +254,9 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
                             `Routers afectados: ${affectedRouters.join(", ")}`;
                         ApiError.handle([
                             {
-                                condition: err instanceof ApiError && (err.code === routerAddFailed || err.code === routerDeleteFailed),
+                                condition:
+                                    err instanceof ApiError &&
+                                    (err.code === routerAddFailed || err.code === routerDeleteFailed),
                                 message,
                                 apiError: routerRollbackFailed
                             }
@@ -258,25 +287,36 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
 
     private async notifyChanges(): Promise<void> {
         const version = await this.getVersions([SOCKET_ENTITY.devices, SOCKET_ENTITY.whitelist]);
-        this.dependencies.socketSessionsFacade.notify({ entity: SOCKET_ENTITY.devices, data: { version: version.devices } });
-        this.dependencies.socketSessionsFacade.notify({ entity: SOCKET_ENTITY.whitelist, data: { version: version.whitelist } });
+        this.dependencies.socketSessionsFacade.notify({
+            entity: SOCKET_ENTITY.devices,
+            data: { version: version.devices }
+        });
+        this.dependencies.socketSessionsFacade.notify({
+            entity: SOCKET_ENTITY.whitelist,
+            data: { version: version.whitelist }
+        });
     }
 
     private async mapResult(params: MapDeviceResult): Promise<Device>;
     private async mapResult(params: MapDevicesResult): Promise<Device[]>;
     private async mapResult(params: MapDeviceResult | MapDevicesResult): Promise<Device | Device[]> {
-        if (params.id) {
+        if (params.id !== undefined) {
             const { id, result } = params;
             const connections = await this.dependencies.connectionsFacade.getByDevices({ devicesId: [id] });
-            return this.dependencies.devicesMapper.deviceToDomain({ source: result, connections: connections.get(id) ?? [] });
+            return this.dependencies.devicesMapper.deviceToDomain({
+                source: result,
+                connections: connections.get(id) ?? []
+            });
         }
 
-        const { result } = params as MapDevicesResult;
+        const { result } = params;
         if (result.length === 0) {
             return this.dependencies.devicesMapper.devicesToDomain({ devices: result, connectionsByDevice: new Map() });
         }
 
-        const connections = await this.dependencies.connectionsFacade.getByDevices({ devicesId: result.map(({ id }) => id) });
+        const connections = await this.dependencies.connectionsFacade.getByDevices({
+            devicesId: result.map(({ id }) => id)
+        });
         return this.dependencies.devicesMapper.devicesToDomain({ devices: result, connectionsByDevice: connections });
     }
 }

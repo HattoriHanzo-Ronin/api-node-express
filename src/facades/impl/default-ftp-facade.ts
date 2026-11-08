@@ -1,9 +1,9 @@
 import type { ServerResponse } from "node:http";
-import type { UploadedFile } from "../../types/middlewares.js";
-import type { FtpDownloadStream } from "../../types/default-ftp-service.js";
+import type { UploadedFile } from "../../types/middlewares/middlewares.js";
+import type { FtpDownloadStream } from "../../types/ftp/default-ftp-service.js";
 import type FtpFacade from "../ftp-facade.js";
-import type { FtpEntrySource } from "../../types/ftp-mapper.js";
-import type { FtpMediaParams, FtpDirectoryParams } from "../../types/ftp-service.js";
+import type { FtpEntrySource } from "../../types/ftp/ftp-mapper.js";
+import type { FtpMediaParams, FtpDirectoryParams } from "../../types/ftp/ftp-service.js";
 import type {
     FtpFacadeCreateUploadParams,
     FtpFacadeDeleteParams,
@@ -16,7 +16,7 @@ import type {
     FtpFacadeTransferParams,
     FtpFacadeUploadParams,
     FtpThumbnailParams
-} from "../../types/ftp-facade.js";
+} from "../../types/ftp/ftp-facade.js";
 import type {
     FtpProgressStream,
     FtpFacadeDependencies,
@@ -26,7 +26,7 @@ import type {
     FtpThumbnailQueueParams,
     FtpThumbnailSyncParams,
     FtpWatchDirectoryParams
-} from "../../types/default-ftp-facade.js";
+} from "../../types/ftp/default-ftp-facade.js";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { FILE_TYPE, SOCKET_ENTITY } from "../../config/constants.js";

@@ -1,5 +1,5 @@
 import type { ITask } from "pg-promise";
-import type { AllowedDevice, AllowedDeviceIdParams, Device, DeviceId, InsertDeviceParams, RouterAllowedDevice, RouterIdParams, UpdateDeviceParams } from "../../../../types/devices-model.js";
+import type { AllowedDevice, AllowedDeviceIdParams, Device, DeviceId, InsertDeviceParams, RouterAllowedDevice, RouterIdParams, UpdateDeviceParams } from "../../../../types/devices/devices-model.js";
 import PostgresClient from "../../../../utils/connection/postgres/postgres-client.js";
 import PostgresDbUtils from "../../../../utils/postgres-db-utils.js";
 import devicesColumns from "./columns.js";

@@ -1,8 +1,8 @@
 import type DataVersionsFacade from "../data-versions-facade.js";
-import type { DataVersion, DataVersionId } from "../../types/data-versions-model.js";
-import type { DataVersionsId, DataVersionsParams } from "../../types/data-versions-facade.js";
-import type { DataVersionsFacadeDependencies } from "../../types/default-data-versions-facade.js";
-import type { FtpFacadeDirectoryParams } from "../../types/ftp-facade.js";
+import type { DataVersion, DataVersionId } from "../../types/data-versions/data-versions-model.js";
+import type { DataVersionsId, DataVersionsParams } from "../../types/data-versions/data-versions-facade.js";
+import type { DataVersionsFacadeDependencies } from "../../types/data-versions/default-data-versions-facade.js";
+import type { FtpFacadeDirectoryParams } from "../../types/ftp/ftp-facade.js";
 
 /**
  * Default data versions facade

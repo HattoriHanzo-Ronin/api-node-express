@@ -1,8 +1,8 @@
-import type { GetAllDevicesParams } from "../types/devices-service.js";
+import type { GetAllDevicesParams } from "../types/devices/devices-service.js";
 import type {
     AllowedDevice, AllowedDeviceIdParams, Device, DeviceId, InsertDeviceParams,
     RouterAllowedDevice, RouterIdParams, UpdateDeviceParams
-} from "../types/devices-model.js";
+} from "../types/devices/devices-model.js";
 
 export default interface DevicesService<Transaction> {
     /**

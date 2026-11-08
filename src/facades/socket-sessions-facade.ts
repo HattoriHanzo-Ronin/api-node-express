@@ -1,12 +1,12 @@
+import type { AuthUserParams } from "../types/auth/auth-facade.js";
 import type {
-    SocketSessionAuthParams,
     SocketSessionConnectionParams,
     SocketSessionId,
     SocketSessionNotification,
     SocketSessionOwnedParams,
     SocketSessionResponse
-} from "../types/socket-sessions-service.js";
-import type { SocketSessionFacadeSubscribeParams } from "../types/socket-sessions-facade.js";
+} from "../types/socket-sessions/socket-sessions-service.js";
+import type { SocketSessionFacadeSubscribeParams } from "../types/socket-sessions/socket-sessions-facade.js";
 
 export default interface SocketSessionsFacade<Socket> {
     /**
@@ -15,7 +15,7 @@ export default interface SocketSessionsFacade<Socket> {
      * @param params.authUser Authenticated user
      * @returns Socket session
      */
-    create(params: SocketSessionAuthParams): SocketSessionResponse;
+    create(params: AuthUserParams): SocketSessionResponse;
     /**
      * Refreshes a socket session
      *

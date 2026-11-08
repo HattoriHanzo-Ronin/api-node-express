@@ -1,5 +1,5 @@
-import type { RefreshTokenParams } from "../types/refresh-tokens-model.js";
-import type { CreateRefreshTokenParams } from "../types/refresh-tokens-service.js";
+import type { RefreshTokenParams } from "../types/refresh-tokens/refresh-tokens-model.js";
+import type { CreateRefreshTokenParams } from "../types/refresh-tokens/refresh-tokens-service.js";
 
 export default interface RefreshTokensService {
     /**

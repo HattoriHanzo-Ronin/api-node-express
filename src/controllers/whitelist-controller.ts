@@ -1,5 +1,5 @@
-import type { WhitelistControllerDependencies, WhitelistHandler, WhitelistRequest } from "../types/whitelist-controller.js";
-import type { WhitelistParams } from "../types/whitelist-facade.js";
+import type { WhitelistControllerDependencies, WhitelistHandler, WhitelistRequest } from "../types/whitelist/whitelist-controller.js";
+import type { WhitelistParams } from "../types/whitelist/whitelist-facade.js";
 import idSchema from "../schemas/common/id-schema.js";
 import allowedDeviceSchema from "../schemas/whitelist-schema.js";
 import ZodUtils from "../utils/zod-utils.js";

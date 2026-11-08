@@ -1,7 +1,7 @@
 import z, { output, RefinementCtx, ZodEnum, ZodObject, ZodRawShape } from "zod";
 import ApiError from "./error/api-error.js";
 import { API_ERROR } from "../config/errors.js";
-import type { ValidationIssue, ZodErrorMessages } from "../types/zod-utils.js";
+import type { ValidationIssue, ZodErrorMessages } from "../types/utils/zod-utils.js";
 import { $ZodObjectConfig, $ZodStringParams, util } from "zod/v4/core";
 
 /**

@@ -1,5 +1,5 @@
-import type { ConnectionData, ConnectionsByDevicesParams } from "../types/connections-model.js";
-import type { ConnectionsSourceParams, ConnectionsUpdateResult, CreateConnectionsParams, UpdateConnectionsParams } from "../types/connections-facade.js";
+import type { ConnectionData, ConnectionsByDevicesParams } from "../types/connections/connections-model.js";
+import type { ConnectionsSourceParams, ConnectionsUpdateResult, CreateConnectionsParams, UpdateConnectionsParams } from "../types/connections/connections-facade.js";
 
 export default interface ConnectionsFacade<Transaction> {
     /**
