@@ -2,7 +2,7 @@ import type { CloseCpanelHandler, CreateCpanelHandler, CreateDeviceHandler, Dele
 import ZodUtils from "../utils/zod-utils.js";
 import DevicesSchema from "../schemas/devices-schema.js";
 import idSchema from "../schemas/common/id-schema.js";
-import { routerCpanelNavigationSchema, routerCpanelSessionSchema } from "../schemas/router-cpanel-schema.js";
+import { ROUTER_CPANEL_NAVIGATION_SCHEMA, ROUTER_CPANEL_SESSION_SCHEMA } from "../schemas/router-cpanel-schema.js";
 
 const { validateData } = ZodUtils;
 const { getValidatedSchema, getPartialSchema } = DevicesSchema;
@@ -59,14 +59,14 @@ export default class DevicesController {
     createRouterCpanel: CreateCpanelHandler = async (req, res) => {
         const { params, body, user: authUser } = req;
         const { id: routerId } = validateData({ id: params.routerId }, idSchema);
-        const { language, clientType, theme } = validateData(body, routerCpanelSessionSchema);
+        const { language, clientType, theme } = validateData(body, ROUTER_CPANEL_SESSION_SCHEMA);
         res.status(201).json(await this.devicesFacade.createRouterCpanel({ authUser, routerId, language, clientType, theme }));
     };
 
     navigateRouterCpanel: NavigateCpanelHandler = async (req, res) => {
         const { params, body, user: authUser } = req;
         const { id: sessionId } = validateData({ id: params.sessionId }, idSchema);
-        const { action } = validateData(body, routerCpanelNavigationSchema);
+        const { action } = validateData(body, ROUTER_CPANEL_NAVIGATION_SCHEMA);
         await this.devicesFacade.navigateRouterCpanel({ authUser, sessionId, action });
         res.status(204).send();
     };
