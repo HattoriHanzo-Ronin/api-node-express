@@ -1,3 +1,4 @@
+import type { WebSocket } from "ws";
 import type UsersService from "../services/users-service.js";
 import type UsersMapper from "../mappers/users-mapper.js";
 import type UserRolesFacade from "../facades/user-roles-facade.js";
@@ -13,7 +14,7 @@ export type UsersFacadeDependencies<Transaction> = {
     usersMapper: UsersMapper;
     dataVersionsFacade: DataVersionsFacade;
     userRolesFacade: UserRolesFacade<Transaction>;
-    socketSessionsFacade: SocketSessionsFacade;
+    socketSessionsFacade: SocketSessionsFacade<WebSocket>;
     tx: <Result>(callback: (clientTx: Transaction) => Result | Promise<Result>) => Promise<Result>;
 };
 

@@ -4,6 +4,7 @@ import type { Server } from "node:http";
 import Middlewares from "../../src/middlewares/middlewares.js";
 import type { AuthAccessTokenPayload, VerifiedAccessToken } from "../../src/types/auth.js";
 import type TokenProvider from "../../src/utils/token-providers/token-provider.js";
+import type { SocketSessionsRouterDependencies } from "../../src/types/socket-sessions-router.js";
 import type { SocketSessionsRouterController } from "../types/routers.js";
 import createSocketSessionsRouter from "../../src/routes/socket-sessions-router.js";
 
@@ -24,7 +25,14 @@ describe("SocketSessionsRouter", () => {
     beforeAll(async () => {
         const app = express();
         const requireAuth = Middlewares.requireAuth({ accessTokenProvider });
-        app.use("/socket-sessions", createSocketSessionsRouter({ socketSessionsController, requireAuth }));
+        app.use(
+            "/socket-sessions",
+            createSocketSessionsRouter({
+                socketSessionsController:
+                    socketSessionsController as unknown as SocketSessionsRouterDependencies["socketSessionsController"],
+                requireAuth
+            })
+        );
         app.use(Middlewares.routeNotFound, Middlewares.errorHandler);
         server = app.listen(0, "127.0.0.1");
         await new Promise((resolve) => server.once("listening", resolve));

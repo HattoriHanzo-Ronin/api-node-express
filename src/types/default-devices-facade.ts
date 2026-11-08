@@ -1,3 +1,4 @@
+import type { WebSocket } from "ws";
 import type DevicesService from "../services/devices-service.js";
 import type DevicesMapper from "../mappers/devices-mapper.js";
 import type DataVersionsFacade from "../facades/data-versions-facade.js";
@@ -17,7 +18,7 @@ export type DevicesFacadeDependencies<Transaction> = {
     connectionsFacade: ConnectionsFacade<Transaction>;
     routerAutomation: DevicesMapperDependencies["routerAutomation"];
     routerCpanel: RouterCpanel;
-    socketSessionsFacade: SocketSessionsFacade;
+    socketSessionsFacade: SocketSessionsFacade<WebSocket>;
     tx: <Result>(callback: (clientTx: Transaction) => Result | Promise<Result>) => Promise<Result>;
 };
 export type RouterOperationParams = {

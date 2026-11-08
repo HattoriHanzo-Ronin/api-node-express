@@ -48,9 +48,9 @@ import AuthController from "./controllers/auth-controller.js";
 import { ENV } from "./config/environment.js";
 import { SECRETS } from "./config/secrets.js";
 import JwtProvider from "./utils/token-providers/impl/jwt-token-provider.js";
-import SocketSessionsService from "./services/socket-sessions-service.js";
+import DefaultSocketSessionsService from "./services/impl/default-socket-sessions-service.js";
 import SocketSessionsController from "./controllers/socket-sessions-controller.js";
-import SocketSessionsFacade from "./facades/socket-sessions-facade.js";
+import DefaultSocketSessionsFacade from "./facades/impl/default-socket-sessions-facade.js";
 import WebSocketEventsGateway from "./utils/gateways/impl/socket-events-gateway.js";
 import type { AuthAccessTokenPayload, AuthRefreshTokenPayload, VerifiedAccessToken } from "./types/auth.js";
 
@@ -65,8 +65,8 @@ const {
     refreshTokens: refreshTokensEntityError
 } = PostgresErrors;
 
-const socketSessionsService = new SocketSessionsService();
-const socketSessionsFacade = new SocketSessionsFacade({ socketSessionsService });
+const socketSessionsService = new DefaultSocketSessionsService();
+const socketSessionsFacade = new DefaultSocketSessionsFacade({ socketSessionsService });
 const socketSessionsController = new SocketSessionsController({ socketSessionsFacade });
 
 const memoryCache = new MemoryCache();
