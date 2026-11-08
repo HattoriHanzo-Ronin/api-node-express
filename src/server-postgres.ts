@@ -11,10 +11,10 @@ import DefaultFtpMapper from "./mappers/impl/default-ftp-mapper.js";
 import DefaultFtpFacade from "./facades/impl/default-ftp-facade.js";
 import MemoryCache from "./utils/cache/impl/memory-cache.js";
 import DirectoryCache from "./utils/cache/impl/directory-cache.js";
-import DataVersionsModel from "./models/postgres/data-versions/data-versions-model.js";
-import DataVersionsService from "./services/data-versions-service.js";
-import DataVersionsMapper from "./mappers/data-versions-mapper.js";
-import DataVersionsFacade from "./facades/data-versions-facade.js";
+import DefaultDataVersionsModel from "./models/impl/postgres/data-versions/default-data-versions-model.js";
+import DefaultDataVersionsService from "./services/impl/default-data-versions-service.js";
+import DefaultDataVersionsMapper from "./mappers/impl/default-data-versions-mapper.js";
+import DefaultDataVersionsFacade from "./facades/impl/default-data-versions-facade.js";
 
 import DefaultConnectionsModel from "./models/impl/postgres/connections/default-connections-model.js";
 import DefaultConnectionsService from "./services/impl/default-connections-service.js";
@@ -82,10 +82,10 @@ const ftpFacade = new DefaultFtpFacade({
 });
 const ftpController = new FtpController({ ftpFacade });
 
-const dataVersionsService = new DataVersionsService({ dataVersionsModel: DataVersionsModel });
-const dataVersionsFacade = new DataVersionsFacade({
+const dataVersionsService = new DefaultDataVersionsService({ dataVersionsModel: DefaultDataVersionsModel });
+const dataVersionsFacade = new DefaultDataVersionsFacade({
     dataVersionsService,
-    dataVersionsMapper: DataVersionsMapper,
+    dataVersionsMapper: DefaultDataVersionsMapper,
     ftpFacade
 });
 
