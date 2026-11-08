@@ -1,22 +1,22 @@
+import type { AuthUserParams } from "../../types/auth/auth-facade.js";
 import type {
     AllowedManageParams,
     FilterAclParams,
     ForbiddenParams,
     UsersFacadeDependencies
-} from "../../types/default-users-facade.js";
+} from "../../types/users/default-users-facade.js";
 import type UsersFacade from "../users-facade.js";
 import type {
-    AuthUserParams,
     ChangePasswordParams,
     CreateUserParams,
     GetUserParams,
     GetUserWithoutAuthParams,
     UpdateUserParams,
-    UserCredentialsParams,
-    User,
     UserResponse
-} from "../../types/users-facade.js";
-import type { Role } from "../../types/user-roles-model.js";
+} from "../../types/users/users-facade.js";
+import type { UserCredentials } from "../../types/users/users-model.js";
+import type { MappedUser } from "../../types/users/users-mapper.js";
+import type { Role } from "../../types/user-roles/user-roles-model.js";
 import ApiError from "../../utils/error/api-error.js";
 import { SOCKET_ENTITY, USER_ROLE } from "../../config/constants.js";
 import { API_ERROR } from "../../config/errors.js";
@@ -46,7 +46,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
         return { version, data };
     }
 
-    async getById(params: GetUserWithoutAuthParams): Promise<User>;
+    async getById(params: GetUserWithoutAuthParams): Promise<MappedUser>;
     async getById(params: GetUserParams): Promise<UserResponse>;
     async getById({ authUser, id }: GetUserParams): Promise<UserResponse> {
         const result = await this.dependencies.usersService.getById({ id });
@@ -67,7 +67,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
         return this.filterAcl({ authUser, source: user });
     }
 
-    async authenticate({ username, password }: UserCredentialsParams) {
+    async authenticate({ username, password }: UserCredentials) {
         const { id } = await this.dependencies.usersService.authenticate({ username, password });
         const aclByUser = await this.dependencies.userRolesFacade.getByUsers({ usersId: [id] });
         return this.dependencies.usersMapper.userToDomain({ source: { id, username }, acl: aclByUser.get(id) });
@@ -142,7 +142,9 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
                             condition: !superAdmin,
                             execute: () => {
                                 this.forbiddenError({
-                                    condition: updatedUserRoles || updatedUserScope ||
+                                    condition:
+                                        updatedUserRoles ||
+                                        updatedUserScope ||
                                         !this.allowedManage({ authUser, userRoles })
                                 });
                             }
@@ -225,10 +227,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
     }
 
     private allowedManage({ authUser, userRoles }: AllowedManageParams): boolean {
-        return (
-            authUser.scope!.includes(admin) ||
-            userRoles.every((role) => authUser.scope!.includes(role))
-        );
+        return authUser.scope!.includes(admin) || userRoles.every((role) => authUser.scope!.includes(role));
     }
 
     private filterAcl({ authUser, source }: FilterAclParams): UserResponse {
@@ -244,11 +243,13 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
     }
 
     private forbiddenError({ condition }: ForbiddenParams): void {
-        ApiError.handle([{
-            condition: Boolean(condition),
-            message: "No tiene permisos para realizar esa acción",
-            status: 403,
-            apiError: aclPermissionDenied
-        }]);
+        ApiError.handle([
+            {
+                condition: Boolean(condition),
+                message: "No tiene permisos para realizar esa acción",
+                status: 403,
+                apiError: aclPermissionDenied
+            }
+        ]);
     }
 }

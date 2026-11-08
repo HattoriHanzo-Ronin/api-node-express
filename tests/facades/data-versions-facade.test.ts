@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DefaultDataVersionsFacade from "../../src/facades/impl/default-data-versions-facade.js";
-import type { DataVersionsFacadeDependencies } from "../../src/types/default-data-versions-facade.js";
+import type { DataVersionsFacadeDependencies } from "../../src/types/data-versions/default-data-versions-facade.js";
 import { USER_ROLE } from "../../src/config/constants.js";
 
 const createServiceMock = () => ({ getById: vi.fn(), getByIds: vi.fn() });
@@ -43,7 +43,10 @@ describe("DataVersionsFacade", () => {
     });
 
     it("returns a FTP directory version", async () => {
-        const data = { dir: "files", authUser: { id: "user-id", roles: [USER_ROLE.ftp] } };
+        const data = {
+            dir: "files",
+            authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: [USER_ROLE.ftp] }
+        };
         ftpFacade.getHash.mockResolvedValue("directory-hash");
         await expect(facade.getFtp(data)).resolves.toEqual({ version: "directory-hash" });
         expect(ftpFacade.getHash).toHaveBeenCalledWith(data);

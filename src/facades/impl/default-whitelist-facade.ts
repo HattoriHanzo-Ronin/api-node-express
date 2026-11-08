@@ -1,9 +1,9 @@
 import type WhitelistFacade from "../whitelist-facade.js";
 import type RouterAutomation from "../../utils/devices-routers/automation/router-automation.js";
-import type { Device } from "../../types/devices-facade.js";
-import type { RouterAutomationPayload } from "../../types/router-automation.js";
-import type { WhitelistFacadeDependencies } from "../../types/default-whitelist-facade.js";
-import type { AllowedDevice, WhitelistParams } from "../../types/whitelist-facade.js";
+import type { Device } from "../../types/devices/devices-facade.js";
+import type { RouterAutomationPayload } from "../../types/utils/router-automation.js";
+import type { WhitelistFacadeDependencies } from "../../types/whitelist/default-whitelist-facade.js";
+import type { AllowedDevice, WhitelistParams } from "../../types/whitelist/whitelist-facade.js";
 import ApiError from "../../utils/error/api-error.js";
 import { SOCKET_ENTITY } from "../../config/constants.js";
 import { API_ERROR } from "../../config/errors.js";

@@ -1,8 +1,8 @@
 import type RefreshTokensService from "../refresh-tokens-service.js";
-import type { RefreshTokensServiceDependencies } from "../../types/default-refresh-tokens-service.js";
-import type { RefreshTokenParams } from "../../types/refresh-tokens-model.js";
-import type { CreateRefreshTokenParams } from "../../types/refresh-tokens-service.js";
-import type { PostgresError } from "../../types/postgres-error.js";
+import type { RefreshTokensServiceDependencies } from "../../types/refresh-tokens/default-refresh-tokens-service.js";
+import type { RefreshTokenParams } from "../../types/refresh-tokens/refresh-tokens-model.js";
+import type { CreateRefreshTokenParams } from "../../types/refresh-tokens/refresh-tokens-service.js";
+import type { PostgresError } from "../../types/utils/postgres-error.js";
 import ApiError from "../../utils/error/api-error.js";
 import { API_ERROR } from "../../config/errors.js";
 

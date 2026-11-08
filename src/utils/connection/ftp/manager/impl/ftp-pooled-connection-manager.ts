@@ -10,7 +10,7 @@ import type {
     FtpLockTransferParams,
     FtpPoolType,
     Release
-} from "../../../../../types/ftp-connection-manager.js";
+} from "../../../../../types/ftp/ftp-connection-manager.js";
 import type {
     FtpCapacityPending,
     FtpConnection,
@@ -21,8 +21,8 @@ import type {
     FtpPoolConfiguration,
     FtpSession,
     FtpTransferPending
-} from "../../../../../types/ftp-pooled-connection-manager.js";
-import type { FtpSessionUser, ExecuteRequiredFtpOperationParams } from "../../../../../types/ftp-connection-manager.js";
+} from "../../../../../types/ftp/ftp-pooled-connection-manager.js";
+import type { FtpSessionUser, ExecuteRequiredFtpOperationParams } from "../../../../../types/ftp/ftp-connection-manager.js";
 
 const {
     ftpMaxConnections,

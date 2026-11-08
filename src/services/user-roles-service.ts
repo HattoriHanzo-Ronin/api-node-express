@@ -1,4 +1,5 @@
-import type { InsertUserRolesParams, ReplaceUserRolesParams, UserRole, UsersByIdParams } from "../types/user-roles-model.js";
+import type { UserRole, UsersByIdParams } from "../types/user-roles/user-roles-model.js";
+import type { CreateUserRolesParams, ReplaceUserRolesParams } from "../types/user-roles/user-roles-service.js";
 
 export default interface UserRolesService<Transaction> {
     /**
@@ -16,7 +17,7 @@ export default interface UserRolesService<Transaction> {
      * @param params.userRoles User role assignments
      * @returns Created user role assignments
      */
-    createMany(params: InsertUserRolesParams<Transaction>): Promise<UserRole[]>;
+    createMany(params: CreateUserRolesParams<Transaction>): Promise<UserRole[]>;
 
     /**
      * Replaces roles assigned to a user

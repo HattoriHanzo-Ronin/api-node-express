@@ -1,6 +1,6 @@
-import type { FtpSourceEntry } from "../../types/default-ftp-service.js";
+import type { FtpSourceEntry } from "../../types/ftp/default-ftp-service.js";
 import path from "node:path";
-import type { FtpDomainEntry, FtpEntrySource } from "../../types/ftp-mapper.js";
+import type { FtpDomainEntry, FtpEntrySource } from "../../types/ftp/ftp-mapper.js";
 import { FILE_TYPE } from "../../config/constants.js";
 
 const { dir, file } = FILE_TYPE;

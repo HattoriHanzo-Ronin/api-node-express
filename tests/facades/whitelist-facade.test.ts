@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { WhitelistFacadeDependencies } from "../../src/types/default-whitelist-facade.js";
+import type { WhitelistFacadeDependencies } from "../../src/types/whitelist/default-whitelist-facade.js";
 import ApiError from "../../src/utils/error/api-error.js";
 import { API_ERROR } from "../../src/config/errors.js";
 import WhitelistFacade from "../../src/facades/impl/default-whitelist-facade.js";

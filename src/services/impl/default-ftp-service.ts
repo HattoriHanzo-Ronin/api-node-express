@@ -1,7 +1,7 @@
 import type { ServerResponse } from "node:http";
-import type { UploadedFile } from "../../types/middlewares.js";
-import type { ApiErrorOptions } from "../../types/api-error.js";
-import type { Release } from "../../types/ftp-connection-manager.js";
+import type { UploadedFile } from "../../types/middlewares/middlewares.js";
+import type { ApiErrorOptions } from "../../types/utils/api-error.js";
+import type { Release } from "../../types/ftp/ftp-connection-manager.js";
 import type SftpClient from "ssh2-sftp-client";
 import type FtpService from "../ftp-service.js";
 import type {
@@ -29,7 +29,7 @@ import type {
     FtpAvailablePathParams,
     FtpRenameAvailableParams,
     FtpMissingDirectoriesParams
-} from "../../types/default-ftp-service.js";
+} from "../../types/ftp/default-ftp-service.js";
 import type {
     FtpCompleteUploadParams,
     FtpDirectoryParams,
@@ -49,7 +49,7 @@ import type {
     FtpThumbnailsParams,
     FtpTransferParams,
     FtpUploadParams
-} from "../../types/ftp-service.js";
+} from "../../types/ftp/ftp-service.js";
 import { randomUUID } from "node:crypto";
 import { Transform } from "node:stream";
 import { finished, pipeline } from "node:stream/promises";
@@ -762,11 +762,7 @@ export default class DefaultFtpService implements FtpService<
         }
     }
 
-    private async createThumbnail({
-        client,
-        remotePath,
-        size
-    }: FtpThumbnailParams<SftpClient>): Promise<Buffer | null> {
+    private async createThumbnail({ client, remotePath, size }: FtpThumbnailParams): Promise<Buffer | null> {
         if (!size) {
             return null;
         }
@@ -832,7 +828,7 @@ export default class DefaultFtpService implements FtpService<
         remoteDir,
         entries,
         relativeDir = "."
-    }: FtpDownloadEntriesParams<SftpClient>): AsyncGenerator<FtpDownloadEntry> {
+    }: FtpDownloadEntriesParams): AsyncGenerator<FtpDownloadEntry> {
         for (const entry of entries) {
             const name = path.posix.join(relativeDir, entry.name);
             const remotePath = path.posix.join(remoteDir, entry.name);
@@ -1015,7 +1011,7 @@ export default class DefaultFtpService implements FtpService<
         client,
         sourcePath,
         destinationPath
-    }: FtpRenameAvailableParams<SftpClient>): Promise<boolean> {
+    }: FtpRenameAvailableParams): Promise<boolean> {
         try {
             await client.rename(sourcePath, destinationPath);
             return false;
@@ -1084,7 +1080,7 @@ export default class DefaultFtpService implements FtpService<
         client,
         remoteDir,
         directories
-    }: FtpMissingDirectoriesParams<SftpClient>): Promise<void> {
+    }: FtpMissingDirectoriesParams): Promise<void> {
         let currentDir = remoteDir;
         while (![".", "/"].includes(currentDir) && !(await client.exists(currentDir))) {
             directories.add(currentDir);

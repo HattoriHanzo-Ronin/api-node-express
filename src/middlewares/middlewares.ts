@@ -4,11 +4,11 @@ import type { Readable } from "node:stream";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import ApiError from "../utils/error/api-error.js";
 import { API_ERROR } from "../config/errors.js";
-import type { ApiErrorResponse } from "../types/api-error.js";
-import type { AuthAccessTokenPayload, VerifiedAccessToken } from "../types/auth.js";
-import type { MiddlewareError } from "../types/middlewares.js";
+import type { ApiErrorResponse } from "../types/utils/api-error.js";
+import type { AuthAccessTokenPayload, VerifiedAccessToken } from "../types/auth/auth-facade.js";
+import type { MiddlewareError } from "../types/middlewares/middlewares.js";
 import type TokenProvider from "../utils/token-providers/token-provider.js";
-import type { Role } from "../types/user-roles-model.js";
+import type { Role } from "../types/user-roles/user-roles-model.js";
 
 const { routeNotFound, internalError, authenticationRequired, aclPermissionDenied } = API_ERROR;
 
@@ -129,7 +129,11 @@ export default class Middlewares {
      * @param accessTokenProvider Access token provider
      * @returns Authentication middleware
      */
-    static requireAuth({ accessTokenProvider }: { accessTokenProvider: TokenProvider<AuthAccessTokenPayload, VerifiedAccessToken> }): RequestHandler {
+    static requireAuth({
+        accessTokenProvider
+    }: {
+        accessTokenProvider: TokenProvider<AuthAccessTokenPayload, VerifiedAccessToken>;
+    }): RequestHandler {
         return (req: Request, res: Response, next: NextFunction): void => {
             try {
                 const { authorization } = req.headers;

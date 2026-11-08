@@ -1,8 +1,8 @@
 import type WhitelistService from "../whitelist-service.js";
-import type { WhitelistServiceDependencies } from "../../types/default-whitelist-service.js";
-import type { DeleteWhitelistParams, InsertWhitelistParams } from "../../types/whitelist-model.js";
-import type { GetWhitelistKeyParams } from "../../types/whitelist-service.js";
-import type { PostgresError } from "../../types/postgres-error.js";
+import type { WhitelistServiceDependencies } from "../../types/whitelist/default-whitelist-service.js";
+import type { DeleteWhitelistParams, InsertWhitelistParams } from "../../types/whitelist/whitelist-model.js";
+import type { GetWhitelistKeyParams } from "../../types/whitelist/whitelist-service.js";
+import type { PostgresError } from "../../types/utils/postgres-error.js";
 import ApiError from "../../utils/error/api-error.js";
 import { API_ERROR } from "../../config/errors.js";
 

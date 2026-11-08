@@ -1,23 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DevicesFacade from "../../src/facades/impl/default-devices-facade.js";
 import DevicesMapper from "../../src/mappers/impl/default-devices-mapper.js";
-import type { DevicesFacadeDependencies } from "../../src/types/default-devices-facade.js";
-import type { CreateDevice } from "../../src/types/devices-facade.js";
-import type { Connection } from "../../src/types/connections-model.js";
-import type { DeviceMapperParams, DevicesMapperParams } from "../../src/types/devices-mapper.js";
+import type { DevicesFacadeDependencies } from "../../src/types/devices/default-devices-facade.js";
+import type { CreateDevice } from "../../src/types/devices/devices-facade.js";
+import type { Connection } from "../../src/types/connections/connections-model.js";
+import type { DeviceMapperParams, DevicesMapperParams } from "../../src/types/devices/devices-mapper.js";
 import ApiError from "../../src/utils/error/api-error.js";
 import { API_ERROR } from "../../src/config/errors.js";
 
 const createDevicesServiceMock = () => ({
-    getAll: vi.fn(), getById: vi.fn(), getAllowedDevices: vi.fn(), getNotAllowedDevices: vi.fn(),
-    getRoutersByAllowedDevice: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn()
+    getAll: vi.fn(),
+    getById: vi.fn(),
+    getAllowedDevices: vi.fn(),
+    getNotAllowedDevices: vi.fn(),
+    getRoutersByAllowedDevice: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn()
 });
-const createDataVersionsMock = () => ({ getById: vi.fn(({ id }: { id: string | string[] }) => {
-    if (Array.isArray(id)) {
-        return Promise.resolve({ devices: "2", whitelist: "3" });
-    }
-    return Promise.resolve({ version: id === "devices" ? "2" : "3" });
-}) });
+const createDataVersionsMock = () => ({
+    getById: vi.fn(({ id }: { id: string | string[] }) => {
+        if (Array.isArray(id)) {
+            return Promise.resolve({ devices: "2", whitelist: "3" });
+        }
+        return Promise.resolve({ version: id === "devices" ? "2" : "3" });
+    })
+});
 const createDevicesMapperMock = () => ({
     createDeviceSource: vi.fn((source) => source),
     deviceToDomain: vi.fn(({ source, connections }: DeviceMapperParams) => ({ ...source, connections })),
@@ -26,14 +34,17 @@ const createDevicesMapperMock = () => ({
 });
 const createConnectionsFacadeMock = () => ({
     getByDevices: vi.fn().mockResolvedValue(new Map()),
-    connectionsByDeviceToDomain: vi.fn(({ source }: { source: Connection[] }) =>
-        new Map(source.map(({ device_id: deviceId, mac, ctype }) => [deviceId, [{ mac, ctype }]]))
+    connectionsByDeviceToDomain: vi.fn(
+        ({ source }: { source: Connection[] }) =>
+            new Map(source.map(({ device_id: deviceId, mac, ctype }) => [deviceId, [{ mac, ctype }]]))
     ),
-    createMany: vi.fn(), update: vi.fn()
+    createMany: vi.fn(),
+    update: vi.fn()
 });
-const createRouterAutomationMock = () => vi.fn(function RouterAutomation() {
-    return { delete: vi.fn(), create: vi.fn() };
-});
+const createRouterAutomationMock = () =>
+    vi.fn(function RouterAutomation() {
+        return { delete: vi.fn(), create: vi.fn() };
+    });
 const createRouterCpanelMock = () => ({ create: vi.fn(), navigate: vi.fn(), close: vi.fn() });
 const createSocketSessionsMock = () => ({ notify: vi.fn() });
 
@@ -59,12 +70,14 @@ describe("DevicesFacade", () => {
         socketSessionsFacade = createSocketSessionsMock();
         devicesFacade = new DevicesFacade({
             devicesService,
-            dataVersionsFacade: dataVersionsFacade as unknown as DevicesFacadeDependencies<object>["dataVersionsFacade"],
+            dataVersionsFacade:
+                dataVersionsFacade as unknown as DevicesFacadeDependencies<object>["dataVersionsFacade"],
             devicesMapper: devicesMapper as unknown as DevicesFacadeDependencies<object>["devicesMapper"],
             connectionsFacade: connectionsFacade as unknown as DevicesFacadeDependencies<object>["connectionsFacade"],
             routerAutomation: routerAutomation as unknown as DevicesFacadeDependencies<object>["routerAutomation"],
             routerCpanel,
-            socketSessionsFacade: socketSessionsFacade as unknown as DevicesFacadeDependencies<object>["socketSessionsFacade"],
+            socketSessionsFacade:
+                socketSessionsFacade as unknown as DevicesFacadeDependencies<object>["socketSessionsFacade"],
             tx
         });
     });
@@ -94,12 +107,16 @@ describe("DevicesFacade", () => {
         devicesService[method].mockResolvedValue(rows);
         devicesFacade = new DevicesFacade({
             devicesService,
-            dataVersionsFacade: dataVersionsFacade as unknown as DevicesFacadeDependencies<object>["dataVersionsFacade"],
-            devicesMapper: new DevicesMapper({ routerAutomation: routerAutomation as unknown as DevicesFacadeDependencies<object>["routerAutomation"] }),
+            dataVersionsFacade:
+                dataVersionsFacade as unknown as DevicesFacadeDependencies<object>["dataVersionsFacade"],
+            devicesMapper: new DevicesMapper({
+                routerAutomation: routerAutomation as unknown as DevicesFacadeDependencies<object>["routerAutomation"]
+            }),
             connectionsFacade: connectionsFacade as unknown as DevicesFacadeDependencies<object>["connectionsFacade"],
             routerAutomation: routerAutomation as unknown as DevicesFacadeDependencies<object>["routerAutomation"],
             routerCpanel,
-            socketSessionsFacade: socketSessionsFacade as unknown as DevicesFacadeDependencies<object>["socketSessionsFacade"],
+            socketSessionsFacade:
+                socketSessionsFacade as unknown as DevicesFacadeDependencies<object>["socketSessionsFacade"],
             tx
         });
 
@@ -155,13 +172,15 @@ describe("DevicesFacade", () => {
         });
         routerCpanel.create.mockResolvedValue({ id: "session-id" });
 
-        await expect(devicesFacade.createRouterCpanel({
-            authUser: { id: "user-id", roles: ["NET"] },
-            routerId: "router-1",
-            clientType: "desktop",
-            language: "es-ES",
-            theme: "light"
-        })).resolves.toEqual({ id: "session-id" });
+        await expect(
+            devicesFacade.createRouterCpanel({
+                authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["NET"] },
+                routerId: "router-1",
+                clientType: "desktop",
+                language: "es-ES",
+                theme: "light"
+            })
+        ).resolves.toEqual({ id: "session-id" });
         expect(routerCpanel.create).toHaveBeenCalledWith({
             ownerId: "user-id",
             routerName: "Router principal",
@@ -174,22 +193,33 @@ describe("DevicesFacade", () => {
     });
 
     it("should reject a control panel session for a non-router device", async () => {
-        vi.spyOn(devicesFacade, "getById").mockResolvedValue({ id: "device-1", name: "Desktop", type: "CLIENT", connections: [] });
-        await expect(devicesFacade.createRouterCpanel({
-            authUser: { id: "user-id", roles: ["NET"] },
-            routerId: "device-1",
-            clientType: "desktop",
-            theme: "dark"
-        })).rejects.toMatchObject({ code: "ROUTER_CPANEL_NOT_ROUTER", status: 400 });
+        vi.spyOn(devicesFacade, "getById").mockResolvedValue({
+            id: "device-1",
+            name: "Desktop",
+            type: "CLIENT",
+            connections: []
+        });
+        await expect(
+            devicesFacade.createRouterCpanel({
+                authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["NET"] },
+                routerId: "device-1",
+                clientType: "desktop",
+                theme: "dark"
+            })
+        ).rejects.toMatchObject({ code: "ROUTER_CPANEL_NOT_ROUTER", status: 400 });
     });
 
     it("should proxy router control panel actions under the authenticated owner", async () => {
         routerCpanel.navigate.mockResolvedValue(undefined);
         routerCpanel.close.mockResolvedValue(undefined);
-        const authUser = { id: "user-id", roles: ["NET" as const] };
+        const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["NET" as const] };
         await devicesFacade.navigateRouterCpanel({ authUser, sessionId: "session-id", action: "reload" });
         await devicesFacade.closeRouterCpanel({ authUser, sessionId: "session-id" });
-        expect(routerCpanel.navigate).toHaveBeenCalledWith({ sessionId: "session-id", ownerId: "user-id", action: "reload" });
+        expect(routerCpanel.navigate).toHaveBeenCalledWith({
+            sessionId: "session-id",
+            ownerId: "user-id",
+            action: "reload"
+        });
         expect(routerCpanel.close).toHaveBeenCalledWith({ sessionId: "session-id", ownerId: "user-id" });
     });
 
@@ -256,12 +286,42 @@ describe("DevicesFacade", () => {
         expect(devicesService.delete).toHaveBeenCalledWith({ id: "device-1" });
     });
 
+    it("preserves the router error code when updating a whitelist entry fails", async () => {
+        vi.spyOn(devicesFacade, "getById").mockResolvedValue({
+            id: "device-1",
+            name: "Old Name",
+            type: "CLIENT",
+            connections: [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }]
+        });
+        devicesService.update.mockResolvedValue({ id: "device-1", name: "New Name", type: "CLIENT" });
+        devicesService.getRoutersByAllowedDevice.mockResolvedValue([
+            { id: "router-1", name: "Router", connections: [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN", key: "key-1" }] }
+        ]);
+        routerAutomation.mockImplementationOnce(function RouterAutomation() {
+            return {
+                delete: vi.fn().mockResolvedValue(undefined),
+                create: vi
+                    .fn()
+                    .mockRejectedValue(new ApiError({ message: "Failed", apiError: API_ERROR.routerAddFailed }))
+            };
+        });
+
+        await expect(devicesFacade.update({ data: { id: "device-1", name: "New Name" } })).rejects.toMatchObject({
+            code: API_ERROR.routerAddFailed
+        });
+    });
+
     it.each([
-        { error: new ApiError({ message: "Rollback failed", apiError: API_ERROR.routerAddFailed }), code: API_ERROR.routerRollbackFailed },
+        {
+            error: new ApiError({ message: "Rollback failed", apiError: API_ERROR.routerAddFailed }),
+            code: API_ERROR.routerRollbackFailed
+        },
         { error: { code: API_ERROR.routerAddFailed }, code: API_ERROR.routerAddFailed }
     ])("should distinguish API errors while rolling back routers", async ({ error, code }) => {
         vi.spyOn(devicesFacade, "getById").mockResolvedValue({
-            id: "device-1", name: "Desktop", type: "CLIENT",
+            id: "device-1",
+            name: "Desktop",
+            type: "CLIENT",
             connections: [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }]
         });
         const connections = [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN", key: "key-1" }];
@@ -271,8 +331,12 @@ describe("DevicesFacade", () => {
         ]);
         const firstRouter = { delete: vi.fn().mockResolvedValue(undefined), create: vi.fn().mockRejectedValue(error) };
         const secondRouter = { delete: vi.fn().mockRejectedValue(new Error("Router failed")), create: vi.fn() };
-        routerAutomation.mockImplementationOnce(function RouterAutomation() { return firstRouter; });
-        routerAutomation.mockImplementationOnce(function RouterAutomation() { return secondRouter; });
+        routerAutomation.mockImplementationOnce(function RouterAutomation() {
+            return firstRouter;
+        });
+        routerAutomation.mockImplementationOnce(function RouterAutomation() {
+            return secondRouter;
+        });
 
         await expect(devicesFacade.delete({ id: "device-1" })).rejects.toMatchObject({ code });
         expect(firstRouter.create).toHaveBeenCalled();

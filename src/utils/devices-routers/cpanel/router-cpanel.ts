@@ -3,7 +3,7 @@ import type {
     CreateRouterCpanelParams,
     NavigateRouterCpanelParams,
     RouterCpanelSession
-} from "../../../types/router-cpanel.js";
+} from "../../../types/utils/router-cpanel.js";
 
 /**
  * Router control panel service client contract

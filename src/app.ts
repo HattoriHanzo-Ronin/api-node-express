@@ -8,7 +8,7 @@ import createUsersRouter from "./routes/users-router.js";
 import createAuthRouter from "./routes/auth-router.js";
 import createSocketSessionsRouter from "./routes/socket-sessions-router.js";
 import type { Express } from "express";
-import type { AppDependencies } from "./types/app.js";
+import type { AppDependencies } from "./types/app/app.js";
 
 /**
  * Creates the application

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { DevicesRouterDependencies } from "../types/devices-router.js";
+import type { DevicesRouterDependencies } from "../types/devices/devices-router.js";
 import Middlewares from "../middlewares/middlewares.js";
 import { USER_ROLE } from "../config/constants.js";
 

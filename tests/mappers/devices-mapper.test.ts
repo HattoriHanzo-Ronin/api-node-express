@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import DefaultDevicesMapper from "../../src/mappers/impl/default-devices-mapper.js";
 import type RouterAutomation from "../../src/utils/devices-routers/automation/router-automation.js";
-import type { Device } from "../../src/types/devices-model.js";
-import type { RouterAutomationPayload } from "../../src/types/router-automation.js";
+import type { Device } from "../../src/types/devices/devices-model.js";
+import type { RouterAutomationPayload } from "../../src/types/utils/router-automation.js";
 
 class RouterAutomationStub implements RouterAutomation {
     constructor({}: { router: RouterAutomationPayload }) {}

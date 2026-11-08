@@ -1,6 +1,6 @@
 import z, { type RefinementCtx } from "zod";
-import type { CreateUser, UpdateUser } from "../types/users-facade.js";
-import type { UserUpdateSchema } from "../types/users-schema.js";
+import type { CreateUser, UpdateUser } from "../types/users/users-facade.js";
+import type { UserUpdateSchema } from "../types/users/users-schema.js";
 import { USER_ROLE } from "../config/constants.js";
 import ValidateUtils from "../utils/validate-utils.js";
 import ZodUtils from "../utils/zod-utils.js";

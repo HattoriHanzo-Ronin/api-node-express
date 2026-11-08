@@ -1,4 +1,4 @@
-import type { DataVersion } from "../types/data-versions-model.js";
+import type { DataVersion } from "../types/data-versions/data-versions-model.js";
 
 export default interface DataVersionsMapper {
     /**

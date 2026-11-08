@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import ConnectionsService from "../../src/services/impl/default-connections-service.js";
-import type { Connection, ConnectionData } from "../../src/types/connections-model.js";
+import type { Connection, ConnectionData } from "../../src/types/connections/connections-model.js";
 import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
 
 describe("ConnectionsService getByDevices", () => {

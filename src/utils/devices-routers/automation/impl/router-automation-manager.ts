@@ -7,8 +7,8 @@ import {
     DeleteAllowParams,
     GeneratedKeysParams,
     RouterAutomationPayload
-} from "../../../../types/router-automation.js";
-import type { RouterAutomationImplementations } from "../../../../types/router-automation-manager.js";
+} from "../../../../types/utils/router-automation.js";
+import type { RouterAutomationImplementations } from "../../../../types/utils/router-automation-manager.js";
 import AbstractRouter from "../routers/abstract-router.js";
 import RouterAutomation from "../router-automation.js";
 

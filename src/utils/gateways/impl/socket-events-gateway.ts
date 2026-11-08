@@ -12,7 +12,7 @@ import type {
     SocketEventsGatewayDependencies,
     SocketEventsMessage,
     SocketEventsSendError
-} from "../../../types/socket-events-gateway.js";
+} from "../../../types/utils/socket-events-gateway.js";
 import type SocketSessionsFacade from "../../../facades/socket-sessions-facade.js";
 
 const { internalError, socketSessionInvalid } = API_ERROR;

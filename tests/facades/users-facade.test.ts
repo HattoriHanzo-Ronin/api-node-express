@@ -1,11 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ITask } from "pg-promise";
 import UsersFacade from "../../src/facades/impl/default-users-facade.js";
-import type { UsersFacadeDependencies } from "../../src/types/default-users-facade.js";
-import type { AuthAccessTokenPayload } from "../../src/types/auth.js";
+import type { UsersFacadeDependencies } from "../../src/types/users/default-users-facade.js";
+import type { VerifiedAccessToken } from "../../src/types/auth/auth-facade.js";
 
 const CLIENT_TX = {} as ITask<unknown>;
-const ADMIN_FTP: AuthAccessTokenPayload = { id: "1", roles: ["ADMIN"], scope: ["FTP"] };
+const ADMIN_FTP: VerifiedAccessToken = {
+    iat: 1_800_000_000,
+    exp: 1_900_000_000,
+    id: "1",
+    roles: ["ADMIN"],
+    scope: ["FTP"]
+};
 const createUsersServiceMock = () => ({
     getAll: vi.fn(),
     getById: vi.fn(),
@@ -40,10 +46,14 @@ describe("UsersFacade", () => {
         socketSessionsFacade = createSocketSessionsFacadeMock();
         usersFacade = new UsersFacade({
             usersService,
-            dataVersionsFacade: dataVersionsFacade as unknown as UsersFacadeDependencies<ITask<unknown>>["dataVersionsFacade"],
+            dataVersionsFacade: dataVersionsFacade as unknown as UsersFacadeDependencies<
+                ITask<unknown>
+            >["dataVersionsFacade"],
             userRolesFacade: userRolesFacade as unknown as UsersFacadeDependencies<ITask<unknown>>["userRolesFacade"],
             usersMapper,
-            socketSessionsFacade: socketSessionsFacade as unknown as UsersFacadeDependencies<ITask<unknown>>["socketSessionsFacade"],
+            socketSessionsFacade: socketSessionsFacade as unknown as UsersFacadeDependencies<
+                ITask<unknown>
+            >["socketSessionsFacade"],
             tx: async (cb) => cb(CLIENT_TX)
         });
     });
@@ -68,7 +78,9 @@ describe("UsersFacade", () => {
             usersService.getById.mockResolvedValue({ id: "1", username: "user" });
             usersMapper.userToDomain.mockReturnValue({ id: "1", username: "user", roles: ["FTP"] });
             await expect(usersFacade.getById({ id: "1" })).resolves.toEqual({
-                id: "1", username: "user", roles: ["FTP"]
+                id: "1",
+                username: "user",
+                roles: ["FTP"]
             });
         });
 
@@ -82,9 +94,7 @@ describe("UsersFacade", () => {
         it("should fail if user is outside managed scope", async () => {
             usersService.getById.mockResolvedValue({ id: "1", username: "user" });
             usersMapper.userToDomain.mockReturnValue({ id: "1", username: "user", roles: ["NET"] });
-            await expect(usersFacade.getById({ authUser: ADMIN_FTP, id: "1" })).rejects.toThrow(
-                "El usuario no existe"
-            );
+            await expect(usersFacade.getById({ authUser: ADMIN_FTP, id: "1" })).rejects.toThrow("El usuario no existe");
         });
     });
 
@@ -108,7 +118,7 @@ describe("UsersFacade", () => {
             userRolesFacade.createMany.mockResolvedValue({ roles: ["FTP"] });
             usersMapper.userToDomain.mockReturnValue({ id: "1", username: "user", roles: ["FTP"] });
             const result = await usersFacade.create({
-                authUser: { id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
+                authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
                 user: { username: "user", password: "Password123!", active: true, roles: ["FTP"] }
             });
             expect(result.id).toBe("1");
@@ -150,7 +160,7 @@ describe("UsersFacade", () => {
 
         it("should allow user to update himself", async () => {
             const result = await usersFacade.update({
-                authUser: { id: "1", roles: ["FTP"], scope: ["FTP"] },
+                authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "1", roles: ["FTP"], scope: ["FTP"] },
                 data: { id: "1", username: "updated" }
             });
             expect(result).toEqual({ username: "updated" });
@@ -159,7 +169,7 @@ describe("UsersFacade", () => {
         it("should fail when user updates another user", async () => {
             await expect(
                 usersFacade.update({
-                    authUser: { id: "1", roles: ["FTP"], scope: ["FTP"] },
+                    authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "1", roles: ["FTP"], scope: ["FTP"] },
                     data: { id: "2", username: "updated" }
                 })
             ).rejects.toThrow("No tiene permisos para realizar esa acción");
@@ -168,7 +178,7 @@ describe("UsersFacade", () => {
         it("should fail when user updates roles", async () => {
             await expect(
                 usersFacade.update({
-                    authUser: { id: "1", roles: ["FTP"], scope: ["FTP"] },
+                    authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "1", roles: ["FTP"], scope: ["FTP"] },
                     data: { id: "1", roles: ["ADMIN"] }
                 })
             ).rejects.toThrow("No tiene permisos para realizar esa acción");
@@ -177,7 +187,7 @@ describe("UsersFacade", () => {
         it("should require a password challenge when a user changes his own password", async () => {
             await expect(
                 usersFacade.update({
-                    authUser: { id: "1", roles: ["FTP"], scope: ["FTP"] },
+                    authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "1", roles: ["FTP"], scope: ["FTP"] },
                     data: { id: "1", password: "NewPassword123!" }
                 })
             ).rejects.toThrow("No tiene permisos para realizar esa acción");
@@ -187,7 +197,7 @@ describe("UsersFacade", () => {
             usersMapper.userToDomain.mockReturnValue({ roles: ["FTP"], scope: [] });
             await expect(
                 usersFacade.update({
-                    authUser: { id: "1", roles: ["ADMIN"], scope: ["FTP"] },
+                    authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "1", roles: ["ADMIN"], scope: ["FTP"] },
                     data: { id: "2", password: "NewPassword123!" }
                 })
             ).resolves.toEqual({ id: "1", username: "updated" });
@@ -197,7 +207,7 @@ describe("UsersFacade", () => {
             usersMapper.userToDomain.mockReturnValue({ roles: ["ADMIN"], scope: ["FTP"] });
             await expect(
                 usersFacade.update({
-                    authUser: { id: "1", roles: ["ADMIN"], scope: ["FTP"] },
+                    authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "1", roles: ["ADMIN"], scope: ["FTP"] },
                     data: { id: "1", active: false }
                 })
             ).rejects.toThrow("No tiene permisos para realizar esa acción");
@@ -207,7 +217,7 @@ describe("UsersFacade", () => {
             usersMapper.userToDomain.mockReturnValue({ roles: ["NET"] });
             await expect(
                 usersFacade.update({
-                    authUser: { id: "1", roles: ["ADMIN"], scope: ["FTP"] },
+                    authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "1", roles: ["ADMIN"], scope: ["FTP"] },
                     data: { id: "2", username: "updated" }
                 })
             ).rejects.toThrow("No tiene permisos para realizar esa acción");
@@ -217,7 +227,7 @@ describe("UsersFacade", () => {
             usersMapper.userToDomain.mockReturnValue({ roles: ["ADMIN"], scope: ["ADMIN"] });
             userRolesFacade.replace.mockResolvedValue({ roles: ["FTP"] });
             const result = await usersFacade.update({
-                authUser: { id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
+                authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
                 data: { id: "2", roles: ["FTP"] }
             });
             expect(userRolesFacade.replace).toHaveBeenCalled();
@@ -228,7 +238,7 @@ describe("UsersFacade", () => {
             usersMapper.userToDomain.mockReturnValue({ roles: ["ADMIN"], scope: ["ADMIN"] });
             await expect(
                 usersFacade.update({
-                    authUser: { id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
+                    authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
                     data: { id: "1", roles: ["FTP"] }
                 })
             ).rejects.toThrow("No tiene permisos para realizar esa acción");
@@ -238,7 +248,7 @@ describe("UsersFacade", () => {
             usersMapper.userToDomain.mockReturnValue({ roles: ["ADMIN"], scope: ["ADMIN", "FTP"] });
             await expect(
                 usersFacade.update({
-                    authUser: { id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
+                    authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
                     data: { id: "1", scope: ["FTP"] }
                 })
             ).rejects.toThrow("No tiene permisos para realizar esa acción");
@@ -247,7 +257,7 @@ describe("UsersFacade", () => {
         it("should not replace roles when acl is not modified", async () => {
             usersMapper.userToDomain.mockReturnValue({ roles: ["ADMIN"], scope: ["ADMIN"] });
             await usersFacade.update({
-                authUser: { id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
+                authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
                 data: { id: "2", username: "updated" }
             });
             expect(userRolesFacade.replace).not.toHaveBeenCalled();
@@ -257,7 +267,7 @@ describe("UsersFacade", () => {
             usersMapper.userToDomain.mockReturnValue({ roles: ["ADMIN"], scope: ["ADMIN"] });
             userRolesFacade.replace.mockResolvedValue({ roles: ["FTP"] });
             await usersFacade.update({
-                authUser: { id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
+                authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "1", roles: ["ADMIN"], scope: ["ADMIN"] },
                 data: { id: "2", roles: ["FTP"] }
             });
             expect(userRolesFacade.replace).toHaveBeenCalled();
@@ -266,7 +276,13 @@ describe("UsersFacade", () => {
 
     describe("changePassword", () => {
         it("should check current password and update it", async () => {
-            const authUser: AuthAccessTokenPayload = { id: "1", roles: ["FTP"], scope: ["FTP"] };
+            const authUser: VerifiedAccessToken = {
+                iat: 1_800_000_000,
+                exp: 1_900_000_000,
+                id: "1",
+                roles: ["FTP"],
+                scope: ["FTP"]
+            };
             usersService.checkPassword.mockResolvedValue(undefined);
             vi.spyOn(usersFacade, "update").mockResolvedValue({ username: "user" });
 
@@ -291,7 +307,7 @@ describe("UsersFacade", () => {
 
             await expect(
                 usersFacade.changePassword({
-                    authUser: { id: "1", roles: ["FTP"] },
+                    authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "1", roles: ["FTP"] },
                     currentPassword: "WrongPassword1!",
                     newPassword: "NewPassword123!"
                 })

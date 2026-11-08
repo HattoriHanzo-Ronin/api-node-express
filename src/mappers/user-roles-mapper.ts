@@ -1,6 +1,6 @@
-import type { UserRolesMapperParams } from "../types/user-roles-mapper.js";
-import type { UserRole } from "../types/user-roles-model.js";
-import type { UserAcl } from "../types/user-roles-facade.js";
+import type { UserRolesMapperParams } from "../types/user-roles/user-roles-mapper.js";
+import type { UserRole } from "../types/user-roles/user-roles-model.js";
+import type { UserAcl } from "../types/user-roles/user-roles-mapper.js";
 
 export default interface UserRolesMapper {
     /**
@@ -19,5 +19,5 @@ export default interface UserRolesMapper {
      * @param params.scope Administrative scope
      * @returns Persistence role assignments
      */
-    rolesToPersistence(params: UserRolesMapperParams): UserRole[];
+    rolesToPersistence(params: UserRolesMapperParams): UserRole[] | undefined;
 }

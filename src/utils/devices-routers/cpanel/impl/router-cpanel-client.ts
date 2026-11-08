@@ -7,9 +7,9 @@ import type {
     NavigateRouterCpanelParams,
     RouterCpanelDependencies,
     RouterCpanelSession
-} from "../../../../types/router-cpanel.js";
-import type { RouterCpanelRequestParams } from "../../../../types/router-cpanel-client.js";
-import type { ApiErrorResponse } from "../../../../types/api-error.js";
+} from "../../../../types/utils/router-cpanel.js";
+import type { RouterCpanelRequestParams } from "../../../../types/utils/router-cpanel-client.js";
+import type { ApiErrorResponse } from "../../../../types/utils/api-error.js";
 
 const { routerCpanelServiceUnavailable, routerCpanelSessionFailed } = API_ERROR;
 
@@ -25,12 +25,20 @@ export default class RouterCpanelClient implements RouterCpanel {
         this.routerCpanelServiceUrl = routerCpanelServiceUrl;
     }
 
-    async create({ ownerId, routerName, routerIp, routerPassword, language, clientType, theme }: CreateRouterCpanelParams) {
-        return this.request<RouterCpanelSession>({
+    async create({
+        ownerId,
+        routerName,
+        routerIp,
+        routerPassword,
+        language,
+        clientType,
+        theme
+    }: CreateRouterCpanelParams) {
+        return (await this.request<RouterCpanelSession>({
             path: "/sessions",
             method: "POST",
             body: { ownerId, routerName, routerIp, routerPassword, language, clientType, theme }
-        });
+        }))!;
     }
 
     async navigate({ sessionId, ownerId, action }: NavigateRouterCpanelParams) {
@@ -41,7 +49,7 @@ export default class RouterCpanelClient implements RouterCpanel {
         await this.request({ path: `/sessions/${sessionId}`, method: "DELETE", body: { ownerId } });
     }
 
-    private async request<Result>({ path, method, body }: RouterCpanelRequestParams): Promise<Result> {
+    private async request<Result>({ path, method, body }: RouterCpanelRequestParams): Promise<Result | undefined> {
         const url = new URL(path, this.routerCpanelServiceUrl);
         let response: Response;
         try {
@@ -58,7 +66,7 @@ export default class RouterCpanelClient implements RouterCpanel {
         }
 
         if (response.ok) {
-            return response.status === 204 ? undefined as Result : await response.json() as Result;
+            return response.status === 204 ? undefined : ((await response.json()) as Result);
         }
 
         const { message, code }: Partial<ApiErrorResponse> = await response.json().catch(() => ({}));

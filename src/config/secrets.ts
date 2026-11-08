@@ -1,5 +1,5 @@
 import fs from "fs";
-import { Secret } from "../types/secrets.js";
+import { Secret } from "../types/config/secrets.js";
 
 const secretCache: Record<string, string> = {};
 const SECRETS: Secret = Object.freeze({

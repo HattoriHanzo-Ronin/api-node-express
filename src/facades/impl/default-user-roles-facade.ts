@@ -1,7 +1,8 @@
 import type UserRolesFacade from "../user-roles-facade.js";
-import type { UserRolesFacadeDependencies } from "../../types/default-user-roles-facade.js";
-import type { UserAcl, UserAclByUser, UserRolesWriteParams } from "../../types/user-roles-facade.js";
-import type { UsersByIdParams } from "../../types/user-roles-model.js";
+import type { UserRolesFacadeDependencies } from "../../types/user-roles/default-user-roles-facade.js";
+import type { UserAclByUser, UserRolesWriteParams } from "../../types/user-roles/user-roles-facade.js";
+import type { UserAcl } from "../../types/user-roles/user-roles-mapper.js";
+import type { UsersByIdParams } from "../../types/user-roles/user-roles-model.js";
 
 /**
  * Default user roles facade

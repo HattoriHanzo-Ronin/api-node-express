@@ -1,7 +1,7 @@
-import type { DeviceId, RouterIdParams } from "../types/devices-model.js";
-import type { RouterCpanelSession } from "../types/router-cpanel.js";
-import type { GetAllDevicesParams } from "../types/devices-service.js";
-import type { CloseDeviceRouterCpanelParams, CreateDeviceParams, CreateDeviceRouterCpanelParams, Device, DevicesByRouterResponse, DevicesResponse, NavigateDeviceRouterCpanelParams, UpdateDeviceFacadeParams } from "../types/devices-facade.js";
+import type { DeviceId, RouterIdParams } from "../types/devices/devices-model.js";
+import type { RouterCpanelSession } from "../types/utils/router-cpanel.js";
+import type { GetAllDevicesParams } from "../types/devices/devices-service.js";
+import type { CloseDeviceRouterCpanelParams, CreateDeviceParams, CreateDeviceRouterCpanelParams, Device, DevicesByRouterResponse, DevicesResponse, NavigateDeviceRouterCpanelParams, UpdateDeviceFacadeParams } from "../types/devices/devices-facade.js";
 
 export default interface DevicesFacade {
     /**

@@ -1,5 +1,5 @@
-import type { FtpEntry, FtpTransferEntry } from "../../src/types/ftp-service.js";
-import type { Role } from "../../src/types/user-roles-model.js";
+import type { FtpEntry, FtpTransferEntry } from "../../src/types/ftp/ftp-service.js";
+import type { Role } from "../../src/types/user-roles/user-roles-model.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PassThrough, Readable, Writable } from "node:stream";
 

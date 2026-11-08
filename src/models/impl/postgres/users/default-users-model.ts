@@ -10,7 +10,7 @@ import type {
     UserCredentials,
     UserId,
     UserPasswordCheck
-} from "../../../../types/users-model.js";
+} from "../../../../types/users/users-model.js";
 
 const { basicInfo, authentication, insert, update } = usersColumns;
 

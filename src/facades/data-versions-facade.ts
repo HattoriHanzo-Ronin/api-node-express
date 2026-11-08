@@ -1,6 +1,6 @@
-import type { DataVersion, DataVersionId } from "../types/data-versions-model.js";
-import type { DataVersionsId } from "../types/data-versions-facade.js";
-import type { FtpFacadeDirectoryParams } from "../types/ftp-facade.js";
+import type { DataVersion, DataVersionId } from "../types/data-versions/data-versions-model.js";
+import type { DataVersionsId } from "../types/data-versions/data-versions-facade.js";
+import type { FtpFacadeDirectoryParams } from "../types/ftp/ftp-facade.js";
 
 export default interface DataVersionsFacade {
     /**

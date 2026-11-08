@@ -1,5 +1,6 @@
-import type { UserAcl, UserAclByUser, UserRolesWriteParams } from "../types/user-roles-facade.js";
-import type { UsersByIdParams } from "../types/user-roles-model.js";
+import type { UserAclByUser, UserRolesWriteParams } from "../types/user-roles/user-roles-facade.js";
+import type { UserAcl } from "../types/user-roles/user-roles-mapper.js";
+import type { UsersByIdParams } from "../types/user-roles/user-roles-model.js";
 
 export default interface UserRolesFacade<Transaction> {
     /**

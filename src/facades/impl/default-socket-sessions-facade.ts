@@ -1,14 +1,14 @@
+import type { AuthUserParams } from "../../types/auth/auth-facade.js";
 import type { WebSocket } from "ws";
 import type SocketSessionsFacade from "../socket-sessions-facade.js";
 import type {
-    SocketSessionAuthParams,
     SocketSessionConnectionParams,
     SocketSessionId,
     SocketSessionNotification,
     SocketSessionOwnedParams
-} from "../../types/socket-sessions-service.js";
-import type { SocketSessionFacadeSubscribeParams } from "../../types/socket-sessions-facade.js";
-import type { SocketSessionsFacadeDependencies } from "../../types/default-socket-sessions-facade.js";
+} from "../../types/socket-sessions/socket-sessions-service.js";
+import type { SocketSessionFacadeSubscribeParams } from "../../types/socket-sessions/socket-sessions-facade.js";
+import type { SocketSessionsFacadeDependencies } from "../../types/socket-sessions/default-socket-sessions-facade.js";
 import { API_ERROR } from "../../config/errors.js";
 import { SOCKET_ENTITY, USER_ROLE } from "../../config/constants.js";
 import ApiError from "../../utils/error/api-error.js";
@@ -35,7 +35,7 @@ export default class DefaultSocketSessionsFacade implements SocketSessionsFacade
         this.socketSessionsService = socketSessionsService;
     }
 
-    create({ authUser }: SocketSessionAuthParams) {
+    create({ authUser }: AuthUserParams) {
         return this.socketSessionsService.create({ authUser });
     }
 

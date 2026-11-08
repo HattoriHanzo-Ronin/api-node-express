@@ -1,18 +1,16 @@
+import type { AuthUserParams } from "../types/auth/auth-facade.js";
 import type {
-    AuthenticatedUserResponse,
-    AuthUserParams,
     ChangePasswordParams,
     CreateUserParams,
     GetUserParams,
     GetUserWithoutAuthParams,
-    User,
     UpdatedUserResponse,
     UpdateUserParams,
-    UserCredentialsParams,
     UserResponse,
     UsersResponse
-} from "../types/users-facade.js";
-import type { UserId } from "../types/users-model.js";
+} from "../types/users/users-facade.js";
+import type { UserCredentials, UserId } from "../types/users/users-model.js";
+import type { MappedUser, MappedUserIdentity } from "../types/users/users-mapper.js";
 
 export default interface UsersFacade {
     /**
@@ -30,7 +28,7 @@ export default interface UsersFacade {
      * @param params.id User identifier
      * @returns User data
      */
-    getById(params: GetUserWithoutAuthParams): Promise<User>;
+    getById(params: GetUserWithoutAuthParams): Promise<MappedUser>;
     getById(params: GetUserParams): Promise<UserResponse>;
 
     /**
@@ -40,7 +38,7 @@ export default interface UsersFacade {
      * @param params.password User password
      * @returns Authenticated user
      */
-    authenticate(params: UserCredentialsParams): Promise<AuthenticatedUserResponse>;
+    authenticate(params: UserCredentials): Promise<MappedUserIdentity>;
 
     /**
      * Creates a user

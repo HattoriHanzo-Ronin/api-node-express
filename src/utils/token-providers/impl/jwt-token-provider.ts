@@ -3,8 +3,8 @@ import type { SignOptions } from "jsonwebtoken";
 import { API_ERROR } from "../../../config/errors.js";
 import ApiError from "../../error/api-error.js";
 import type TokenProvider from "../token-provider.js";
-import type { CreateTokenParams, VerifyTokenParams } from "../../../types/token-provider.js";
-import type { JwtProviderDependencies } from "../../../types/jwt-provider.js";
+import type { CreateTokenParams, VerifyTokenParams } from "../../../types/utils/token-provider.js";
+import type { JwtProviderDependencies } from "../../../types/utils/jwt-provider.js";
 
 /**
  * JWT token provider for router control panel sessions

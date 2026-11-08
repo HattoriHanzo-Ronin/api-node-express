@@ -3,7 +3,7 @@ import type {
     DeleteAllowParams,
     GeneratedKeysParams,
     RouterCapabilities
-} from "../../../types/router-automation.js";
+} from "../../../types/utils/router-automation.js";
 
 /**
  * Router automation contract

@@ -1,6 +1,6 @@
-import type { Device } from "../types/devices-facade.js";
-import type { AllowedDevice, RouterAllowedDevice } from "../types/devices-model.js";
-import type { DeviceMapperParams, DeviceSources, DevicesMapperParams, RouterAutomationSource } from "../types/devices-mapper.js";
+import type { Device } from "../types/devices/devices-facade.js";
+import type { AllowedDevice, RouterAllowedDevice } from "../types/devices/devices-model.js";
+import type { DeviceMapperParams, DeviceSources, DevicesMapperParams, RouterAutomationSource } from "../types/devices/devices-mapper.js";
 
 export default interface DevicesMapper {
     /**

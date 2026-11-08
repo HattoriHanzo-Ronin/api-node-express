@@ -1,5 +1,5 @@
-import type { RouterIdParams } from "../types/devices-model.js";
-import type { DeleteWhitelistParams, InsertWhitelistParams, Whitelist, WhitelistKey } from "../types/whitelist-model.js";
+import type { RouterIdParams } from "../types/devices/devices-model.js";
+import type { DeleteWhitelistParams, InsertWhitelistParams, Whitelist, WhitelistKey } from "../types/whitelist/whitelist-model.js";
 
 export default interface WhitelistModel<Transaction> {
     /**

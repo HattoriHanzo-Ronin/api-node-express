@@ -1,7 +1,7 @@
-import type { Role } from "../../src/types/user-roles-model.js";
-import type { FtpEntry } from "../../src/types/ftp-service.js";
-import type { FtpProgressStream } from "../../src/types/default-ftp-facade.js";
-import type { FtpFacadeDependencies } from "../../src/types/default-ftp-facade.js";
+import type { Role } from "../../src/types/user-roles/user-roles-model.js";
+import type { FtpEntry } from "../../src/types/ftp/ftp-service.js";
+import type { FtpProgressStream } from "../../src/types/ftp/default-ftp-facade.js";
+import type { FtpFacadeDependencies } from "../../src/types/ftp/default-ftp-facade.js";
 import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MemoryCache from "../../src/utils/cache/impl/memory-cache.js";
@@ -79,7 +79,7 @@ describe("FtpFacade", () => {
         });
 
         it("should return a cached directory hash", async () => {
-            const authUser = { id: "user-id", roles: ["FTP"] as Role[] };
+            const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
             directoryCache.set(authUser.id, "files", { hash: "directory-hash" });
             await expect(ftpFacade.getHash({ dir: "files", authUser })).resolves.toBe("directory-hash");
             expect(ftpService.touchSession).toHaveBeenCalledWith({ authUser });
@@ -87,7 +87,7 @@ describe("FtpFacade", () => {
         });
 
         it("should rebuild a directory hash when it is not cached", async () => {
-            const authUser = { id: "user-id", roles: ["FTP"] as Role[] };
+            const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
             ftpService.dir.mockResolvedValue([
                 { name: "photo.jpg", type: "FILE", size: 100, modifyTime: "2026-09-20T10:00:00.000Z" }
             ]);
@@ -97,7 +97,10 @@ describe("FtpFacade", () => {
         });
 
         it("should return thumbnail candidates before caching their generated buffers", async () => {
-            const data = { dir: "files", authUser: { id: "user-id", roles: ["FTP"] as Role[] } };
+            const data = {
+                dir: "files",
+                authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] }
+            };
             const entries = [
                 { name: "folder", type: "d" },
                 { name: "photo.jpg", type: "FILE", supportsThumbnail: true },
@@ -143,7 +146,10 @@ describe("FtpFacade", () => {
         });
 
         it("should update the directory hash every five seconds without exposing its metadata", async () => {
-            const data = { dir: "files", authUser: { id: "user-id", roles: ["FTP"] as Role[] } };
+            const data = {
+                dir: "files",
+                authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] }
+            };
             ftpService.dir
                 .mockResolvedValueOnce([
                     {
@@ -181,7 +187,10 @@ describe("FtpFacade", () => {
         });
 
         it("should synchronize cached thumbnails with external directory changes", async () => {
-            const data = { dir: "files", authUser: { id: "user-id", roles: ["FTP"] as Role[] } };
+            const data = {
+                dir: "files",
+                authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] }
+            };
             ftpService.dir.mockResolvedValueOnce([
                 { name: "old.jpg", type: "FILE", supportsThumbnail: true },
                 { name: "removed.jpg", type: "FILE", supportsThumbnail: true },
@@ -221,7 +230,10 @@ describe("FtpFacade", () => {
         });
 
         it("should reuse the same thumbnail cache and regenerate it after deletion", async () => {
-            const data = { dir: "files", authUser: { id: "user-id", roles: ["FTP"] as Role[] } };
+            const data = {
+                dir: "files",
+                authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] }
+            };
             ftpService.dir.mockResolvedValue([{ name: "photo.jpg", type: "FILE", supportsThumbnail: true }]);
             ftpService.getThumbnails.mockImplementation(async ({ names, callback }) => {
                 for (const name of names) {
@@ -262,7 +274,7 @@ describe("FtpFacade", () => {
         });
 
         it("should return thumbnails from the requested cached directory", async () => {
-            const authUser = { id: "user-id", roles: ["FTP"] as Role[] };
+            const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
             ftpService.getThumbnails.mockImplementation(async ({ names, callback }) => {
                 for (const name of names) {
                     await callback({ name, thumbnail: Buffer.from(name.split(".")[0]) });
@@ -283,7 +295,7 @@ describe("FtpFacade", () => {
         });
 
         it("should return null when the file has no generated thumbnail", async () => {
-            const authUser = { id: "user-id", roles: ["FTP"] as Role[] };
+            const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
             ftpService.dir.mockResolvedValue([{ name: "photo.jpg", type: "FILE", supportsThumbnail: true }]);
             ftpService.getThumbnails.mockImplementation(async ({ names, callback }) => {
                 for (const name of names) {
@@ -297,7 +309,11 @@ describe("FtpFacade", () => {
         });
 
         it("should create download sessions", async () => {
-            const data = { dir: "files", entries: [], authUser: { id: "user-id", roles: ["FTP"] as Role[] } };
+            const data = {
+                dir: "files",
+                entries: [],
+                authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] }
+            };
             ftpService.createDownload.mockResolvedValue({ id: "download-id", entries: [] });
             await expect(ftpFacade.createDownload(data)).resolves.toEqual({ id: "download-id", entries: [] });
             expect(ftpService.createDownload).toHaveBeenCalledWith(data);
@@ -307,7 +323,7 @@ describe("FtpFacade", () => {
             const data = {
                 id: "download-id",
                 entryPath: "docs/file.txt",
-                authUser: { id: "user-id", roles: ["FTP"] as Role[] },
+                authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] },
                 stream: new PassThrough()
             };
             await ftpFacade.downloadEntry(data);
@@ -328,7 +344,7 @@ describe("FtpFacade", () => {
                 }
             ]
         ] as const)("should execute %s and return its synchronized directory", async (method, result, methodData) => {
-            const authUser = { id: "user-id", roles: ["FTP"] as Role[] };
+            const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
             const data = { ...methodData, authUser };
             ftpService[method].mockResolvedValue(result);
             const operation =
@@ -346,7 +362,7 @@ describe("FtpFacade", () => {
         });
 
         it("should notify the root directory with its app relative path", async () => {
-            const authUser = { id: "user-id", roles: ["FTP"] as Role[] };
+            const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
             ftpService.makeDir.mockResolvedValue({ name: "docs", type: "DIR" });
             await ftpFacade.makeDir({ dir: ".", name: "docs", authUser });
             expect(socketSessionsFacade.notify).toHaveBeenCalledWith({
@@ -357,7 +373,7 @@ describe("FtpFacade", () => {
         });
 
         it("should synchronize the directory when an upload completes", async () => {
-            const authUser = { id: "user-id", roles: ["FTP"] as Role[] };
+            const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
             ftpService.completeUpload.mockImplementation(({ onComplete }) => onComplete({ dir: "files" }));
             await expect(ftpFacade.completeUpload({ id: "upload-id", authUser })).resolves.toEqual({
                 hash: expect.any(String),
@@ -372,7 +388,7 @@ describe("FtpFacade", () => {
         });
 
         it("should stream moved entries and relocate folder caches", async () => {
-            const authUser = { id: "user-id", roles: ["FTP"] as Role[] };
+            const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
             const thumbnail = new Map([["photo.jpg", Buffer.from("thumbnail")]]);
             const directory = { hash: "hash" };
             memoryCache.set("user-id", "source/photos", thumbnail);
@@ -429,7 +445,7 @@ describe("FtpFacade", () => {
         });
 
         it("should delete renamed folder caches", async () => {
-            const authUser = { id: "user-id", roles: ["FTP"] as Role[] };
+            const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
             const directory = { hash: "hash" };
             const bufferMap = new Map();
             memoryCache.set("user-id", "files/photos", bufferMap);
@@ -450,7 +466,7 @@ describe("FtpFacade", () => {
         });
 
         it("should stream deleted entries and clear folder caches", async () => {
-            const authUser = { id: "user-id", roles: ["FTP"] as Role[] };
+            const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
             const directory = { hash: "hash" };
             memoryCache.set("user-id", "files/photos", new Map());
             directoryCache.set("user-id", "files/photos", directory);
@@ -477,7 +493,7 @@ describe("FtpFacade", () => {
         });
 
         it("should omit the complete event after a partial failure", async () => {
-            const authUser = { id: "user-id", roles: ["FTP"] as Role[] };
+            const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
             const entries: FtpEntry[] = [
                 { name: "first.txt", type: "FILE" },
                 { name: "second.txt", type: "FILE" }
@@ -505,7 +521,12 @@ describe("FtpFacade", () => {
         it("should propagate write errors", async () => {
             const stream = new PassThrough() as PassThrough & FtpProgressStream;
             stream.set = vi.fn();
-            const data = { dir: "files", entries: [], authUser: { id: "user-id", roles: ["FTP"] as Role[] }, stream };
+            const data = {
+                dir: "files",
+                entries: [],
+                authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] },
+                stream
+            };
             ftpService.delete.mockRejectedValue(new Error("FTP error"));
             await expect(ftpFacade.delete(data)).rejects.toThrow("FTP error");
             expect(stream.set).not.toHaveBeenCalled();

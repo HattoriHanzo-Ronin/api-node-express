@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { WhitelistRouterDependencies } from "../types/whitelist-router.js";
+import type { WhitelistRouterDependencies } from "../types/whitelist/whitelist-router.js";
 import Middlewares from "../middlewares/middlewares.js";
 import { USER_ROLE } from "../config/constants.js";
 

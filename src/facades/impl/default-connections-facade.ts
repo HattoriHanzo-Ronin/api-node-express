@@ -1,7 +1,7 @@
 import type ConnectionsFacade from "../connections-facade.js";
-import type { ConnectionsFacadeDependencies } from "../../types/default-connections-facade.js";
-import type { ConnectionsByDevicesParams } from "../../types/connections-model.js";
-import type { ConnectionsSourceParams, CreateConnectionsParams, UpdateConnectionsParams } from "../../types/connections-facade.js";
+import type { ConnectionsFacadeDependencies } from "../../types/connections/default-connections-facade.js";
+import type { ConnectionsByDevicesParams } from "../../types/connections/connections-model.js";
+import type { ConnectionsSourceParams, CreateConnectionsParams, UpdateConnectionsParams } from "../../types/connections/connections-facade.js";
 
 /**
  * Default connections facade

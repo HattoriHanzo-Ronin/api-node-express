@@ -1,8 +1,8 @@
 import type ConnectionsService from "../connections-service.js";
-import type { ConnectionsServiceDependencies } from "../../types/default-connections-service.js";
-import type { ConnectionsByDevicesParams, WriteConnectionsParams } from "../../types/connections-model.js";
-import type { ConnectionsUpdateResult, UpdateConnectionsParams } from "../../types/connections-service.js";
-import type { PostgresError } from "../../types/postgres-error.js";
+import type { ConnectionsServiceDependencies } from "../../types/connections/default-connections-service.js";
+import type { ConnectionsByDevicesParams, WriteConnectionsParams } from "../../types/connections/connections-model.js";
+import type { ConnectionsUpdateResult, UpdateConnectionsParams } from "../../types/connections/connections-service.js";
+import type { PostgresError } from "../../types/utils/postgres-error.js";
 import ApiError from "../../utils/error/api-error.js";
 import { API_ERROR } from "../../config/errors.js";
 

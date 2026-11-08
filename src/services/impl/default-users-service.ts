@@ -1,14 +1,14 @@
-import type { GetAllUsersParams } from "../../types/users-service.js";
+import type { GetAllUsersParams } from "../../types/users/users-service.js";
 import type UsersService from "../users-service.js";
-import type { UsersServiceDependencies } from "../../types/default-users-service.js";
+import type { UsersServiceDependencies } from "../../types/users/default-users-service.js";
 import type {
     InsertUserParams,
     UpdateUserParams,
     UserCredentials,
     UserId,
     UserPasswordCheck
-} from "../../types/users-model.js";
-import type { PostgresError } from "../../types/postgres-error.js";
+} from "../../types/users/users-model.js";
+import type { PostgresError } from "../../types/utils/postgres-error.js";
 import ApiError from "../../utils/error/api-error.js";
 import ValidateUtils from "../../utils/validate-utils.js";
 import { API_ERROR } from "../../config/errors.js";

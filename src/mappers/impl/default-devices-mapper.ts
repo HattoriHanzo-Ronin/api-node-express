@@ -1,9 +1,9 @@
 import type DevicesMapper from "../devices-mapper.js";
-import type { DevicesMapperDependencies } from "../../types/default-devices-mapper.js";
-import type { DeviceMapperParams, DevicesMapperParams, DeviceWithoutConnections, RouterAutomationSource } from "../../types/devices-mapper.js";
-import type { AllowedDevice, RouterAllowedDevice } from "../../types/devices-model.js";
-import type { Connection } from "../../types/connections-model.js";
-import type { RouterAutomationPayload } from "../../types/router-automation.js";
+import type { DevicesMapperDependencies } from "../../types/devices/default-devices-mapper.js";
+import type { DeviceMapperParams, DevicesMapperParams, DeviceWithoutConnections, RouterAutomationSource } from "../../types/devices/devices-mapper.js";
+import type { AllowedDevice, RouterAllowedDevice } from "../../types/devices/devices-model.js";
+import type { Connection } from "../../types/connections/connections-model.js";
+import type { RouterAutomationPayload } from "../../types/utils/router-automation.js";
 
 /**
  * Default devices mapper
