@@ -13,7 +13,7 @@ type WebSocketParam = {
  * @author HattoriHanzo-Ronin
  */
 export type SocketEventsGatewayDependencies = {
-    socketSessionsFacade: SocketSessionsFacade;
+    socketSessionsFacade: SocketSessionsFacade<WebSocket>;
     accessTokenProvider: TokenProvider<AuthAccessTokenPayload, VerifiedAccessToken>;
 };
 

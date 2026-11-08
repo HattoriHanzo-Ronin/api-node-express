@@ -7,6 +7,6 @@ const {
 } = ZodUtils;
 const SOCKET_ENTITIES = Object.values(SOCKET_ENTITY);
 const ENTITY = z.enum(SOCKET_ENTITIES, invalidEnum(SOCKET_ENTITIES));
-const socketSubscriptionSchema = z.object({ entities: z.array(ENTITY, typeRequired).min(1) });
+const SOCKET_SUBSCRIPTION_SCHEMA = z.object({ entities: z.array(ENTITY, typeRequired).min(1) });
 
-export { socketSubscriptionSchema };
+export { SOCKET_SUBSCRIPTION_SCHEMA };

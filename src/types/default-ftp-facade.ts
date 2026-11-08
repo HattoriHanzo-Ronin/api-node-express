@@ -1,3 +1,4 @@
+import type { WebSocket } from "ws";
 import type Cache from "../utils/cache/cache.js";
 import type FtpService from "../services/ftp-service.js";
 import type FtpMapper from "../mappers/ftp-mapper.js";
@@ -17,7 +18,7 @@ export type FtpFacadeDependencies = {
     ftpMapper: FtpMapper<FtpSourceEntry>;
     memoryCache: Cache<MemoryCacheMap>;
     directoryCache: Cache<DirectoryHash>;
-    socketSessionsFacade: SocketSessionsFacade;
+    socketSessionsFacade: SocketSessionsFacade<WebSocket>;
 };
 export type FtpThumbnailSyncParams = { dir: string; entries: FtpEntrySource[]; authUser: FtpSessionUser };
 export type FtpThumbnailQueueParams = {

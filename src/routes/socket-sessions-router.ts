@@ -1,7 +1,11 @@
+import type { SocketSessionsRouterDependencies } from "../types/socket-sessions-router.js";
 import { Router } from "express";
 import Middlewares from "../middlewares/middlewares.js";
 
-export default function createSocketSessionsRouter({ socketSessionsController, requireAuth }) {
+export default function createSocketSessionsRouter({
+    socketSessionsController,
+    requireAuth
+}: SocketSessionsRouterDependencies) {
     const socketSessionsRouter = Router();
     const { asyncHandler, routeNotFound } = Middlewares;
 

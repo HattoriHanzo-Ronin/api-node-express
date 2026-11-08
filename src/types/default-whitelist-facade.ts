@@ -1,3 +1,4 @@
+import type { WebSocket } from "ws";
 import type WhitelistService from "../services/whitelist-service.js";
 import type DevicesFacade from "../facades/devices-facade.js";
 import type DataVersionsFacade from "../facades/data-versions-facade.js";
@@ -9,6 +10,6 @@ export type WhitelistFacadeDependencies<Transaction> = {
     dataVersionsFacade: DataVersionsFacade;
     devicesFacade: DevicesFacade;
     routerAutomation: DevicesFacadeDependencies<Transaction>["routerAutomation"];
-    socketSessionsFacade: SocketSessionsFacade;
+    socketSessionsFacade: SocketSessionsFacade<WebSocket>;
     tx: DevicesFacadeDependencies<Transaction>["tx"];
 };
