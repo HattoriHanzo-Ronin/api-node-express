@@ -25,7 +25,7 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
             this.dependencies.dataVersionsFacade.getById({ id: SOCKET_ENTITY.devices }),
             this.dependencies.devicesService.getAll({})
         ]);
-        const { version } = versionResult!;
+        const { version } = versionResult;
         return { version, data: await this.mapResult({ result }) };
     }
 
@@ -253,7 +253,7 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
     }
 
     private async getVersions(ids: string[]): Promise<Record<string, string>> {
-        return this.dependencies.dataVersionsFacade.getById({ id: ids }) as Promise<Record<string, string>>;
+        return this.dependencies.dataVersionsFacade.getById({ id: ids });
     }
 
     private async notifyChanges(): Promise<void> {

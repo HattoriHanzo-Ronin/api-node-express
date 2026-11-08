@@ -55,7 +55,7 @@ export default class DefaultWhitelistFacade<Transaction> implements WhitelistFac
 
     private async notify(): Promise<void> {
         const result = await this.dependencies.dataVersionsFacade.getById({ id: SOCKET_ENTITY.whitelist });
-        const { version } = result!;
+        const { version } = result;
         this.dependencies.socketSessionsFacade.notify({ entity: SOCKET_ENTITY.whitelist, data: { version } });
     }
 
