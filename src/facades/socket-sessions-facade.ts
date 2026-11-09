@@ -6,7 +6,10 @@ import type {
     SocketSessionOwnedParams,
     SocketSessionResponse
 } from "../types/socket-sessions/socket-sessions-service.js";
-import type { SocketSessionFacadeSubscribeParams } from "../types/socket-sessions/socket-sessions-facade.js";
+import type {
+    SocketSessionFacadeSubscribeParams,
+    SocketSessionsVersionsNotification
+} from "../types/socket-sessions/socket-sessions-facade.js";
 
 export default interface SocketSessionsFacade<Socket> {
     /**
@@ -36,10 +39,12 @@ export default interface SocketSessionsFacade<Socket> {
     /**
      * Notifies subscribed sockets about an entity change
      *
+     * @param params.entities Changed entities whose versions must be queried
      * @param params.entity Changed entity
      * @param params.data Event data
      * @param params.ownerId Owner identifier
      */
+    notify(params: SocketSessionsVersionsNotification): Promise<void>;
     notify(params: SocketSessionNotification): void;
     /**
      * Disconnects a socket from its session

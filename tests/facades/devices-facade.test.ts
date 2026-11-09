@@ -157,8 +157,7 @@ describe("DevicesFacade", () => {
             deviceId: "device-1",
             connections: [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }]
         });
-        expect(socketSessionsFacade.notify).toHaveBeenCalledWith({ entity: "devices", data: { version: "2" } });
-        expect(socketSessionsFacade.notify).toHaveBeenCalledWith({ entity: "whitelist", data: { version: "3" } });
+        expect(socketSessionsFacade.notify).toHaveBeenCalledWith({ entities: ["devices", "whitelist"] });
     });
 
     it("should create a router control panel session from a stored router", async () => {

@@ -148,7 +148,7 @@ describe("UsersFacade", () => {
                 roles: ["FTP"],
                 scope: undefined
             });
-            expect(socketSessionsFacade.notify).toHaveBeenCalledWith({ entity: "users", data: { version: "4" } });
+            expect(socketSessionsFacade.notify).toHaveBeenCalledWith({ entities: ["users"] });
         });
     });
 

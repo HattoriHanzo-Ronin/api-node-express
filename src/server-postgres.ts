@@ -65,8 +65,14 @@ const {
     refreshTokens: refreshTokensEntityError
 } = PostgresErrors;
 
+const dataVersionsService = new DefaultDataVersionsService({ dataVersionsModel: DefaultDataVersionsModel });
+const dataVersionsFacade = new DefaultDataVersionsFacade({
+    dataVersionsService,
+    dataVersionsMapper: DefaultDataVersionsMapper
+});
+
 const socketSessionsService = new DefaultSocketSessionsService();
-const socketSessionsFacade = new DefaultSocketSessionsFacade({ socketSessionsService });
+const socketSessionsFacade = new DefaultSocketSessionsFacade({ socketSessionsService, dataVersionsFacade });
 const socketSessionsController = new SocketSessionsController({ socketSessionsFacade });
 
 const memoryCache = new MemoryCache();
@@ -81,13 +87,6 @@ const ftpFacade = new DefaultFtpFacade({
     socketSessionsFacade
 });
 const ftpController = new FtpController({ ftpFacade });
-
-const dataVersionsService = new DefaultDataVersionsService({ dataVersionsModel: DefaultDataVersionsModel });
-const dataVersionsFacade = new DefaultDataVersionsFacade({
-    dataVersionsService,
-    dataVersionsMapper: DefaultDataVersionsMapper,
-    ftpFacade
-});
 
 const connectionsService = new DefaultConnectionsService({
     connectionsModel: DefaultConnectionsModel,
@@ -123,7 +122,6 @@ const whitelistService = new DefaultWhitelistService({
 });
 const whitelistFacade = new DefaultWhitelistFacade({
     whitelistService,
-    dataVersionsFacade,
     devicesFacade,
     routerAutomation,
     socketSessionsFacade,

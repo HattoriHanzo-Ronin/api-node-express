@@ -35,7 +35,6 @@ import type {
     FtpDirectoryParams,
     FtpDownloadFileEntry,
     FtpDownloadManifestEntry,
-    FtpAuthParams,
     FtpCreateUploadParams,
     FtpDeleteParams,
     FtpDirectoryListParams,
@@ -105,14 +104,6 @@ export default class DefaultFtpService implements FtpService<
 
     isSessionActive({ ownerId }: FtpOwnerParams) {
         return this.ftpConnectionManager.isActive({ ownerId });
-    }
-
-    async touchSession({ authUser }: FtpAuthParams) {
-        try {
-            await this.ftpConnectionManager.touch({ authUser });
-        } catch {
-            throw DefaultFtpService.ftpError({ message: "Error al preparar la sesión FTP", apiError: ftpDirFailed });
-        }
     }
 
     async dir(params: FtpDirectoryListParams & { internal?: false }): Promise<FtpSourceEntry[]>;

@@ -94,7 +94,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
             const createdUser = this.dependencies.usersMapper.userToDomain({ source: result, acl });
             return this.filterAcl({ authUser, source: createdUser });
         });
-        await this.notify();
+        await this.dependencies.socketSessionsFacade.notify({ entities: [SOCKET_ENTITY.users] });
         return result;
     }
 
@@ -204,7 +204,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
 
             return result;
         });
-        await this.notify();
+        await this.dependencies.socketSessionsFacade.notify({ entities: [SOCKET_ENTITY.users] });
         return result;
     }
 
@@ -217,13 +217,8 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
     async delete({ authUser, id }: GetUserParams) {
         await this.getById({ authUser, id });
         const result = await this.dependencies.usersService.delete({ id });
-        await this.notify();
+        await this.dependencies.socketSessionsFacade.notify({ entities: [SOCKET_ENTITY.users] });
         return result;
-    }
-
-    private async notify(): Promise<void> {
-        const { version } = await this.dependencies.dataVersionsFacade.getById({ id: SOCKET_ENTITY.users });
-        this.dependencies.socketSessionsFacade.notify({ entity: SOCKET_ENTITY.users, data: { version } });
     }
 
     private allowedManage({ authUser, userRoles }: AllowedManageParams): boolean {

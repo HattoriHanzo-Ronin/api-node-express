@@ -5,7 +5,6 @@ import FtpController from "../../src/controllers/ftp-controller.js";
 const NEXT: NextFunction = vi.fn();
 const createFtpFacadeMock = () => ({
     dir: vi.fn(),
-    getHash: vi.fn(),
     getThumbnail: vi.fn(),
     streamMedia: vi.fn(),
     makeDir: vi.fn(),

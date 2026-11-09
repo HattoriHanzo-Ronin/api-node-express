@@ -1,5 +1,4 @@
 import type {
-    FtpAuthParams,
     FtpCompleteUploadParams,
     FtpCreateUploadParams,
     FtpDeleteParams,
@@ -27,13 +26,6 @@ export default interface FtpService<MediaStream, DownloadStream, UploadFile, Thu
      * @returns Whether the session is active
      */
     isSessionActive(params: FtpOwnerParams): boolean;
-
-    /**
-     * Registers user activity
-     *
-     * @param params.authUser Authenticated user
-     */
-    touchSession(params: FtpAuthParams): Promise<void>;
 
     /**
      * Returns a directory's entries
