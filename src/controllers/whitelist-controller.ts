@@ -1,4 +1,8 @@
-import type { WhitelistControllerDependencies, WhitelistHandler, WhitelistRequest } from "../types/whitelist/whitelist-controller.js";
+import type {
+    WhitelistControllerDependencies,
+    WhitelistHandler,
+    WhitelistRequest
+} from "../types/whitelist/whitelist-controller.js";
 import type { WhitelistParams } from "../types/whitelist/whitelist-facade.js";
 import idSchema from "../schemas/common/id-schema.js";
 import allowedDeviceSchema from "../schemas/whitelist-schema.js";

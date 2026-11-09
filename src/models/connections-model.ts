@@ -1,4 +1,9 @@
-import type { Connection, ConnectionsByDevicesParams, DeleteConnectionsParams, WriteConnectionsParams } from "../types/connections/connections-model.js";
+import type {
+    Connection,
+    ConnectionsByDevicesParams,
+    DeleteConnectionsParams,
+    WriteConnectionsParams
+} from "../types/connections/connections-model.js";
 
 export default interface ConnectionsModel<Transaction> {
     /**

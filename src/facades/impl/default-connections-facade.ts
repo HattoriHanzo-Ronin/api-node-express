@@ -1,7 +1,11 @@
 import type ConnectionsFacade from "../connections-facade.js";
 import type { ConnectionsFacadeDependencies } from "../../types/connections/default-connections-facade.js";
 import type { ConnectionsByDevicesParams } from "../../types/connections/connections-model.js";
-import type { ConnectionsSourceParams, CreateConnectionsParams, UpdateConnectionsParams } from "../../types/connections/connections-facade.js";
+import type {
+    ConnectionsSourceParams,
+    CreateConnectionsParams,
+    UpdateConnectionsParams
+} from "../../types/connections/connections-facade.js";
 
 /**
  * Default connections facade
@@ -32,10 +36,16 @@ export default class DefaultConnectionsFacade<Transaction> implements Connection
         const source = await this.dependencies.connectionsService.update({
             clientTx,
             connections: this.dependencies.connectionsMapper.connectionsToPersistence({ deviceId, connections }),
-            oldConnections: this.dependencies.connectionsMapper.connectionsToPersistence({ deviceId, connections: oldConnections })
+            oldConnections: this.dependencies.connectionsMapper.connectionsToPersistence({
+                deviceId,
+                connections: oldConnections
+            })
         });
         return Object.fromEntries(
-            Object.entries(source).map(([key, result]) => [key, this.dependencies.connectionsMapper.connectionsToDomain(result)])
+            Object.entries(source).map(([key, result]) => [
+                key,
+                this.dependencies.connectionsMapper.connectionsToDomain(result)
+            ])
         );
     }
 }

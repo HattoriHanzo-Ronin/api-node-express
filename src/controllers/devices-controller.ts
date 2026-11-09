@@ -1,4 +1,16 @@
-import type { CloseCpanelHandler, CreateCpanelHandler, CreateDeviceHandler, DeleteDeviceHandler, DeviceHandler, DevicesControllerDependencies, DevicesHandler, NavigateCpanelHandler, RouterDevicesHandler, RouterDevicesRequest, UpdateDeviceHandler } from "../types/devices/devices-controller.js";
+import type {
+    CloseCpanelHandler,
+    CreateCpanelHandler,
+    CreateDeviceHandler,
+    DeleteDeviceHandler,
+    DeviceHandler,
+    DevicesControllerDependencies,
+    DevicesHandler,
+    NavigateCpanelHandler,
+    RouterDevicesHandler,
+    RouterDevicesRequest,
+    UpdateDeviceHandler
+} from "../types/devices/devices-controller.js";
 import ZodUtils from "../utils/zod-utils.js";
 import DevicesSchema from "../schemas/devices-schema.js";
 import idSchema from "../schemas/common/id-schema.js";
@@ -31,13 +43,19 @@ export default class DevicesController {
 
     getAllowedDevices: RouterDevicesHandler = async (req, res) => {
         const routerId = this.validateRouterId(req);
-        const { version: { devices, whitelist }, data } = await this.devicesFacade.getAllowedDevices({ routerId });
+        const {
+            version: { devices, whitelist },
+            data
+        } = await this.devicesFacade.getAllowedDevices({ routerId });
         res.set({ "Devices-Version": devices, "Whitelist-Version": whitelist }).json(data);
     };
 
     getNotAllowedDevices: RouterDevicesHandler = async (req, res) => {
         const routerId = this.validateRouterId(req);
-        const { version: { devices, whitelist }, data } = await this.devicesFacade.getNotAllowedDevices({ routerId });
+        const {
+            version: { devices, whitelist },
+            data
+        } = await this.devicesFacade.getNotAllowedDevices({ routerId });
         res.set({ "Devices-Version": devices, "Whitelist-Version": whitelist }).json(data);
     };
 
@@ -60,7 +78,9 @@ export default class DevicesController {
         const { params, body, user: authUser } = req;
         const { id: routerId } = validateData({ id: params.routerId }, idSchema);
         const { language, clientType, theme } = validateData(body, ROUTER_CPANEL_SESSION_SCHEMA);
-        res.status(201).json(await this.devicesFacade.createRouterCpanel({ authUser, routerId, language, clientType, theme }));
+        res.status(201).json(
+            await this.devicesFacade.createRouterCpanel({ authUser, routerId, language, clientType, theme })
+        );
     };
 
     navigateRouterCpanel: NavigateCpanelHandler = async (req, res) => {

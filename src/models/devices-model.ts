@@ -1,6 +1,12 @@
 import type {
-    AllowedDevice, AllowedDeviceIdParams, Device, DeviceId, InsertDeviceParams,
-    RouterAllowedDevice, RouterIdParams, UpdateDeviceParams
+    AllowedDevice,
+    AllowedDeviceIdParams,
+    Device,
+    DeviceId,
+    InsertDeviceParams,
+    RouterAllowedDevice,
+    RouterIdParams,
+    UpdateDeviceParams
 } from "../types/devices/devices-model.js";
 
 export default interface DevicesModel<Transaction> {

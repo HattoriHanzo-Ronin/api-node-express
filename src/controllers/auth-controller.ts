@@ -1,4 +1,9 @@
-import type { AuthControllerDependencies, LoginHandler, LogoutHandler, RefreshHandler } from "../types/auth/auth-controller.js";
+import type {
+    AuthControllerDependencies,
+    LoginHandler,
+    LogoutHandler,
+    RefreshHandler
+} from "../types/auth/auth-controller.js";
 import { AUTH_LOGIN_SCHEMA, AUTH_REFRESH_TOKEN_SCHEMA } from "../schemas/auth-schema.js";
 import ZodUtils from "../utils/zod-utils.js";
 

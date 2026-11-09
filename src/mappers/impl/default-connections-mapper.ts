@@ -19,9 +19,12 @@ export default class DefaultConnectionsMapper {
             connections.push(connection);
             connectionsByDevice.set(deviceId, connections);
         }
-        return new Map([...connectionsByDevice].map(([deviceId, connections]) =>
-            [deviceId, DefaultConnectionsMapper.connectionsToDomain(connections)]
-        ));
+        return new Map(
+            [...connectionsByDevice].map(([deviceId, connections]) => [
+                deviceId,
+                DefaultConnectionsMapper.connectionsToDomain(connections)
+            ])
+        );
     }
 
     static connectionsToPersistence({ deviceId, connections }: ConnectionsToPersistenceParams): Connection[] {

@@ -1,5 +1,10 @@
 import type { ITask } from "pg-promise";
-import type { Connection, ConnectionsByDevicesParams, DeleteConnectionsParams, WriteConnectionsParams } from "../../../../types/connections/connections-model.js";
+import type {
+    Connection,
+    ConnectionsByDevicesParams,
+    DeleteConnectionsParams,
+    WriteConnectionsParams
+} from "../../../../types/connections/connections-model.js";
 import PostgresClient from "../../../../utils/connection/postgres/postgres-client.js";
 import CONNECTIONS_COLUMNS from "./columns.js";
 
@@ -15,7 +20,10 @@ export default class DefaultConnectionsModel {
     private static readonly CLIENT = getClient();
 
     static getByDevices({ devicesId }: ConnectionsByDevicesParams): Promise<Connection[]> {
-        return DefaultConnectionsModel.CLIENT.any<Connection>(`select * from connections where device_id in ($1:list)`, [devicesId]);
+        return DefaultConnectionsModel.CLIENT.any<Connection>(
+            `select * from connections where device_id in ($1:list)`,
+            [devicesId]
+        );
     }
 
     static insertMany({ clientTx, connections }: WriteConnectionsParams<ITask<unknown>>): Promise<Connection[]> {

@@ -29,24 +29,28 @@ export default class DefaultUsersService<Transaction> implements UsersService<Tr
 
     async getById({ id }: UserId) {
         const result = await this.dependencies.usersModel.getById({ id });
-        ApiError.handle([{
-            condition: !result,
-            message: "El usuario no existe",
-            status: 404,
-            apiError: userNotFound
-        }]);
+        ApiError.handle([
+            {
+                condition: !result,
+                message: "El usuario no existe",
+                status: 404,
+                apiError: userNotFound
+            }
+        ]);
 
         return result!;
     }
 
     async authenticate({ username, password }: UserCredentials) {
         const result = await this.dependencies.usersModel.authenticate({ username, password });
-        ApiError.handle([{
-            condition: !result || !result.active,
-            message: "Usuario o contraseña incorrectos",
-            status: 401,
-            apiError: userInvalidCredentials
-        }]);
+        ApiError.handle([
+            {
+                condition: !result || !result.active,
+                message: "Usuario o contraseña incorrectos",
+                status: 401,
+                apiError: userInvalidCredentials
+            }
+        ]);
 
         return result!;
     }

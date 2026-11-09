@@ -1,6 +1,12 @@
 import type DevicesService from "../devices-service.js";
 import type { DevicesServiceDependencies } from "../../types/devices/default-devices-service.js";
-import type { AllowedDeviceIdParams, DeviceId, InsertDeviceParams, RouterIdParams, UpdateDeviceParams } from "../../types/devices/devices-model.js";
+import type {
+    AllowedDeviceIdParams,
+    DeviceId,
+    InsertDeviceParams,
+    RouterIdParams,
+    UpdateDeviceParams
+} from "../../types/devices/devices-model.js";
 import type { PostgresError } from "../../types/utils/postgres-error.js";
 import type { GetAllDevicesParams } from "../../types/devices/devices-service.js";
 import DevicesSchema from "../../schemas/devices-schema.js";

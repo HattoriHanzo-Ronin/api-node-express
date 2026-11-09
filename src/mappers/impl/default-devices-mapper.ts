@@ -1,6 +1,11 @@
 import type DevicesMapper from "../devices-mapper.js";
 import type { DevicesMapperDependencies } from "../../types/devices/default-devices-mapper.js";
-import type { DeviceMapperParams, DevicesMapperParams, DeviceWithoutConnections, RouterAutomationSource } from "../../types/devices/devices-mapper.js";
+import type {
+    DeviceMapperParams,
+    DevicesMapperParams,
+    DeviceWithoutConnections,
+    RouterAutomationSource
+} from "../../types/devices/devices-mapper.js";
 import type { AllowedDevice, RouterAllowedDevice } from "../../types/devices/devices-model.js";
 import type { Connection } from "../../types/connections/connections-model.js";
 import type { RouterAutomationPayload } from "../../types/utils/router-automation.js";
@@ -52,7 +57,9 @@ export default class DefaultDevicesMapper implements DevicesMapper {
     }
 
     deviceToDomain({ source, connections }: DeviceMapperParams) {
-        const device = Object.fromEntries(Object.entries(source).filter(([, value]) => value !== null)) as DeviceWithoutConnections;
+        const device = Object.fromEntries(
+            Object.entries(source).filter(([, value]) => value !== null)
+        ) as DeviceWithoutConnections;
         if (!device.mac_filter) {
             return { ...device, connections };
         }

@@ -1,5 +1,9 @@
 import { ENV } from "../../../config/environment.js";
-import type { DirectoryCacheEntries, DirectoryCacheTimeouts, DirectoryHash } from "../../../types/utils/directory-cache.js";
+import type {
+    DirectoryCacheEntries,
+    DirectoryCacheTimeouts,
+    DirectoryHash
+} from "../../../types/utils/directory-cache.js";
 import type Cache from "../cache.js";
 
 /**

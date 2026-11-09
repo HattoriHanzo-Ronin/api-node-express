@@ -83,7 +83,10 @@ export default class DefaultConnectionsService<Transaction> implements Connectio
             return result;
         } catch (err) {
             this.dependencies.entityError(err as PostgresError);
-            throw new ApiError({ message: "Error al actualizar las conexiones del dispositivo", apiError: connectionUpdateFailed });
+            throw new ApiError({
+                message: "Error al actualizar las conexiones del dispositivo",
+                apiError: connectionUpdateFailed
+            });
         }
     }
 }

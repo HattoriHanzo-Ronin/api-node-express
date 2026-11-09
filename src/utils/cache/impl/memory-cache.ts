@@ -1,5 +1,10 @@
 import { ENV } from "../../../config/environment.js";
-import type { MemoryCacheEntries, MemoryCacheEntry, MemoryCacheMap, MemoryCacheTimeouts } from "../../../types/utils/memory-cache.js";
+import type {
+    MemoryCacheEntries,
+    MemoryCacheEntry,
+    MemoryCacheMap,
+    MemoryCacheTimeouts
+} from "../../../types/utils/memory-cache.js";
 import type Cache from "../cache.js";
 
 const { memoryCacheMaxSize, memoryCacheMaxSizePerOwner, memoryCacheInactivityTimeout } = ENV;
