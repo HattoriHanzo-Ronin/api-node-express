@@ -2,7 +2,6 @@ import type DataVersionsFacade from "../data-versions-facade.js";
 import type { DataVersion, DataVersionId } from "../../types/data-versions/data-versions-model.js";
 import type { DataVersionsId, DataVersionsParams } from "../../types/data-versions/data-versions-facade.js";
 import type { DataVersionsFacadeDependencies } from "../../types/data-versions/default-data-versions-facade.js";
-import type { FtpFacadeDirectoryParams } from "../../types/ftp/ftp-facade.js";
 
 /**
  * Default data versions facade
@@ -22,9 +21,5 @@ export default class DefaultDataVersionsFacade implements DataVersionsFacade {
         }
 
         return this.dependencies.dataVersionsService.getById({ id });
-    }
-
-    async getFtp({ dir, authUser }: FtpFacadeDirectoryParams) {
-        return { version: await this.dependencies.ftpFacade.getHash({ dir, authUser }) };
     }
 }

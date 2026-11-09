@@ -116,7 +116,9 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
             });
             return this.dependencies.devicesMapper.deviceToDomain({ source: result, connections: deviceConnections });
         });
-        await this.notifyChanges();
+        await this.dependencies.socketSessionsFacade.notify({
+            entities: [SOCKET_ENTITY.devices, SOCKET_ENTITY.whitelist]
+        });
         return result;
     }
 
@@ -179,7 +181,9 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
 
             return result;
         });
-        await this.notifyChanges();
+        await this.dependencies.socketSessionsFacade.notify({
+            entities: [SOCKET_ENTITY.devices, SOCKET_ENTITY.whitelist]
+        });
         return this.mapResult({ id, result });
     }
 
@@ -187,7 +191,9 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
         const device = await this.getById({ id });
         await this.deleteRouterWhitelist(device);
         const result = await this.dependencies.devicesService.delete({ id });
-        await this.notifyChanges();
+        await this.dependencies.socketSessionsFacade.notify({
+            entities: [SOCKET_ENTITY.devices, SOCKET_ENTITY.whitelist]
+        });
         return result;
     }
 
@@ -283,18 +289,6 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
 
     private async getVersions(ids: string[]): Promise<Record<string, string>> {
         return this.dependencies.dataVersionsFacade.getById({ id: ids });
-    }
-
-    private async notifyChanges(): Promise<void> {
-        const version = await this.getVersions([SOCKET_ENTITY.devices, SOCKET_ENTITY.whitelist]);
-        this.dependencies.socketSessionsFacade.notify({
-            entity: SOCKET_ENTITY.devices,
-            data: { version: version.devices }
-        });
-        this.dependencies.socketSessionsFacade.notify({
-            entity: SOCKET_ENTITY.whitelist,
-            data: { version: version.whitelist }
-        });
     }
 
     private async mapResult(params: MapDeviceResult): Promise<Device>;

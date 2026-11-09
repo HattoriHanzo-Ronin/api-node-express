@@ -7,7 +7,10 @@ import type {
     SocketSessionNotification,
     SocketSessionOwnedParams
 } from "../../types/socket-sessions/socket-sessions-service.js";
-import type { SocketSessionFacadeSubscribeParams } from "../../types/socket-sessions/socket-sessions-facade.js";
+import type {
+    SocketSessionFacadeSubscribeParams,
+    SocketSessionsVersionsNotification
+} from "../../types/socket-sessions/socket-sessions-facade.js";
 import type { SocketSessionsFacadeDependencies } from "../../types/socket-sessions/default-socket-sessions-facade.js";
 import { API_ERROR } from "../../config/errors.js";
 import { SOCKET_ENTITY, USER_ROLE } from "../../config/constants.js";
@@ -29,18 +32,14 @@ export default class DefaultSocketSessionsFacade implements SocketSessionsFacade
         [SOCKET_ENTITY.ftp]: ftp
     });
 
-    private readonly socketSessionsService: SocketSessionsFacadeDependencies<WebSocket>["socketSessionsService"];
-
-    constructor({ socketSessionsService }: SocketSessionsFacadeDependencies<WebSocket>) {
-        this.socketSessionsService = socketSessionsService;
-    }
+    constructor(private readonly dependencies: SocketSessionsFacadeDependencies<WebSocket>) {}
 
     create({ authUser }: AuthUserParams) {
-        return this.socketSessionsService.create({ authUser });
+        return this.dependencies.socketSessionsService.create({ authUser });
     }
 
     refresh({ authUser, id }: SocketSessionOwnedParams) {
-        return this.socketSessionsService.refresh({ authUser, id });
+        return this.dependencies.socketSessionsService.refresh({ authUser, id });
     }
 
     async subscribe({ authUser, entities, id, webSocket }: SocketSessionFacadeSubscribeParams<WebSocket>) {
@@ -54,27 +53,51 @@ export default class DefaultSocketSessionsFacade implements SocketSessionsFacade
                 apiError: aclPermissionDenied
             }
         ]);
-        await this.socketSessionsService.connect({ authUser, id, webSocket });
-        this.socketSessionsService.subscribe({ id, webSocket, entities });
+        await this.dependencies.socketSessionsService.connect({ authUser, id, webSocket });
+        this.dependencies.socketSessionsService.subscribe({ id, webSocket, entities });
     }
 
-    notify({ entity, data, ownerId }: SocketSessionNotification) {
-        this.socketSessionsService.notify({ entity, data, ownerId });
+    notify(params: SocketSessionsVersionsNotification): Promise<void>;
+    notify(params: SocketSessionNotification): void;
+    notify(params: SocketSessionsVersionsNotification | SocketSessionNotification): Promise<void> | void {
+        if ("entities" in params) {
+            return this.notifyVersions(params);
+        }
+
+        return this.dependencies.socketSessionsService.notify(params);
     }
 
     disconnect({ id, webSocket }: SocketSessionConnectionParams<WebSocket>) {
-        this.socketSessionsService.disconnect({ id, webSocket });
+        this.dependencies.socketSessionsService.disconnect({ id, webSocket });
     }
 
     invalidate({ id }: SocketSessionId) {
-        this.socketSessionsService.invalidate({ id });
+        this.dependencies.socketSessionsService.invalidate({ id });
     }
 
     close({ authUser, id }: SocketSessionOwnedParams) {
-        this.socketSessionsService.close({ authUser, id });
+        this.dependencies.socketSessionsService.close({ authUser, id });
     }
 
     closeAll() {
-        this.socketSessionsService.closeAll();
+        this.dependencies.socketSessionsService.closeAll();
+    }
+
+    private async notifyVersions({ entities }: SocketSessionsVersionsNotification): Promise<void> {
+        if (entities.length === 0) {
+            return;
+        }
+
+        if (entities.length === 1) {
+            const [entity] = entities;
+            const { version } = await this.dependencies.dataVersionsFacade.getById({ id: entity });
+            this.dependencies.socketSessionsService.notify({ entity, data: { version } });
+            return;
+        }
+
+        const versions = await this.dependencies.dataVersionsFacade.getById({ id: entities });
+        for (const entity of entities) {
+            this.dependencies.socketSessionsService.notify({ entity, data: { version: versions[entity] } });
+        }
     }
 }

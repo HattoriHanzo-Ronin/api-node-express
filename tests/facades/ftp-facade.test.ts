@@ -22,7 +22,6 @@ vi.mock("../../src/config/environment.js", () => ({
 const createFtpServiceMock = () => ({
     dir: vi.fn(),
     isSessionActive: vi.fn(() => true),
-    touchSession: vi.fn(),
     getThumbnails: vi.fn(),
     streamMedia: vi.fn(),
     makeDir: vi.fn(),
@@ -76,24 +75,6 @@ describe("FtpFacade", () => {
             };
             await ftpFacade.streamMedia(data);
             expect(ftpService.streamMedia).toHaveBeenCalledWith(data);
-        });
-
-        it("should return a cached directory hash", async () => {
-            const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
-            directoryCache.set(authUser.id, "files", { hash: "directory-hash" });
-            await expect(ftpFacade.getHash({ dir: "files", authUser })).resolves.toBe("directory-hash");
-            expect(ftpService.touchSession).toHaveBeenCalledWith({ authUser });
-            expect(ftpService.dir).not.toHaveBeenCalled();
-        });
-
-        it("should rebuild a directory hash when it is not cached", async () => {
-            const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
-            ftpService.dir.mockResolvedValue([
-                { name: "photo.jpg", type: "FILE", size: 100, modifyTime: "2026-09-20T10:00:00.000Z" }
-            ]);
-            await expect(ftpFacade.getHash({ dir: "files", authUser })).resolves.toEqual(expect.any(String));
-            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "files", authUser });
-            expect(directoryCache.has(authUser.id, "files")).toBe(true);
         });
 
         it("should return thumbnail candidates before caching their generated buffers", async () => {

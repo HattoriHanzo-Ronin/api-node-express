@@ -24,14 +24,6 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      */
     dir(params: FtpFacadeDirectoryParams): Promise<FtpDirectoryResponse>;
     /**
-     * Returns a directory hash
-     *
-     * @param params.dir Directory path
-     * @param params.authUser Authenticated user
-     * @returns Directory hash
-     */
-    getHash(params: FtpFacadeDirectoryParams): Promise<string>;
-    /**
      * Streams a temporary media resource
      *
      * @param params.id Media session identifier

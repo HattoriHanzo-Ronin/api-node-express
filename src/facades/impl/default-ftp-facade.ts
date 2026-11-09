@@ -62,17 +62,6 @@ export default class DefaultFtpFacade implements FtpFacade<
         return { hash, data: this.dependencies.ftpMapper.entriesToDomain(result) };
     }
 
-    async getHash({ dir, authUser }: FtpFacadeDirectoryParams) {
-        await this.dependencies.ftpService.touchSession({ authUser });
-        const directory = this.dependencies.directoryCache.get(authUser.id, dir);
-        if (directory) {
-            return directory.hash;
-        }
-
-        const { hash } = await this.dir({ dir, authUser });
-        return hash;
-    }
-
     async streamMedia({ id, range, method, stream }: FtpMediaParams<ServerResponse>) {
         await this.dependencies.ftpService.streamMedia({ id, range, method, stream });
     }

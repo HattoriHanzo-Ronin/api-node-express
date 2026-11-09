@@ -33,7 +33,7 @@ export default class DefaultWhitelistFacade<Transaction> implements WhitelistFac
             await routerImpl.create({ key, name, mac });
             return { id, mac };
         });
-        await this.notify();
+        await this.dependencies.socketSessionsFacade.notify({ entities: [SOCKET_ENTITY.whitelist] });
         return result;
     }
 
@@ -49,14 +49,8 @@ export default class DefaultWhitelistFacade<Transaction> implements WhitelistFac
             await routerImpl.delete({ key, mac });
             return { id, mac };
         });
-        await this.notify();
+        await this.dependencies.socketSessionsFacade.notify({ entities: [SOCKET_ENTITY.whitelist] });
         return result;
-    }
-
-    private async notify(): Promise<void> {
-        const result = await this.dependencies.dataVersionsFacade.getById({ id: SOCKET_ENTITY.whitelist });
-        const { version } = result;
-        this.dependencies.socketSessionsFacade.notify({ entity: SOCKET_ENTITY.whitelist, data: { version } });
     }
 
     private async getRouterImpl(id: string): Promise<RouterAutomation> {
