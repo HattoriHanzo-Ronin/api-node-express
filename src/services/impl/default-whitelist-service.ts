@@ -29,12 +29,14 @@ export default class DefaultWhitelistService<Transaction> implements WhitelistSe
 
     async delete({ clientTx, routerId, mac }: DeleteWhitelistParams<Transaction>) {
         const result = await this.dependencies.whitelistModel.delete({ clientTx, routerId, mac });
-        ApiError.handle([{
-            condition: !result,
-            message: "El dispositivo no se encuentra autorizado",
-            status: 404,
-            apiError: API_ERROR.whitelistNotAllowed
-        }]);
+        ApiError.handle([
+            {
+                condition: !result,
+                message: "El dispositivo no se encuentra autorizado",
+                status: 404,
+                apiError: API_ERROR.whitelistNotAllowed
+            }
+        ]);
         return result!;
     }
 }

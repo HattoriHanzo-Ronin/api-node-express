@@ -23,6 +23,7 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      * @returns Directory entries and hash
      */
     dir(params: FtpFacadeDirectoryParams): Promise<FtpDirectoryResponse>;
+
     /**
      * Streams a temporary media resource
      *
@@ -32,6 +33,7 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      * @param params.stream Destination stream
      */
     streamMedia(params: FtpMediaParams<MediaStream>): Promise<void>;
+
     /**
      * Returns a cached thumbnail
      *
@@ -41,6 +43,7 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      * @returns Thumbnail or null
      */
     getThumbnail(params: FtpThumbnailParams): Promise<Thumbnail | null>;
+
     /**
      * Creates a directory
      *
@@ -50,6 +53,7 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      * @returns Updated directory
      */
     makeDir(params: FtpFacadeMakeDirParams): Promise<FtpDirectoryResponse>;
+
     /**
      * Moves FTP entries
      *
@@ -60,6 +64,7 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      * @param params.stream Progress stream
      */
     move(params: FtpFacadeMoveParams<ProgressStream>): Promise<void>;
+
     /**
      * Renames an FTP entry
      *
@@ -70,6 +75,7 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      * @returns Updated directory
      */
     rename(params: FtpFacadeRenameParams): Promise<FtpDirectoryResponse>;
+
     /**
      * Creates an upload session
      *
@@ -79,6 +85,7 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      * @returns Upload session
      */
     createUpload(params: FtpFacadeCreateUploadParams): Promise<FtpUploadSession>;
+
     /**
      * Uploads a session entry
      *
@@ -90,6 +97,7 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      * @returns Next offset
      */
     uploadEntry(params: FtpFacadeUploadParams<UploadFile>): Promise<{ nextOffset: number }>;
+
     /**
      * Completes an upload session
      *
@@ -98,6 +106,7 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      * @returns Updated directory
      */
     completeUpload(params: FtpFacadeTransferParams): Promise<FtpDirectoryResponse>;
+
     /**
      * Cancels a transfer session
      *
@@ -105,6 +114,7 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      * @param params.authUser Authenticated user
      */
     cancelTransfer(params: FtpFacadeTransferParams): Promise<void>;
+
     /**
      * Creates a download session
      *
@@ -114,6 +124,7 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      * @returns Download session
      */
     createDownload(params: FtpFacadeEntriesParams): Promise<FtpDownloadSession>;
+
     /**
      * Downloads a session entry
      *
@@ -124,6 +135,7 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      * @param params.stream Destination stream
      */
     downloadEntry(params: FtpFacadeDownloadParams<DownloadStream>): Promise<void>;
+
     /**
      * Deletes FTP entries
      *

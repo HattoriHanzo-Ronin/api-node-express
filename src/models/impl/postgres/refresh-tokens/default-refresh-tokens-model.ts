@@ -1,6 +1,10 @@
 import PostgresClient from "../../../../utils/connection/postgres/postgres-client.js";
 import REFRESH_TOKENS_COLUMNS from "./columns.js";
-import type { InsertRefreshTokenParams, RefreshToken, RefreshTokenParams } from "../../../../types/refresh-tokens/refresh-tokens-model.js";
+import type {
+    InsertRefreshTokenParams,
+    RefreshToken,
+    RefreshTokenParams
+} from "../../../../types/refresh-tokens/refresh-tokens-model.js";
 
 /**
  * Default PostgreSQL refresh tokens model
@@ -18,7 +22,9 @@ export default class DefaultRefreshTokensModel {
     }
 
     static async insert({ refreshToken }: InsertRefreshTokenParams): Promise<null> {
-        return DefaultRefreshTokensModel.CLIENT.none(PostgresClient.helpers().insert(refreshToken, REFRESH_TOKENS_COLUMNS.insert));
+        return DefaultRefreshTokensModel.CLIENT.none(
+            PostgresClient.helpers().insert(refreshToken, REFRESH_TOKENS_COLUMNS.insert)
+        );
     }
 
     static async delete({ token }: RefreshTokenParams): Promise<null> {

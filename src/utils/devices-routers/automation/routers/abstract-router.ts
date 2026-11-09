@@ -3,7 +3,13 @@ import { CookieJar } from "tough-cookie";
 import axios, { AxiosInstance } from "axios";
 import puppeteer, { Browser } from "puppeteer-core";
 import { ENV } from "../../../../config/environment.js";
-import { AddAllowParams, DeleteAllowParams, GeneratedKeysParams, RouterAutomationPayload, RouterCapabilities } from "../../../../types/utils/router-automation.js";
+import {
+    AddAllowParams,
+    DeleteAllowParams,
+    GeneratedKeysParams,
+    RouterAutomationPayload,
+    RouterCapabilities
+} from "../../../../types/utils/router-automation.js";
 
 /**
  * Base router implementation

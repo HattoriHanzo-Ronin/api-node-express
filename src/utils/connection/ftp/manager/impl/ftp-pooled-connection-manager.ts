@@ -22,7 +22,10 @@ import type {
     FtpSession,
     FtpTransferPending
 } from "../../../../../types/ftp/ftp-pooled-connection-manager.js";
-import type { FtpSessionUser, ExecuteRequiredFtpOperationParams } from "../../../../../types/ftp/ftp-connection-manager.js";
+import type {
+    FtpSessionUser,
+    ExecuteRequiredFtpOperationParams
+} from "../../../../../types/ftp/ftp-connection-manager.js";
 
 const {
     ftpMaxConnections,

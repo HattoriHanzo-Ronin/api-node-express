@@ -120,6 +120,7 @@ Runtime limits, cache lifetimes, SFTP pool sizes, WebSocket sessions and JWT exp
 ### Running
 
 ```bash
+pnpm run build
 pnpm run postgres
 pnpm --dir thumbnail-generator start
 pnpm --dir router-cpanel-service start

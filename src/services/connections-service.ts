@@ -1,4 +1,8 @@
-import type { Connection, ConnectionsByDevicesParams, WriteConnectionsParams } from "../types/connections/connections-model.js";
+import type {
+    Connection,
+    ConnectionsByDevicesParams,
+    WriteConnectionsParams
+} from "../types/connections/connections-model.js";
 import type { ConnectionsUpdateResult, UpdateConnectionsParams } from "../types/connections/connections-service.js";
 
 export default interface ConnectionsService<Transaction> {

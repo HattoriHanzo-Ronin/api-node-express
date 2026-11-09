@@ -1,7 +1,16 @@
 import type { DeviceId, RouterIdParams } from "../types/devices/devices-model.js";
 import type { RouterCpanelSession } from "../types/utils/router-cpanel.js";
 import type { GetAllDevicesParams } from "../types/devices/devices-service.js";
-import type { CloseDeviceRouterCpanelParams, CreateDeviceParams, CreateDeviceRouterCpanelParams, Device, DevicesByRouterResponse, DevicesResponse, NavigateDeviceRouterCpanelParams, UpdateDeviceFacadeParams } from "../types/devices/devices-facade.js";
+import type {
+    CloseDeviceRouterCpanelParams,
+    CreateDeviceParams,
+    CreateDeviceRouterCpanelParams,
+    Device,
+    DevicesByRouterResponse,
+    DevicesResponse,
+    NavigateDeviceRouterCpanelParams,
+    UpdateDeviceFacadeParams
+} from "../types/devices/devices-facade.js";
 
 export default interface DevicesFacade {
     /**
@@ -10,6 +19,7 @@ export default interface DevicesFacade {
      * @returns Devices and version
      */
     getAll(params: GetAllDevicesParams): Promise<DevicesResponse>;
+
     /**
      * Returns a device by identifier
      *
@@ -17,6 +27,7 @@ export default interface DevicesFacade {
      * @returns Device
      */
     getById(params: DeviceId): Promise<Device>;
+
     /**
      * Returns devices allowed on a router
      *
@@ -24,6 +35,7 @@ export default interface DevicesFacade {
      * @returns Devices and versions
      */
     getAllowedDevices(params: RouterIdParams): Promise<DevicesByRouterResponse>;
+
     /**
      * Returns devices not allowed on a router
      *
@@ -31,6 +43,7 @@ export default interface DevicesFacade {
      * @returns Devices and versions
      */
     getNotAllowedDevices(params: RouterIdParams): Promise<DevicesByRouterResponse>;
+
     /**
      * Creates a router control panel session
      *
@@ -42,6 +55,7 @@ export default interface DevicesFacade {
      * @returns Router control panel session
      */
     createRouterCpanel(params: CreateDeviceRouterCpanelParams): Promise<RouterCpanelSession>;
+
     /**
      * Navigates a router control panel session
      *
@@ -50,6 +64,7 @@ export default interface DevicesFacade {
      * @param params.action Navigation action
      */
     navigateRouterCpanel(params: NavigateDeviceRouterCpanelParams): Promise<void>;
+
     /**
      * Closes a router control panel session
      *
@@ -57,6 +72,7 @@ export default interface DevicesFacade {
      * @param params.sessionId Session identifier
      */
     closeRouterCpanel(params: CloseDeviceRouterCpanelParams): Promise<void>;
+
     /**
      * Creates a device
      *
@@ -64,6 +80,7 @@ export default interface DevicesFacade {
      * @returns Created device
      */
     create(params: CreateDeviceParams): Promise<Device>;
+
     /**
      * Updates a device
      *
@@ -71,6 +88,7 @@ export default interface DevicesFacade {
      * @returns Updated device
      */
     update(params: UpdateDeviceFacadeParams): Promise<Device>;
+
     /**
      * Deletes a device
      *

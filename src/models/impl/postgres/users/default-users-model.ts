@@ -23,16 +23,13 @@ export default class DefaultUsersModel {
     private static readonly CLIENT = PostgresClient.getClient();
 
     static async getAll() {
-        return DefaultUsersModel.CLIENT.any<UserBasicInfo>(
-            `select ${basicInfo.names} from users`
-        );
+        return DefaultUsersModel.CLIENT.any<UserBasicInfo>(`select ${basicInfo.names} from users`);
     }
 
     static async getById({ id }: UserId) {
-        return DefaultUsersModel.CLIENT.oneOrNone<UserBasicInfo>(
-            `select ${basicInfo.names} from users where id = $1`,
-            [id]
-        );
+        return DefaultUsersModel.CLIENT.oneOrNone<UserBasicInfo>(`select ${basicInfo.names} from users where id = $1`, [
+            id
+        ]);
     }
 
     static async authenticate({ username, password }: UserCredentials) {

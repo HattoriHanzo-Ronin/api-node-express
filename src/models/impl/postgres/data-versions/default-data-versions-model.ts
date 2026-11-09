@@ -1,4 +1,8 @@
-import type { DataVersion, DataVersionId, DataVersionIds } from "../../../../types/data-versions/data-versions-model.js";
+import type {
+    DataVersion,
+    DataVersionId,
+    DataVersionIds
+} from "../../../../types/data-versions/data-versions-model.js";
 import PostgresClient from "../../../../utils/connection/postgres/postgres-client.js";
 
 /**

@@ -1,4 +1,8 @@
-import { AddAllowParams, DeleteAllowParams, GeneratedKeysParams } from "../../../../../types/utils/router-automation.js";
+import {
+    AddAllowParams,
+    DeleteAllowParams,
+    GeneratedKeysParams
+} from "../../../../../types/utils/router-automation.js";
 import AbstractRouter from "../abstract-router.js";
 
 /**

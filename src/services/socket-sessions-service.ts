@@ -17,6 +17,7 @@ export default interface SocketSessionsService<Socket> {
      * @returns Socket session
      */
     create(params: AuthUserParams): SocketSessionResponse;
+
     /**
      * Refreshes an owned socket session
      *
@@ -25,6 +26,7 @@ export default interface SocketSessionsService<Socket> {
      * @returns Socket session
      */
     refresh(params: SocketSessionOwnedParams): SocketSessionResponse;
+
     /**
      * Associates a socket with its session
      *
@@ -33,6 +35,7 @@ export default interface SocketSessionsService<Socket> {
      * @param params.webSocket Socket connection
      */
     connect(params: SocketSessionConnectParams<Socket>): Promise<void>;
+
     /**
      * Subscribes a socket to entity changes
      *
@@ -41,6 +44,7 @@ export default interface SocketSessionsService<Socket> {
      * @param params.entities Entity identifiers
      */
     subscribe(params: SocketSessionSubscribeParams<Socket>): void;
+
     /**
      * Sends an entity change notification
      *
@@ -49,6 +53,7 @@ export default interface SocketSessionsService<Socket> {
      * @param params.ownerId Owner identifier
      */
     notify(params: SocketSessionNotification): void;
+
     /**
      * Detaches a socket from its session
      *
@@ -56,6 +61,7 @@ export default interface SocketSessionsService<Socket> {
      * @param params.webSocket Socket connection
      */
     disconnect(params: SocketSessionConnectionParams<Socket>): void;
+
     /**
      * Deletes an owned session
      *
@@ -63,12 +69,14 @@ export default interface SocketSessionsService<Socket> {
      * @param params.id Session identifier
      */
     close(params: SocketSessionOwnedParams): void;
+
     /**
      * Deletes a session after authentication fails
      *
      * @param params.id Session identifier
      */
     invalidate(params: SocketSessionId): void;
+
     /**
      * Closes every managed session
      */

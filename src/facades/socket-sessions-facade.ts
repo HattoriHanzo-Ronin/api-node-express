@@ -19,6 +19,7 @@ export default interface SocketSessionsFacade<Socket> {
      * @returns Socket session
      */
     create(params: AuthUserParams): SocketSessionResponse;
+
     /**
      * Refreshes a socket session
      *
@@ -27,6 +28,7 @@ export default interface SocketSessionsFacade<Socket> {
      * @returns Socket session
      */
     refresh(params: SocketSessionOwnedParams): SocketSessionResponse;
+
     /**
      * Subscribes a socket session to authorized entity changes
      *
@@ -36,6 +38,7 @@ export default interface SocketSessionsFacade<Socket> {
      * @param params.webSocket Socket connection
      */
     subscribe(params: SocketSessionFacadeSubscribeParams<Socket>): Promise<void>;
+
     /**
      * Notifies subscribed sockets about an entity change
      *
@@ -46,6 +49,7 @@ export default interface SocketSessionsFacade<Socket> {
      */
     notify(params: SocketSessionsVersionsNotification): Promise<void>;
     notify(params: SocketSessionNotification): void;
+
     /**
      * Disconnects a socket from its session
      *
@@ -53,12 +57,14 @@ export default interface SocketSessionsFacade<Socket> {
      * @param params.webSocket Socket connection
      */
     disconnect(params: SocketSessionConnectionParams<Socket>): void;
+
     /**
      * Invalidates a socket session
      *
      * @param params.id Session identifier
      */
     invalidate(params: SocketSessionId): void;
+
     /**
      * Closes a socket session
      *
@@ -66,6 +72,7 @@ export default interface SocketSessionsFacade<Socket> {
      * @param params.id Session identifier
      */
     close(params: SocketSessionOwnedParams): void;
+
     /**
      * Closes every socket session
      */
