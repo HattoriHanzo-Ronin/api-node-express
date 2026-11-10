@@ -53,7 +53,9 @@ describe("ThumbnailService queue", () => {
             childProcesses.push(childProcess);
             return childProcess;
         });
-        ({ DefaultThumbnailService: service } = await import("../../src/services/impl/default-thumbnail-service.js"));
+        const { default: DefaultThumbnailService } =
+            await import("../../src/services/impl/default-thumbnail-service.js");
+        service = new DefaultThumbnailService();
     });
 
     afterEach(() => {
@@ -71,7 +73,10 @@ describe("ThumbnailService queue", () => {
         await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalledTimes(3));
         complete(childProcesses[1]);
         complete(childProcesses[2]);
-        await expect(Promise.all([second, third])).resolves.toEqual([Buffer.from([0xff, 0xd8]), Buffer.from([0xff, 0xd8])]);
+        await expect(Promise.all([second, third])).resolves.toEqual([
+            Buffer.from([0xff, 0xd8]),
+            Buffer.from([0xff, 0xd8])
+        ]);
     });
 
     it("should increase admission when the container has capacity", async () => {

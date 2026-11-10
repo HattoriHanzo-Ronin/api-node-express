@@ -30,14 +30,25 @@ describe("ThumbnailService", () => {
         }
 
         await promisify(execFile)(ffmpegPath, [
-            "-f", "lavfi", "-i", "testsrc2=s=640x360", "-t", "1", "-c:v", "mpeg4", fixture
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=s=640x360",
+            "-t",
+            "1",
+            "-c:v",
+            "mpeg4",
+            fixture
         ]);
         const { size } = await stat(fixture);
         server = createServer(async (request, response) => {
             paths.push(request.url);
             ranges.push(request.headers.range);
             const { start, end, partial } = getRange(request.headers.range, size);
-            const headers: Record<string, string | number> = { "Accept-Ranges": "bytes", "Content-Length": end - start + 1 };
+            const headers: Record<string, string | number> = {
+                "Accept-Ranges": "bytes",
+                "Content-Length": end - start + 1
+            };
             if (partial) {
                 headers["Content-Range"] = `bytes ${start}-${end}/${size}`;
             }
@@ -60,7 +71,9 @@ describe("ThumbnailService", () => {
         process.env.THUMBNAIL_MAX_OUTPUT_SIZE = "5242880";
         process.env.THUMBNAIL_MAX_PIXELS = "40000000";
         process.env.THUMBNAIL_TIMEOUT = "30000";
-        ({ DefaultThumbnailService: service } = await import("../../src/services/impl/default-thumbnail-service.js"));
+        const { default: DefaultThumbnailService } =
+            await import("../../src/services/impl/default-thumbnail-service.js");
+        service = new DefaultThumbnailService();
     });
 
     afterAll(async () => {

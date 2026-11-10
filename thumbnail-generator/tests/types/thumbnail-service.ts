@@ -1,8 +1,8 @@
 import type { EventEmitter } from "node:events";
 import type { Server } from "node:http";
-import type { DefaultThumbnailService } from "../../src/services/impl/default-thumbnail-service.js";
+import type DefaultThumbnailService from "../../src/services/impl/default-thumbnail-service.js";
 
-export type ThumbnailService = typeof DefaultThumbnailService;
+export type ThumbnailService = DefaultThumbnailService;
 
 export type ResourceUsage = {
     cpu: number;

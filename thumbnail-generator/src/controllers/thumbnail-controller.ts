@@ -1,14 +1,32 @@
-import type { ThumbnailControllerHandlers } from "../types/thumbnail-controller.js";
+import type {
+    CreateThumbnailHandler,
+    ThumbnailControllerDependencies
+} from "../types/thumbnail/thumbnail-controller.js";
 
 /**
- * Thumbnail controller contract
+ * Thumbnail controller
  *
  * @author HattoriHanzo-Ronin
- * @typeParam Handlers Handler map used by the concrete HTTP implementation
  */
-export interface ThumbnailController<Handlers extends ThumbnailControllerHandlers> {
-    /**
-     * Creates a thumbnail response
-     */
-    create: Handlers["create"];
+export default class ThumbnailController {
+    private readonly thumbnailService: ThumbnailControllerDependencies["thumbnailService"];
+
+    constructor({ thumbnailService }: ThumbnailControllerDependencies) {
+        this.thumbnailService = thumbnailService;
+    }
+
+    create: CreateThumbnailHandler = async (req, res) => {
+        const controller = new AbortController();
+        res.once("close", () => {
+            if (!res.writableEnded) {
+                controller.abort();
+            }
+        });
+        const thumbnail = await this.thumbnailService.create({ id: req.params.id, signal: controller.signal });
+        if (res.writableEnded) {
+            return;
+        }
+
+        res.type("jpeg").send(thumbnail);
+    };
 }

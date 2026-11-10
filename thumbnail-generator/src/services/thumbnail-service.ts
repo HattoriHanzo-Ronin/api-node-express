@@ -1,11 +1,11 @@
-import type { CreateThumbnailParams } from "../types/thumbnail-service.js";
+import type { CreateThumbnailParams } from "../types/thumbnail/thumbnail-service.js";
 
 /**
  * Thumbnail service contract
  *
  * @author HattoriHanzo-Ronin
  */
-export interface ThumbnailService {
+export default interface ThumbnailService {
     /**
      * Creates a JPEG thumbnail from a media session
      *

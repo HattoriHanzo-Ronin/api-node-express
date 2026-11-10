@@ -1,5 +1,5 @@
 import { API_ERROR } from "../../config/errors.js";
-import type { ApiErrorCode, ApiErrorOptions, ErrorCondition } from "../../types/api-error.js";
+import type { ApiErrorCode, ApiErrorOptions, ErrorCondition } from "../../types/utils/api-error.js";
 
 /**
  * API error response
@@ -29,8 +29,7 @@ export default class ApiError extends Error {
      * @throws {ApiError} When a matching condition defines a message
      */
     static handle(errors: ErrorCondition[]): void {
-        for (const error of errors) {
-            const { condition, execute, message, status, apiError } = error;
+        for (const { condition, execute, message, status, apiError } of errors) {
             if (condition) {
                 if (execute) {
                     execute();
