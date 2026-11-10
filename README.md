@@ -1,6 +1,7 @@
 # ApiNodeExpress
 
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D24.x-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-5-black?logo=express)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%2B-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 ![Vitest](https://img.shields.io/badge/Vitest-Tested-6E9F18?logo=vitest)
@@ -99,7 +100,7 @@ Follow these steps to run the project locally
 
 **Requirements**
 
-- Node.js 24.x
+- Node.js 24 or later
 - PostgreSQL 16+
 - pnpm
 
@@ -117,14 +118,25 @@ Copy `.env.example` to `.env` for the API, `thumbnail-generator/.env.example` to
 
 Runtime limits, cache lifetimes, SFTP pool sizes, WebSocket sessions and JWT expirations are configured exclusively through the environment variables documented in the corresponding `.env.example`; they have no application defaults. Numeric values are expressed as bytes, counts or milliseconds as indicated by their names. Protected FTP and WebSocket reservations use `user-id:ftp=connections|socket=connections` entries separated by commas through `PROTECTED_USERS`; a user may reserve either service, and use an empty value when no user needs a reservation. `thumbnail-generator` configures its adaptive FFmpeg queue independently through initial concurrency, CPU and memory targets, scheduler interval, output size, pixel and timeout limits. `router-cpanel-service` configures its public URL, isolated JWT secret, Chromium/VNC display ranges, owner/session limits, VNC viewers per session and inactivity timeout independently. Missing or inconsistent configuration prevents the corresponding service from starting.
 
-### Running
+### Building and running
+
+Each service is written in TypeScript and compiles to its own `dist/` directory. Build all three services before starting them:
 
 ```bash
 pnpm run build
+pnpm --dir thumbnail-generator build
+pnpm --dir router-cpanel-service build
+```
+
+Start the services in separate terminals:
+
+```bash
 pnpm run postgres
 pnpm --dir thumbnail-generator start
 pnpm --dir router-cpanel-service start
 ```
+
+The API also provides `pnpm run wPostgres` to watch the compiled JavaScript in `dist/`. Rebuild after changing TypeScript sources to update the watched files.
 
 ### Testing
 
@@ -132,6 +144,14 @@ pnpm --dir router-cpanel-service start
 pnpm test
 pnpm --dir thumbnail-generator test
 pnpm --dir router-cpanel-service test
+```
+
+Type checking and linting are available for each service:
+
+```bash
+pnpm run typecheck && pnpm run lint
+pnpm --dir thumbnail-generator typecheck && pnpm --dir thumbnail-generator lint
+pnpm --dir router-cpanel-service typecheck && pnpm --dir router-cpanel-service lint
 ```
 
 Manual API documentation is available under `tests/http`.
@@ -222,6 +242,7 @@ Media processing is delegated to the standalone thumbnail generator. The API sub
 - Migrated from FTP to SFTP.
 - Implemented a Role + Scope ACL model.
 - Centralized validation and error handling.
+- Migrated the API and supporting Node.js services to TypeScript, with contracts and types organized by responsibility.
 - Applied authentication and role checks directly to protected routes so unknown resources remain distinguishable from unauthenticated requests.
 - Added authenticated WebSocket sessions and authorized resource-change subscriptions for lightweight client synchronization.
 - Streamed multipart uploads and per-file downloads without buffering complete files.
@@ -235,14 +256,9 @@ Media processing is delegated to the standalone thumbnail generator. The API sub
 ## Project Structure
 
 ```text
-src/
+src/                         # API
     config/
-        constants.js
-        environment.js
-        errors.js
-        secrets.js
     controllers/
-    devices-routers/
     facades/
     mappers/
     middlewares/
@@ -250,27 +266,30 @@ src/
     routes/
     schemas/
     services/
+    types/                   # Types grouped by entity and responsibility
     utils/
         cache/
         connection/
+        devices-routers/
         error/
         gateways/
         token-providers/
-    app.js
-    server-postgres.js
+    app.ts
+    server-postgres.ts
 tests/
 thumbnail-generator/
-    .env.example
     src/
         config/
         controllers/
+        middlewares/
         routes/
         services/
-        app.js
-        server.js
+        types/
+        utils/
+        app.ts
+        server.ts
     tests/
 router-cpanel-service/
-    .env.example
     public/
     src/
         config/
@@ -278,12 +297,10 @@ router-cpanel-service/
         middlewares/
         routes/
         services/
+        types/
         utils/
-            error/
-            gateways/
-            token-providers/
-        app.js
-        server.js
+        app.ts
+        server.ts
     tests/
 ```
 
@@ -311,7 +328,7 @@ This project is actively used as the backend foundation for future applications 
 - [x] SFTP Integration
 - [x] Android Explorer
 - [ ] Portfolio
-- [ ] TypeScript Migration
+- [x] TypeScript Migration
 
 ---
 
