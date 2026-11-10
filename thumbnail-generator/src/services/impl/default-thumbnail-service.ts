@@ -7,17 +7,17 @@ import { availableParallelism } from "node:os";
 import { ENV } from "../../config/environment.js";
 import { API_ERROR } from "../../config/errors.js";
 import ApiError from "../../utils/error/api-error.js";
-import type { CreateThumbnailParams } from "../../types/thumbnail-service.js";
+import type ThumbnailService from "../thumbnail-service.js";
+import type { CreateThumbnailParams } from "../../types/thumbnail/thumbnail-service.js";
 import type {
     CpuSample,
     ResourceUsage,
     ResourceUsageParams,
     ThumbnailJob
-} from "../../types/default-thumbnail-service.js";
-import type { ApiErrorOptions } from "../../types/api-error.js";
+} from "../../types/thumbnail/default-thumbnail-service.js";
 
-const require = createRequire(import.meta.url);
-const ffmpegPath = require("ffmpeg-static") as string | null;
+const REQUIRE = createRequire(import.meta.url);
+const FFMPEG_PATH: typeof import("ffmpeg-static").default = REQUIRE("ffmpeg-static");
 const {
     apiUrl,
     thumbnailCpuTarget,
@@ -41,20 +41,17 @@ const {
  *
  * @author HattoriHanzo-Ronin
  */
-export class DefaultThumbnailService {
-    private static DEMUXERS =
+export default class DefaultThumbnailService implements ThumbnailService {
+    private static readonly DEMUXERS =
         "avi,asf,bmp_pipe,flv,gif,hevc,jpeg_pipe,matroska,mjpeg,mov,mpeg,mpegts,mpegvideo,ogg,png_pipe,tiff_pipe,webm,webp_pipe";
-    private static MAX_ALLOC = 256 * 1024 * 1024;
-    private static MAX_OUTPUT_SIZE = thumbnailMaxOutputSize;
-    private static MAX_PIXELS = thumbnailMaxPixels;
-    private static TIMEOUT = thumbnailTimeout;
-    private static QUEUE: ThumbnailJob[] = [];
-    private static ACTIVE = 0;
-    private static TARGET_CONCURRENCY = thumbnailInitialConcurrency;
-    private static SCHEDULER: NodeJS.Timeout | undefined;
-    private static LAST_CPU_SAMPLE: CpuSample | undefined;
+    private static readonly MAX_ALLOC = 256 * 1024 * 1024;
+    private queue: ThumbnailJob[] = [];
+    private active = 0;
+    private targetConcurrency = thumbnailInitialConcurrency;
+    private scheduler?: NodeJS.Timeout;
+    private lastCpuSample?: CpuSample;
 
-    static create({ id, signal }: CreateThumbnailParams): Promise<Buffer> {
+    create({ id, signal }: CreateThumbnailParams) {
         if (signal?.aborted) {
             return Promise.reject(DefaultThumbnailService.createCancelledError());
         }
@@ -66,49 +63,47 @@ export class DefaultThumbnailService {
                 resolve,
                 reject,
                 cancel: () => {
-                    const index = DefaultThumbnailService.QUEUE.indexOf(job);
+                    const index = this.queue.indexOf(job);
                     if (index === -1) {
                         return;
                     }
 
-                    DefaultThumbnailService.QUEUE.splice(index, 1);
+                    this.queue.splice(index, 1);
                     reject(DefaultThumbnailService.createCancelledError());
-                    DefaultThumbnailService.stopScheduler();
+                    this.stopScheduler();
                 }
             };
             signal?.addEventListener("abort", job.cancel, { once: true });
-            DefaultThumbnailService.QUEUE.push(job);
-            DefaultThumbnailService.startScheduler();
-            DefaultThumbnailService.drainQueue();
+            this.queue.push(job);
+            this.startScheduler();
+            this.drainQueue();
         });
     }
 
     /**
      * Starts queued FFmpeg work while the current resource target allows it
      */
-    private static drainQueue(): void {
-        while (
-            DefaultThumbnailService.ACTIVE < DefaultThumbnailService.TARGET_CONCURRENCY &&
-            DefaultThumbnailService.QUEUE.length
-        ) {
-            const job = DefaultThumbnailService.QUEUE.shift();
+    private drainQueue(): void {
+        while (this.active < this.targetConcurrency && this.queue.length) {
+            const job = this.queue.shift();
             if (!job) {
                 return;
             }
+
             if (job.signal?.aborted) {
                 job.signal.removeEventListener("abort", job.cancel);
                 job.reject(DefaultThumbnailService.createCancelledError());
                 continue;
             }
 
-            DefaultThumbnailService.ACTIVE += 1;
-            void DefaultThumbnailService.runJob(job);
+            this.active += 1;
+            void this.runJob(job);
         }
     }
 
-    private static async runJob(job: ThumbnailJob): Promise<void> {
+    private async runJob(job: ThumbnailJob): Promise<void> {
         try {
-            job.resolve(await DefaultThumbnailService.generate({ id: job.id, signal: job.signal }));
+            job.resolve(await this.generate({ id: job.id, signal: job.signal }));
         } catch (error) {
             if (error instanceof ApiError) {
                 job.reject(error);
@@ -116,16 +111,16 @@ export class DefaultThumbnailService {
             }
 
             job.reject(
-                DefaultThumbnailService.createError({
+                new ApiError({
                     message: "No se pudo generar la miniatura",
                     apiError: thumbnailGenerationFailed
                 })
             );
         } finally {
             job.signal?.removeEventListener("abort", job.cancel);
-            DefaultThumbnailService.ACTIVE -= 1;
-            DefaultThumbnailService.drainQueue();
-            DefaultThumbnailService.stopScheduler();
+            this.active -= 1;
+            this.drainQueue();
+            this.stopScheduler();
         }
     }
 
@@ -136,16 +131,16 @@ export class DefaultThumbnailService {
      * @param [params.signal] Request cancellation signal
      * @returns JPEG thumbnail
      */
-    private static async generate({ id, signal }: CreateThumbnailParams): Promise<Buffer> {
+    private async generate({ id, signal }: CreateThumbnailParams): Promise<Buffer> {
         const mediaUrl = await DefaultThumbnailService.getMediaUrl(id);
-        if (!ffmpegPath) {
-            throw DefaultThumbnailService.createError({
+        if (!FFMPEG_PATH) {
+            throw new ApiError({
                 message: "No se pudo generar la miniatura",
                 apiError: thumbnailGenerationFailed
             });
         }
 
-        const childProcess = spawn(ffmpegPath, [
+        const childProcess = spawn(FFMPEG_PATH, [
             "-nostdin",
             "-loglevel",
             "error",
@@ -162,7 +157,7 @@ export class DefaultThumbnailService {
             "-format_whitelist",
             DefaultThumbnailService.DEMUXERS,
             "-max_pixels",
-            String(DefaultThumbnailService.MAX_PIXELS),
+            String(thumbnailMaxPixels),
             "-i",
             mediaUrl,
             "-map",
@@ -184,7 +179,7 @@ export class DefaultThumbnailService {
         const timeout = setTimeout(() => {
             timeoutReached = true;
             childProcess.kill("SIGKILL");
-        }, DefaultThumbnailService.TIMEOUT);
+        }, thumbnailTimeout);
         const cancel = () => {
             cancelled = true;
             childProcess.kill("SIGKILL");
@@ -193,7 +188,7 @@ export class DefaultThumbnailService {
 
         childProcess.stdout.on("data", (chunk) => {
             outputSize += chunk.length;
-            if (outputSize > DefaultThumbnailService.MAX_OUTPUT_SIZE) {
+            if (outputSize > thumbnailMaxOutputSize) {
                 childProcess.kill("SIGKILL");
                 return;
             }
@@ -210,7 +205,7 @@ export class DefaultThumbnailService {
 
                 if (timeoutReached) {
                     reject(
-                        DefaultThumbnailService.createError({
+                        new ApiError({
                             message: "Se agotó el tiempo para generar la miniatura",
                             status: 504,
                             apiError: thumbnailGenerationTimeout
@@ -219,9 +214,9 @@ export class DefaultThumbnailService {
                     return;
                 }
 
-                if (outputSize > DefaultThumbnailService.MAX_OUTPUT_SIZE) {
+                if (outputSize > thumbnailMaxOutputSize) {
                     reject(
-                        DefaultThumbnailService.createError({
+                        new ApiError({
                             message: "La miniatura supera el tamaño permitido",
                             status: 413,
                             apiError: thumbnailOutputTooLarge
@@ -232,7 +227,7 @@ export class DefaultThumbnailService {
 
                 if (code !== 0 || !outputSize) {
                     reject(
-                        DefaultThumbnailService.createError({
+                        new ApiError({
                             message: "El archivo multimedia no es válido",
                             status: 422,
                             apiError: thumbnailMediaInvalid
@@ -256,51 +251,44 @@ export class DefaultThumbnailService {
         }
     }
 
-    private static startScheduler(): void {
-        if (DefaultThumbnailService.SCHEDULER) {
+    private startScheduler(): void {
+        if (this.scheduler) {
             return;
         }
 
-        DefaultThumbnailService.SCHEDULER = setInterval(
-            () => void DefaultThumbnailService.adjustConcurrency(),
-            thumbnailSchedulerInterval
-        );
-        DefaultThumbnailService.SCHEDULER.unref();
-        void DefaultThumbnailService.adjustConcurrency();
+        this.scheduler = setInterval(() => void this.adjustConcurrency(), thumbnailSchedulerInterval);
+        this.scheduler.unref();
+        void this.adjustConcurrency();
     }
 
-    private static stopScheduler(): void {
-        if (
-            DefaultThumbnailService.QUEUE.length ||
-            DefaultThumbnailService.ACTIVE ||
-            !DefaultThumbnailService.SCHEDULER
-        ) {
+    private stopScheduler(): void {
+        if (this.queue.length || this.active || !this.scheduler) {
             return;
         }
 
-        clearInterval(DefaultThumbnailService.SCHEDULER);
-        DefaultThumbnailService.SCHEDULER = undefined;
-        DefaultThumbnailService.LAST_CPU_SAMPLE = undefined;
-        DefaultThumbnailService.TARGET_CONCURRENCY = thumbnailInitialConcurrency;
+        clearInterval(this.scheduler);
+        this.scheduler = undefined;
+        this.lastCpuSample = undefined;
+        this.targetConcurrency = thumbnailInitialConcurrency;
     }
 
     /**
      * Adjusts queued work admission from the container resource usage
      */
-    private static async adjustConcurrency(): Promise<void> {
-        const usage = await DefaultThumbnailService.getResourceUsage();
+    private async adjustConcurrency(): Promise<void> {
+        const usage = await this.getResourceUsage();
         if (!usage) {
             return;
         }
 
         const hasCapacity = usage.cpu < thumbnailCpuTarget / 100 && usage.memory < thumbnailMemoryTarget / 100;
         if (hasCapacity) {
-            DefaultThumbnailService.TARGET_CONCURRENCY += 1;
+            this.targetConcurrency += 1;
         } else {
-            DefaultThumbnailService.TARGET_CONCURRENCY = Math.max(1, DefaultThumbnailService.ACTIVE - 1);
+            this.targetConcurrency = Math.max(1, this.active - 1);
         }
 
-        DefaultThumbnailService.drainQueue();
+        this.drainQueue();
     }
 
     /**
@@ -308,7 +296,7 @@ export class DefaultThumbnailService {
      *
      * @returns CPU and memory usage ratios, or null when unavailable
      */
-    private static async getResourceUsage(): Promise<ResourceUsage | null> {
+    private async getResourceUsage(): Promise<ResourceUsage | null> {
         try {
             const [cpuStat, cpuMax, memoryCurrent, memoryMax] = await Promise.all([
                 readFile("/sys/fs/cgroup/cpu.stat", "utf8"),
@@ -319,14 +307,14 @@ export class DefaultThumbnailService {
             const cpuUsage = Number(cpuStat.match(/^usage_usec\s+(\d+)$/m)?.[1]);
             const [quota, period] = cpuMax.trim().split(" ");
             const cpuLimit = quota === "max" ? availableParallelism() : Number(quota) / Number(period);
-            return DefaultThumbnailService.calculateUsage({
+            return this.calculateUsage({
                 cpuUsage,
                 cpuLimit,
                 memoryCurrent: Number(memoryCurrent.trim()),
                 memoryLimit: Number(memoryMax.trim())
             });
         } catch {
-            return DefaultThumbnailService.getLegacyResourceUsage();
+            return this.getLegacyResourceUsage();
         }
     }
 
@@ -335,7 +323,7 @@ export class DefaultThumbnailService {
      *
      * @returns CPU and memory usage ratios, or null when unavailable
      */
-    private static async getLegacyResourceUsage(): Promise<ResourceUsage | null> {
+    private async getLegacyResourceUsage(): Promise<ResourceUsage | null> {
         try {
             const [cpuUsage, cpuQuota, cpuPeriod, memoryCurrent, memoryLimit] = await Promise.all([
                 readFile("/sys/fs/cgroup/cpuacct/cpuacct.usage", "utf8"),
@@ -346,7 +334,7 @@ export class DefaultThumbnailService {
             ]);
             const quota = Number(cpuQuota.trim());
             const period = Number(cpuPeriod.trim());
-            return DefaultThumbnailService.calculateUsage({
+            return this.calculateUsage({
                 cpuUsage: Number(cpuUsage.trim()) / 1000,
                 cpuLimit: quota < 0 ? availableParallelism() : quota / period,
                 memoryCurrent: Number(memoryCurrent.trim()),
@@ -366,7 +354,7 @@ export class DefaultThumbnailService {
      * @param params.memoryLimit Available memory bytes
      * @returns CPU and memory usage ratios, or null before a complete sample
      */
-    private static calculateUsage({
+    private calculateUsage({
         cpuUsage,
         cpuLimit,
         memoryCurrent,
@@ -374,8 +362,8 @@ export class DefaultThumbnailService {
     }: ResourceUsageParams): ResourceUsage | null {
         const memory = memoryCurrent / memoryLimit;
         const now = performance.now();
-        const previous = DefaultThumbnailService.LAST_CPU_SAMPLE;
-        DefaultThumbnailService.LAST_CPU_SAMPLE = { usage: cpuUsage, time: now };
+        const previous = this.lastCpuSample;
+        this.lastCpuSample = { usage: cpuUsage, time: now };
         if (!previous || !Number.isFinite(cpuUsage) || !Number.isFinite(cpuLimit) || !Number.isFinite(memory)) {
             return null;
         }
@@ -398,12 +386,8 @@ export class DefaultThumbnailService {
         return mediaUrl.href;
     }
 
-    private static createError({ message, status, apiError }: ApiErrorOptions): ApiError {
-        return new ApiError({ message, status, apiError });
-    }
-
     private static createCancelledError(): ApiError {
-        return DefaultThumbnailService.createError({
+        return new ApiError({
             message: "La solicitud fue cancelada",
             status: 499,
             apiError: thumbnailRequestCancelled

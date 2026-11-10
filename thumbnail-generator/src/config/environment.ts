@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { API_ERROR } from "./errors.js";
 import ApiError from "../utils/error/api-error.js";
-import type { Environment } from "../types/environment.js";
+import type { Environment } from "../types/config/environment.js";
 
 const {
     THUMBNAIL_INITIAL_CONCURRENCY,

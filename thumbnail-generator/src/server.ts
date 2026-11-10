@@ -1,10 +1,11 @@
-import { createApp } from "./app.js";
+import createApp from "./app.js";
 import { ENV } from "./config/environment.js";
-import { DefaultThumbnailController } from "./controllers/impl/default-thumbnail-controller.js";
-import { DefaultThumbnailService } from "./services/impl/default-thumbnail-service.js";
+import ThumbnailController from "./controllers/thumbnail-controller.js";
+import DefaultThumbnailService from "./services/impl/default-thumbnail-service.js";
 
 const { port } = ENV;
-const thumbnailController = new DefaultThumbnailController({ thumbnailService: DefaultThumbnailService });
+const thumbnailService = new DefaultThumbnailService();
+const thumbnailController = new ThumbnailController({ thumbnailService });
 const app = createApp({ thumbnailController });
 
 app.listen(port);

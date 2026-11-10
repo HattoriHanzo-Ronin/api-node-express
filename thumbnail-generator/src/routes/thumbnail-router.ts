@@ -1,13 +1,8 @@
 import { Router } from "express";
 import Middlewares from "../middlewares/middlewares.js";
-import type { ThumbnailController } from "../controllers/thumbnail-controller.js";
-import type { ExpressThumbnailControllerHandlers } from "../types/default-thumbnail-controller.js";
+import type { ThumbnailRouterDependencies } from "../types/thumbnail/thumbnail-router.js";
 
-export default function createThumbnailRouter({
-    thumbnailController
-}: {
-    thumbnailController: ThumbnailController<ExpressThumbnailControllerHandlers>;
-}): Router {
+export default function createThumbnailRouter({ thumbnailController }: ThumbnailRouterDependencies): Router {
     const router = Router();
     const { asyncHandler, routeNotFound } = Middlewares;
 

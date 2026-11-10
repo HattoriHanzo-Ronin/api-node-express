@@ -1,6 +1,6 @@
 export type Environment = Readonly<{
     port: number;
-    apiUrl: string | undefined;
+    apiUrl?: string;
     thumbnailInitialConcurrency: number;
     thumbnailCpuTarget: number;
     thumbnailMemoryTarget: number;
