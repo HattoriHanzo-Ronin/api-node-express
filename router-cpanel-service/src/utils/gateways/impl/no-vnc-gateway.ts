@@ -2,25 +2,25 @@ import { WebSocketServer } from "ws";
 import type { Server } from "node:http";
 import type { Socket } from "node:net";
 import type { RawData } from "ws";
-import type { VncGateway } from "../vnc-gateway.js";
-import type { RouterSessionService } from "../../../services/router-session-service.js";
-import type { BridgeVncConnectionParams } from "../../../types/no-vnc-gateway.js";
+import type VncGateway from "../vnc-gateway.js";
+import type RouterSessionService from "../../../services/router-session-service.js";
+import type { BridgeVncConnectionParams, NoVncGatewayDependencies } from "../../../types/utils/no-vnc-gateway.js";
 
 /**
  * Bridges authenticated noVNC WebSockets to local VNC sockets
  *
  * @author HattoriHanzo-Ronin
  */
-export class NoVncGateway implements VncGateway<Server> {
-    private readonly routerSessionService: RouterSessionService<Socket>;
+export default class NoVncGateway implements VncGateway<Server> {
+    private readonly routerSessionService: NoVncGatewayDependencies["routerSessionService"];
     private readonly webSocketServer: WebSocketServer;
 
-    constructor({ routerSessionService }: { routerSessionService: RouterSessionService<Socket> }) {
+    constructor({ routerSessionService }: NoVncGatewayDependencies) {
         this.routerSessionService = routerSessionService;
         this.webSocketServer = new WebSocketServer({ noServer: true });
     }
 
-    attach({ server }: { server: Server }): void {
+    attach({ server }: { server: Server }) {
         server.on("upgrade", (request, socket, head) => {
             const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
             const match = url.pathname.match(/^\/vnc\/([^/]+)\/socket$/);
@@ -35,7 +35,7 @@ export class NoVncGateway implements VncGateway<Server> {
         });
     }
 
-    close(): void {
+    close() {
         this.webSocketServer.clients.forEach((client) => client.close());
         this.webSocketServer.close();
     }
@@ -61,6 +61,7 @@ export class NoVncGateway implements VncGateway<Server> {
         vncSocket.once("close", () => webSocket.close());
         vncSocket.once("error", () => webSocket.close(1011, "Conexión VNC cerrada"));
     }
+
     private static toBuffer(data: RawData): Buffer {
         if (Array.isArray(data)) {
             return Buffer.concat(data);

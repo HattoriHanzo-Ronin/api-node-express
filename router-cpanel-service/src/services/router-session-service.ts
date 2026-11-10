@@ -7,15 +7,14 @@ import type {
     RefreshRouterSessionParams,
     RouterSessionResponse,
     SubscribeRouterSessionStatusParams
-} from "../types/router-session-service.js";
+} from "../types/router-session/router-session-service.js";
 
 /**
  * Router control panel session service contract
  *
  * @author HattoriHanzo-Ronin
  */
-export interface RouterSessionService<Connection> {
-
+export default interface RouterSessionService<Connection> {
     /**
      * Creates a router control panel session
      *

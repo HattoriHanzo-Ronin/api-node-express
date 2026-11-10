@@ -45,10 +45,10 @@ vi.mock("node:net", () => ({ createConnection: mocks.createConnection }));
 vi.mock("node:child_process", () => ({ spawn: mocks.spawn }));
 vi.mock("puppeteer-core", () => ({ default: { launch: mocks.launch } }));
 
-import { DefaultRouterSessionService } from "../../src/services/impl/default-router-session-service.js";
-import type { TokenProvider } from "../../src/utils/token-providers/token-provider.js";
+import DefaultRouterSessionService from "../../src/services/impl/default-router-session-service.js";
+import type TokenProvider from "../../src/utils/token-providers/token-provider.js";
 import type { RouterSessionTokenPayload } from "../types/router-session-service.js";
-import { JwtProvider } from "../../src/utils/token-providers/impl/jwt-provider.js";
+import JwtProvider from "../../src/utils/token-providers/impl/jwt-provider.js";
 
 describe("RouterSessionService", () => {
     let tokenProvider: TokenProvider<RouterSessionTokenPayload>;

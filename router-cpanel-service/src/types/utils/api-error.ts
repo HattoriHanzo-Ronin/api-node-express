@@ -1,4 +1,4 @@
-import type { API_ERROR } from "../config/errors.js";
+import type { API_ERROR } from "../../config/errors.js";
 
 export type ApiErrorCode = (typeof API_ERROR)[keyof typeof API_ERROR];
 

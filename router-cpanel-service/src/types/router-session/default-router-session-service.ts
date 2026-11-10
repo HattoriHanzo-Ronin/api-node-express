@@ -1,7 +1,6 @@
 import type { ChildProcess } from "node:child_process";
-import type { Socket } from "node:net";
 import type { Browser, HTTPRequest, Page } from "puppeteer-core";
-import type { TokenProvider } from "../utils/token-providers/token-provider.js";
+import type TokenProvider from "../../utils/token-providers/token-provider.js";
 import type {
     CreateRouterSessionParams,
     RouterClientType,
@@ -35,7 +34,7 @@ export type RouterSession = {
     autoLoginAbort?: AbortController;
 };
 
-export type DefaultRouterSessionServiceDependencies = {
+export type RouterSessionServiceDependencies = {
     tokenProvider: TokenProvider<RouterSessionTokenPayload>;
 };
 
@@ -78,4 +77,3 @@ export type WatchRouterPageLoadingParams = { page: Page; session: RouterSession 
 export type SetRouterSessionLoadingParams = { session: RouterSession; loading: boolean };
 export type MarkRouterSessionLoadingParams = { session: RouterSession };
 export type CleanupRouterSessionParams = { session: RouterSession };
-export type RouterSessionSocket = Socket;

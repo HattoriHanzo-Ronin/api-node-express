@@ -1,8 +1,8 @@
 import "dotenv/config";
 import { API_ERROR } from "./errors.js";
 import ApiError from "../utils/error/api-error.js";
-import type { Environment } from "../types/environment.js";
-import type { JwtExpiresIn } from "../types/jwt-provider.js";
+import type { Environment } from "../types/config/environment.js";
+import type { JwtExpiresIn } from "../types/utils/jwt-provider.js";
 
 const {
     PORT,

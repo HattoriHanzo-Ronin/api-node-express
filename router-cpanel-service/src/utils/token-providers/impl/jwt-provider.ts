@@ -1,32 +1,25 @@
 import jwt from "jsonwebtoken";
-import type { SignOptions } from "jsonwebtoken";
 import { API_ERROR } from "../../../config/errors.js";
 import ApiError from "../../error/api-error.js";
-import type { TokenProvider } from "../token-provider.js";
-import type { CreateTokenParams, VerifyTokenParams } from "../../../types/token-provider.js";
-import type { JwtProviderDependencies } from "../../../types/jwt-provider.js";
+import type TokenProvider from "../token-provider.js";
+import type { CreateTokenParams, VerifyTokenParams } from "../../../types/utils/token-provider.js";
+import type { JwtProviderDependencies } from "../../../types/utils/jwt-provider.js";
 
 /**
  * JWT token provider for router control panel sessions
  *
  * @author HattoriHanzo-Ronin
  */
-export class JwtProvider<Payload extends object> implements TokenProvider<Payload> {
-    private readonly secret: string;
-    private readonly expiresIn: SignOptions["expiresIn"];
+export default class JwtProvider<Payload extends object> implements TokenProvider<Payload> {
+    constructor(private readonly dependencies: JwtProviderDependencies) {}
 
-    constructor({ secret, expiresIn }: JwtProviderDependencies) {
-        this.secret = secret;
-        this.expiresIn = expiresIn;
+    create({ payload }: CreateTokenParams<Payload>) {
+        return jwt.sign(payload, this.dependencies.secret, { expiresIn: this.dependencies.expiresIn });
     }
 
-    create({ payload }: CreateTokenParams<Payload>): string {
-        return jwt.sign(payload, this.secret, { expiresIn: this.expiresIn });
-    }
-
-    verify({ token }: VerifyTokenParams): Payload {
+    verify({ token }: VerifyTokenParams) {
         try {
-            const payload = jwt.verify(token, this.secret);
+            const payload = jwt.verify(token, this.dependencies.secret);
             if (typeof payload === "string") {
                 throw new ApiError({
                     message: "Sesión no válida",

@@ -2,16 +2,18 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
 
-import { createApp } from "../src/app.js";
-import type { RouterSessionController } from "../src/controllers/router-session-controller.js";
-import type { ExpressRouterSessionControllerHandlers } from "../src/types/default-router-session-controller.js";
+import createApp from "../src/app.js";
+import type RouterSessionController from "../src/controllers/router-session-controller.js";
 
 describe("router control panel application", () => {
     let server: Server;
     let url: string;
 
     beforeEach(async () => {
-        const routerSessionController: RouterSessionController<ExpressRouterSessionControllerHandlers> = {
+        const routerSessionController: Pick<
+            RouterSessionController,
+            "create" | "delete" | "navigate" | "markInteraction" | "streamStatus"
+        > = {
             create: async (req, res) =>
                 res.status(201).json({
                     id: "session-id",
@@ -23,7 +25,9 @@ describe("router control panel application", () => {
             markInteraction: async (req, res) => res.status(204).send(),
             streamStatus: async () => {}
         };
-        server = createServer(createApp({ routerSessionController }));
+        server = createServer(
+            createApp({ routerSessionController: routerSessionController as RouterSessionController })
+        );
         await new Promise<void>((resolve) => server.listen(0, resolve));
         const address = server.address();
         if (!address || typeof address === "string") {
