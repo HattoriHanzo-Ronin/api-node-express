@@ -1,7 +1,8 @@
 import express from "express";
-import type { ErrorRequestHandler, NextFunction, Request, RequestHandler, Response } from "express";
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { API_ERROR } from "../config/errors.js";
 import ApiError from "../utils/error/api-error.js";
+import type { MiddlewareError } from "../types/middlewares/middlewares.js";
 
 const { internalError, routeNotFound } = API_ERROR;
 
@@ -29,7 +30,9 @@ export default class Middlewares {
     static asyncHandler<Params, ResBody, ReqBody, ReqQuery>(
         fn: RequestHandler<Params, ResBody, ReqBody, ReqQuery>
     ): RequestHandler<Params, ResBody, ReqBody, ReqQuery> {
-        return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+        return (req, res, next): void => {
+            void Promise.resolve(fn(req, res, next)).catch(next);
+        };
     }
 
     /**
@@ -51,7 +54,7 @@ export default class Middlewares {
      * @param res Express response
      * @param next Express next function
      */
-    static errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+    static errorHandler(err: MiddlewareError, req: Request, res: Response, next: NextFunction): void {
         if (res.headersSent) {
             next(err);
             return;
@@ -62,5 +65,5 @@ export default class Middlewares {
         const message = isApiError ? err.message : "Error inesperado";
         const code = isApiError ? err.code : internalError;
         res.status(status).json({ code, message });
-    };
+    }
 }

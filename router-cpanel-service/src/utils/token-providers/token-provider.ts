@@ -1,11 +1,11 @@
-import type { CreateTokenParams, VerifyTokenParams } from "../../types/token-provider.js";
+import type { CreateTokenParams, VerifyTokenParams } from "../../types/utils/token-provider.js";
 
 /**
  * Token provider contract
  *
  * @author HattoriHanzo-Ronin
  */
-export interface TokenProvider<Payload extends object> {
+export default interface TokenProvider<Payload extends object> {
     /**
      * Creates a signed token
      *

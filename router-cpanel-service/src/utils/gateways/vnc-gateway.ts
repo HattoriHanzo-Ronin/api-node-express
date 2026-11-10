@@ -3,7 +3,7 @@
  *
  * @author HattoriHanzo-Ronin
  */
-export interface VncGateway<Server> {
+export default interface VncGateway<Server> {
     /**
      * Attaches the VNC WebSocket upgrade handler to a HTTP server
      *

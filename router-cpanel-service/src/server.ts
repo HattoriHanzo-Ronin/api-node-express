@@ -1,12 +1,12 @@
 import { createServer } from "node:http";
-import { createApp } from "./app.js";
+import createApp from "./app.js";
 import { ENV } from "./config/environment.js";
 import { SECRETS } from "./config/secrets.js";
-import { DefaultRouterSessionController } from "./controllers/impl/default-router-session-controller.js";
-import { DefaultRouterSessionService } from "./services/impl/default-router-session-service.js";
-import type { RouterSessionTokenPayload } from "./types/default-router-session-service.js";
-import { JwtProvider } from "./utils/token-providers/impl/jwt-provider.js";
-import { NoVncGateway } from "./utils/gateways/impl/no-vnc-gateway.js";
+import RouterSessionController from "./controllers/router-session-controller.js";
+import DefaultRouterSessionService from "./services/impl/default-router-session-service.js";
+import type { RouterSessionTokenPayload } from "./types/router-session/default-router-session-service.js";
+import JwtProvider from "./utils/token-providers/impl/jwt-provider.js";
+import NoVncGateway from "./utils/gateways/impl/no-vnc-gateway.js";
 
 const { jwtAccessTokenExpiresIn, port } = ENV;
 const tokenProvider = new JwtProvider<RouterSessionTokenPayload>({
@@ -14,7 +14,7 @@ const tokenProvider = new JwtProvider<RouterSessionTokenPayload>({
     expiresIn: jwtAccessTokenExpiresIn
 });
 const routerSessionService = new DefaultRouterSessionService({ tokenProvider });
-const routerSessionController = new DefaultRouterSessionController({ routerSessionService });
+const routerSessionController = new RouterSessionController({ routerSessionService });
 const vncGateway = new NoVncGateway({ routerSessionService });
 const app = createApp({ routerSessionController });
 const server = createServer(app);

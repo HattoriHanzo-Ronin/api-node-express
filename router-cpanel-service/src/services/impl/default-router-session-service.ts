@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createConnection } from "node:net";
+import type { Socket } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { once } from "node:events";
@@ -10,7 +11,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import puppeteer from "puppeteer-core";
 import { ENV } from "../../config/environment.js";
 import { API_ERROR } from "../../config/errors.js";
-import type { RouterSessionService } from "../router-session-service.js";
+import type RouterSessionService from "../router-session-service.js";
 import type {
     CloseRouterSessionParams,
     CreateRouterSessionParams,
@@ -20,25 +21,24 @@ import type {
     RefreshRouterSessionParams,
     RouterSessionResponse,
     SubscribeRouterSessionStatusParams
-} from "../../types/router-session-service.js";
+} from "../../types/router-session/router-session-service.js";
 import type {
     AutofillRouterPasswordParams,
     CaptureInitialUrlParams,
     CleanupRouterSessionParams,
     ConnectVncParams,
     CreateRouterSessionInternalParams,
-    DefaultRouterSessionServiceDependencies,
+    RouterSessionServiceDependencies,
     FillRouterPasswordParams,
     GetRouterSessionParams,
     GetViewerUrlParams,
     MarkRouterSessionLoadingParams,
     RouterSession,
-    RouterSessionSocket,
     ScheduleRouterSessionCloseParams,
     SetRouterSessionLoadingParams,
     StartProcessParams,
     WatchRouterPageLoadingParams
-} from "../../types/default-router-session-service.js";
+} from "../../types/router-session/default-router-session-service.js";
 import ApiError from "../../utils/error/api-error.js";
 
 const {
@@ -64,7 +64,7 @@ const {
  *
  * @author HattoriHanzo-Ronin
  */
-export class DefaultRouterSessionService implements RouterSessionService<RouterSessionSocket> {
+export default class DefaultRouterSessionService implements RouterSessionService<Socket> {
     private static readonly PASSWORD_SELECTOR =
         'input[type="password"], input[name="password"], input[name="Password"]';
     private static readonly SUBMIT_SELECTOR =
@@ -73,7 +73,7 @@ export class DefaultRouterSessionService implements RouterSessionService<RouterS
     private static readonly AUTO_LOGIN_TIMEOUT = 10_000;
     private static readonly LOADING_CLEAR_DELAY = 200;
     private static readonly LOADING_INTERACTION_TIMEOUT = 1_500;
-    private static readonly LOADING_RESOURCE_TYPES = ["document", "fetch", "xhr"] as const;
+    private static readonly LOADING_RESOURCE_TYPES: readonly string[] = ["document", "fetch", "xhr"];
     private static readonly VNC_CONNECTION_ATTEMPTS = 50;
     private static readonly VNC_CONNECTION_DELAY = 100;
     private static readonly VIEWPORTS = {
@@ -81,14 +81,14 @@ export class DefaultRouterSessionService implements RouterSessionService<RouterS
         mobile: { width: 900, height: 1600 }
     } as const;
 
-    private readonly tokenProvider: DefaultRouterSessionServiceDependencies["tokenProvider"];
+    private readonly tokenProvider: RouterSessionServiceDependencies["tokenProvider"];
     private readonly sessions = new Map<string, RouterSession>();
     private readonly ownerSessions = new Map<string, Set<string>>();
     private readonly ownerLocks = new Map<string, Promise<void>>();
     private readonly pendingOwners = new Set<string>();
     private nextDisplay = displayBase;
 
-    constructor({ tokenProvider }: DefaultRouterSessionServiceDependencies) {
+    constructor({ tokenProvider }: RouterSessionServiceDependencies) {
         this.tokenProvider = tokenProvider;
     }
 
@@ -100,11 +100,11 @@ export class DefaultRouterSessionService implements RouterSessionService<RouterS
         language,
         clientType = "desktop",
         theme
-    }: CreateRouterSessionParams): Promise<RouterSessionResponse> {
+    }: CreateRouterSessionParams) {
         return this.createForOwner({ ownerId, routerName, routerIp, routerPassword, language, clientType, theme });
     }
 
-    async close({ sessionId, ownerId }: CloseRouterSessionParams): Promise<void> {
+    async close({ sessionId, ownerId }: CloseRouterSessionParams) {
         const session = this.sessions.get(sessionId);
         if (!session) {
             return;
@@ -136,7 +136,7 @@ export class DefaultRouterSessionService implements RouterSessionService<RouterS
         }
     }
 
-    async navigate({ sessionId, ownerId, action }: NavigateRouterSessionParams): Promise<void> {
+    async navigate({ sessionId, ownerId, action }: NavigateRouterSessionParams) {
         const session = this.sessions.get(sessionId);
         if (!session || session.ownerId !== ownerId) {
             throw new ApiError({
@@ -172,7 +172,7 @@ export class DefaultRouterSessionService implements RouterSessionService<RouterS
         }
     }
 
-    refresh({ sessionId }: RefreshRouterSessionParams): void {
+    refresh({ sessionId }: RefreshRouterSessionParams) {
         const session = this.sessions.get(sessionId);
         if (!session) {
             return;
@@ -181,10 +181,7 @@ export class DefaultRouterSessionService implements RouterSessionService<RouterS
         this.scheduleClose({ session });
     }
 
-    async openVncSocket({
-        sessionId,
-        token
-    }: OpenRouterSessionVncSocketParams): ReturnType<RouterSessionService<RouterSessionSocket>["openVncSocket"]> {
+    async openVncSocket({ sessionId, token }: OpenRouterSessionVncSocketParams) {
         const session = this.getSession({ sessionId, token });
         ApiError.handle([
             {
@@ -216,19 +213,19 @@ export class DefaultRouterSessionService implements RouterSessionService<RouterS
         }
     }
 
-    subscribe({ sessionId, token, listener }: SubscribeRouterSessionStatusParams): () => boolean {
+    subscribe({ sessionId, token, listener }: SubscribeRouterSessionStatusParams) {
         const session = this.getSession({ sessionId, token });
         session.statusListeners.add(listener);
         listener({ loading: session.loading });
         return () => session.statusListeners.delete(listener);
     }
 
-    markInteraction({ sessionId, token }: MarkRouterSessionInteractionParams): void {
+    markInteraction({ sessionId, token }: MarkRouterSessionInteractionParams) {
         const session = this.getSession({ sessionId, token });
         this.markLoadingInteraction({ session });
     }
 
-    async closeAll(): Promise<void> {
+    async closeAll() {
         await Promise.allSettled([...this.sessions.keys()].map((sessionId) => this.close({ sessionId })));
     }
 
@@ -498,9 +495,7 @@ export class DefaultRouterSessionService implements RouterSessionService<RouterS
 
     private watchPageLoading({ page, session }: WatchRouterPageLoadingParams): void {
         const isTrackedRequest = (request: HTTPRequest): boolean =>
-            DefaultRouterSessionService.LOADING_RESOURCE_TYPES.includes(
-                request.resourceType() as (typeof DefaultRouterSessionService.LOADING_RESOURCE_TYPES)[number]
-            );
+            DefaultRouterSessionService.LOADING_RESOURCE_TYPES.includes(request.resourceType());
         const settleRequest = (request: HTTPRequest): void => {
             if (!session.loadingRequests.delete(request) || session.loadingRequests.size > 0) {
                 return;
@@ -550,7 +545,7 @@ export class DefaultRouterSessionService implements RouterSessionService<RouterS
         return childProcess;
     }
 
-    private static async connectVnc({ port, attempts, delayMs }: ConnectVncParams): Promise<RouterSessionSocket> {
+    private static async connectVnc({ port, attempts, delayMs }: ConnectVncParams): Promise<Socket> {
         let error: unknown;
         for (let attempt = 0; attempt < attempts; attempt += 1) {
             let socket;

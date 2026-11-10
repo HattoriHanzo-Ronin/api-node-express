@@ -1,6 +1,6 @@
 import fs from "node:fs";
 
-const secretCache: Record<string, string> = {};
+const SECRET_CACHE: Record<string, string> = {};
 const SECRETS = Object.freeze({
     get jwtSecret() {
         return getSecret("jwtSecret", process.env.JWT_SECRET_FILE);
@@ -12,7 +12,7 @@ function getSecret(key: string, secretFile: string | undefined): string {
         throw new Error(`Missing secret file for ${key}`);
     }
 
-    return (secretCache[key] ??= fs.readFileSync(secretFile, "utf8").trim());
+    return (SECRET_CACHE[key] ??= fs.readFileSync(secretFile, "utf8").trim());
 }
 
 export { SECRETS };

@@ -2,14 +2,14 @@ import { createServer } from "node:http";
 import express from "express";
 import type { RequestHandler } from "express";
 import { describe, expect, it, vi } from "vitest";
-import { DefaultRouterSessionController } from "../../src/controllers/impl/default-router-session-controller.js";
-import type { RouterSessionService } from "../../src/services/router-session-service.js";
-import type { RouterSessionResponse } from "../../src/types/router-session-service.js";
+import RouterSessionController from "../../src/controllers/router-session-controller.js";
+import type RouterSessionService from "../../src/services/router-session-service.js";
+import type { RouterSessionResponse } from "../../src/types/router-session/router-session-service.js";
 
 describe("RouterSessionController", () => {
     it("should pass the requested desktop client type to the session service", async () => {
         const routerSessionService = createRouterSessionService({ id: "session-id" });
-        const controller = new DefaultRouterSessionController({ routerSessionService });
+        const controller = new RouterSessionController({ routerSessionService });
         const response = await request({
             handler: controller.create,
             method: "POST",
@@ -39,7 +39,7 @@ describe("RouterSessionController", () => {
 
     it("should pass the requested mobile client type to the session service", async () => {
         const routerSessionService = createRouterSessionService({ id: "session-id" });
-        const controller = new DefaultRouterSessionController({ routerSessionService });
+        const controller = new RouterSessionController({ routerSessionService });
         await request({
             handler: controller.create,
             method: "POST",
@@ -65,7 +65,7 @@ describe("RouterSessionController", () => {
 
     it("should navigate a router session", async () => {
         const routerSessionService = createRouterSessionService();
-        const controller = new DefaultRouterSessionController({ routerSessionService });
+        const controller = new RouterSessionController({ routerSessionService });
         const response = await request({
             handler: controller.navigate,
             method: "POST",
@@ -82,7 +82,7 @@ describe("RouterSessionController", () => {
 
     it("should close a router session for its owner", async () => {
         const routerSessionService = createRouterSessionService();
-        const controller = new DefaultRouterSessionController({ routerSessionService });
+        const controller = new RouterSessionController({ routerSessionService });
         const response = await request({
             handler: controller.delete,
             method: "DELETE",

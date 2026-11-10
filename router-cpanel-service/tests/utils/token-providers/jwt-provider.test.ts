@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { JwtProvider } from "../../../src/utils/token-providers/impl/jwt-provider.js";
+import JwtProvider from "../../../src/utils/token-providers/impl/jwt-provider.js";
 
 describe("JwtProvider", () => {
     const tokenProvider = new JwtProvider({ secret: "router-cpanel-jwt-secret", expiresIn: "30min" });

@@ -1,13 +1,10 @@
 import { Router } from "express";
-import type { RouterSessionController } from "../controllers/router-session-controller.js";
-import type { ExpressRouterSessionControllerHandlers } from "../types/default-router-session-controller.js";
+import type { RouterSessionRouterDependencies } from "../types/router-session/router-session-router.js";
 import Middlewares from "../middlewares/middlewares.js";
 
 export default function createRouterSessionRouter({
     routerSessionController
-}: {
-    routerSessionController: RouterSessionController<ExpressRouterSessionControllerHandlers>;
-}): Router {
+}: RouterSessionRouterDependencies): Router {
     const router = Router();
     const { asyncHandler, routeNotFound } = Middlewares;
 
