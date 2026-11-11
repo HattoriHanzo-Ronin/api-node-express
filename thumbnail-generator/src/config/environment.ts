@@ -12,21 +12,21 @@ const {
     THUMBNAIL_MAX_PIXELS,
     THUMBNAIL_TIMEOUT
 } = process.env;
-const ENV: Environment = Object.freeze({
-    port: Number(process.env.PORT),
-    apiUrl: process.env.API_URL,
-    thumbnailInitialConcurrency: Number(THUMBNAIL_INITIAL_CONCURRENCY),
-    thumbnailCpuTarget: Number(THUMBNAIL_CPU_TARGET),
-    thumbnailMemoryTarget: Number(THUMBNAIL_MEMORY_TARGET),
-    thumbnailSchedulerInterval: Number(THUMBNAIL_SCHEDULER_INTERVAL),
-    thumbnailMaxOutputSize: Number(THUMBNAIL_MAX_OUTPUT_SIZE),
-    thumbnailMaxPixels: Number(THUMBNAIL_MAX_PIXELS),
-    thumbnailTimeout: Number(THUMBNAIL_TIMEOUT)
-});
+const ENV: Environment = Object.freeze(
+    validateConfiguration({
+        port: Number(process.env.PORT),
+        apiUrl: process.env.API_URL,
+        thumbnailInitialConcurrency: Number(THUMBNAIL_INITIAL_CONCURRENCY),
+        thumbnailCpuTarget: Number(THUMBNAIL_CPU_TARGET),
+        thumbnailMemoryTarget: Number(THUMBNAIL_MEMORY_TARGET),
+        thumbnailSchedulerInterval: Number(THUMBNAIL_SCHEDULER_INTERVAL),
+        thumbnailMaxOutputSize: Number(THUMBNAIL_MAX_OUTPUT_SIZE),
+        thumbnailMaxPixels: Number(THUMBNAIL_MAX_PIXELS),
+        thumbnailTimeout: Number(THUMBNAIL_TIMEOUT)
+    })
+);
 
-validateConfiguration(ENV);
-
-function validateConfiguration(environment: Environment): void {
+function validateConfiguration(environment: Partial<Environment>): Environment {
     const {
         port,
         apiUrl,
@@ -47,8 +47,12 @@ function validateConfiguration(environment: Environment): void {
         thumbnailMaxOutputSize,
         thumbnailMaxPixels,
         thumbnailTimeout
-    ].every((value) => Number.isInteger(value) && value > 0);
-    const VALID_TARGETS = thumbnailCpuTarget <= 100 && thumbnailMemoryTarget <= 100;
+    ].every((value) => typeof value === "number" && Number.isInteger(value) && value > 0);
+    const VALID_TARGETS =
+        typeof thumbnailCpuTarget === "number" &&
+        typeof thumbnailMemoryTarget === "number" &&
+        thumbnailCpuTarget <= 100 &&
+        thumbnailMemoryTarget <= 100;
     const VALID_URLS = typeof apiUrl === "string" && apiUrl.length > 0;
     ApiError.handle([
         {
@@ -57,6 +61,7 @@ function validateConfiguration(environment: Environment): void {
             apiError: API_ERROR.configurationInvalid
         }
     ]);
+    return environment as Environment;
 }
 
 export { ENV };

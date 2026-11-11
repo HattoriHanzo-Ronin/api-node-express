@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { API_ERROR } from "./errors.js";
 import ApiError from "../utils/error/api-error.js";
 import type {
@@ -5,7 +6,7 @@ import type {
     ProtectedService,
     ProtectedUserReservations,
     ProtectedUsers
-} from "../types/config/enviroments.js";
+} from "../types/config/environment.js";
 import type { JwtExpiresIn } from "../types/utils/jwt-provider.js";
 
 const {
@@ -46,7 +47,6 @@ const {
     SOCKET_PING_TIMEOUT,
     CHROME_PATH
 } = process.env;
-const { configurationInvalid } = API_ERROR;
 const PROTECTED_SERVICE = Object.freeze({ ftp: "ftp", socket: "socket" } as const);
 const ENV: Environment = Object.freeze(
     validateConfiguration({
@@ -94,7 +94,7 @@ function invalidConfig(condition: boolean): void {
         {
             condition,
             message: "La configuración de la aplicación no es válida",
-            apiError: configurationInvalid
+            apiError: API_ERROR.configurationInvalid
         }
     ]);
 }

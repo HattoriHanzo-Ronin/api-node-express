@@ -16,22 +16,22 @@ const {
     SESSION_INACTIVITY_TIMEOUT,
     JWT_ACCESS_TOKEN_EXPIRES_IN
 } = process.env;
-const ENV: Environment = Object.freeze({
-    port: Number(PORT),
-    publicUrl: PUBLIC_URL,
-    chromePath: CHROME_PATH,
-    displayBase: Number(DISPLAY_BASE),
-    vncPortBase: Number(VNC_PORT_BASE),
-    maxActiveUsers: Number(MAX_ACTIVE_USERS),
-    maxSessionsPerUser: Number(MAX_SESSIONS_PER_USER),
-    maxVncConnectionsPerSession: Number(MAX_VNC_CONNECTIONS_PER_SESSION),
-    sessionInactivityTimeout: Number(SESSION_INACTIVITY_TIMEOUT),
-    jwtAccessTokenExpiresIn: toJwtExpiresIn(JWT_ACCESS_TOKEN_EXPIRES_IN)
-});
+const ENV: Environment = Object.freeze(
+    validateConfiguration({
+        port: Number(PORT),
+        publicUrl: PUBLIC_URL,
+        chromePath: CHROME_PATH,
+        displayBase: Number(DISPLAY_BASE),
+        vncPortBase: Number(VNC_PORT_BASE),
+        maxActiveUsers: Number(MAX_ACTIVE_USERS),
+        maxSessionsPerUser: Number(MAX_SESSIONS_PER_USER),
+        maxVncConnectionsPerSession: Number(MAX_VNC_CONNECTIONS_PER_SESSION),
+        sessionInactivityTimeout: Number(SESSION_INACTIVITY_TIMEOUT),
+        jwtAccessTokenExpiresIn: toJwtExpiresIn(JWT_ACCESS_TOKEN_EXPIRES_IN)
+    })
+);
 
-validateConfiguration(ENV);
-
-function validateConfiguration(environment: Environment): void {
+function validateConfiguration(environment: Partial<Environment>): Environment {
     const {
         port,
         publicUrl,
@@ -52,7 +52,7 @@ function validateConfiguration(environment: Environment): void {
         maxSessionsPerUser,
         maxVncConnectionsPerSession,
         sessionInactivityTimeout
-    ].every((value) => Number.isInteger(value) && value > 0);
+    ].every((value) => typeof value === "number" && Number.isInteger(value) && value > 0);
     const VALID_STRINGS = [chromePath, jwtAccessTokenExpiresIn].every(
         (value) => typeof value === "string" && value.length > 0
     );
@@ -65,6 +65,7 @@ function validateConfiguration(environment: Environment): void {
             apiError: API_ERROR.configurationInvalid
         }
     ]);
+    return environment as Environment;
 }
 
 function toJwtExpiresIn(value: string | undefined): JwtExpiresIn | undefined {

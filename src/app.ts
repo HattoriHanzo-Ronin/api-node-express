@@ -1,5 +1,4 @@
 import express from "express";
-import "dotenv/config";
 import Middlewares from "./middlewares/middlewares.js";
 import createFtpRouter from "./routes/ftp-router.js";
 import createWhitelistRouter from "./routes/whitelist-router.js";
