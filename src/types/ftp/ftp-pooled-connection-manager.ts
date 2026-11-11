@@ -49,6 +49,7 @@ export type FtpSession = {
     pools: FtpPools;
     lockedPaths: Map<string, FtpPathLock>;
     lockedTrees: Set<string>;
+    sharedTrees: Map<string, number>;
     transferLocks: number;
     lockQueue: FtpLockPending[];
     closing: boolean;

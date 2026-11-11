@@ -353,7 +353,7 @@ export default class DefaultFtpFacade implements FtpFacade<
             const source = await this.dependencies.ftpService.dir({
                 dir,
                 authUser: { id: ownerId },
-                internal: true
+                watcher: true
             });
             if (!source) {
                 const sessionActive = this.dependencies.ftpService.isSessionActive({ ownerId });

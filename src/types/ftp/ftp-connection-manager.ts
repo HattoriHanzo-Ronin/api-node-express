@@ -3,7 +3,7 @@ import type { UserId } from "../users/users-model.js";
 
 export type FtpSessionUser = VerifiedAccessToken | UserId;
 
-export type FtpPoolType = "internal" | "read" | "write";
+export type FtpPoolType = "watcher" | "interactive" | "transfer";
 
 export type Release = () => void;
 
@@ -11,6 +11,7 @@ export type FtpLockRequest = {
     paths: string[];
     sharedPaths: string[];
     treePaths: string[];
+    sharedTreePaths: string[];
 };
 
 export type ExecuteFtpOperationParams<Client, Result> = {
@@ -20,12 +21,13 @@ export type ExecuteFtpOperationParams<Client, Result> = {
     sharedPaths?: string[];
     treePaths?: string[];
     skipLocked?: boolean;
+    readOnly?: boolean;
     transfer?: boolean;
     callback: (params: { client: Client }) => Promise<Result>;
 };
 
 export type ExecuteRequiredFtpOperationParams<Client, Result> = ExecuteFtpOperationParams<Client, Result> & {
-    pool: "read" | "write";
+    pool: "interactive" | "transfer";
     skipLocked?: false;
 };
 
@@ -34,4 +36,5 @@ export type FtpLockTransferParams = {
     paths: string[];
     sharedPaths: string[];
     treePaths: string[];
+    sharedTreePaths?: string[];
 };

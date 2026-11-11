@@ -229,7 +229,7 @@ Delete and move operations stream progress events as entries complete. The API i
 
 Transfer, move and delete operations protect their selected entries and the directory paths needed by the operation. Conflicting operations wait, while independent work in the same directory can continue. Upload, move and delete retain their path locks through the final directory refresh; download locks are released after all file streams finish. Locks are managed per user and do not prevent changes made outside the API.
 
-SFTP clients are reused through isolated per-user pools for internal work, reads and writes. Pools, caches and protected reservations use the stable user UUID, so changing a username does not change its storage identity. The UUID remains canonical inside the API and is converted to a 32-character, hyphenless Ubuntu username only when opening the SFTP connection. Each active user starts with one reserved connection per pool; reads can scale to two connections and writes to three, subject to the global connection and transfer limits. Idle sessions close after the configured timeout, active work is never interrupted, and protected users retain their base reservation.
+SFTP clients are reused through isolated per-user pools for watching, interactive operations and transfers. Pools, caches and protected reservations use the stable user UUID, so changing a username does not change its storage identity. The UUID remains canonical inside the API and is converted to a 32-character, hyphenless Ubuntu username only when opening the SFTP connection. Pool minima and maxima are configured through the environment, with per-user limits of one watcher, one interactive and four transfer connections, subject to the global connection and transfer limits. Idle sessions close after the configured timeout, active work is never interrupted, and protected users retain their base reservation.
 
 Directory listings mark compatible media with `supportsThumbnail`. Thumbnail generation runs lazily in the background and adds each result to the bounded cache as soon as it is available. The thumbnail endpoint reports generated, pending and unavailable states with HTTP `200`, `404` and `204` respectively.
 
@@ -248,7 +248,7 @@ Media processing is delegated to the standalone thumbnail generator. The API sub
 - Streamed multipart uploads and per-file downloads without buffering complete files.
 - Added resumable offset-based uploads, all-or-nothing transfer cleanup and streamed move/delete progress.
 - Coordinated per-user entry and path locks across transfers and progressive write operations.
-- Reused SFTP sessions through bounded per-user internal, read and write pools identified by stable UUIDs, with idle eviction and protected reservations.
+- Reused SFTP sessions through bounded per-user watcher, interactive and transfer pools identified by stable UUIDs, with idle eviction and protected reservations.
 - Added bounded in-memory thumbnail caching with lazy background generation.
 - Isolated FFmpeg in a dedicated thumbnail service with fixed protocols, demuxers, resource limits, adaptive queued scheduling and temporary range-enabled access to SFTP media.
 - Isolated router administration in a dedicated Chromium/Xvfb/x11vnc service with one active session per owner, revocable viewer access and controlled VNC capacity.

@@ -21,6 +21,7 @@ export default interface FtpConnectionManager<Client> {
      * @param sharedPaths Shared locked paths
      * @param treePaths Exclusively locked paths and their descendants
      * @param skipLocked Whether to omit the operation when a path is locked
+     * @param readOnly Whether paths use shared locks
      * @param transfer Whether the operation reserves a transfer position
      * @param callback Operation
      * @returns Operation result, or undefined when the operation is omitted
@@ -50,6 +51,7 @@ export default interface FtpConnectionManager<Client> {
      * @param paths Exclusively locked paths
      * @param sharedPaths Shared locked paths
      * @param treePaths Exclusively locked paths and their descendants
+     * @param sharedTreePaths Shared locked paths and their descendants
      * @returns Lock release function
      */
     lockTransfer(params: FtpLockTransferParams): Promise<Release>;

@@ -32,12 +32,12 @@ const {
     ftpMaxTransfers,
     ftpIdleTimeout,
     ftpScaleWait,
-    ftpInternalPoolMin,
-    ftpInternalPoolMax,
-    ftpReadPoolMin,
-    ftpReadPoolMax,
-    ftpWritePoolMin,
-    ftpWritePoolMax,
+    ftpWatcherPoolMin,
+    ftpWatcherPoolMax,
+    ftpInteractivePoolMin,
+    ftpInteractivePoolMax,
+    ftpTransferPoolMin,
+    ftpTransferPoolMax,
     protectedUsers
 } = ENV;
 const {
@@ -50,8 +50,8 @@ const {
 } = API_ERROR;
 const { getClient, closeClient: ftpCloseClient } = FtpClient;
 
-const FTP_POOL_TYPES: FtpPoolType[] = ["internal", "read", "write"];
-const SCALABLE_FTP_POOL_TYPES: FtpPoolType[] = ["write", "read"];
+const FTP_POOL_TYPES: FtpPoolType[] = ["watcher", "interactive", "transfer"];
+const SCALABLE_FTP_POOL_TYPES: FtpPoolType[] = ["transfer"];
 
 /**
  * Manages isolated SFTP connection pools per authenticated user
@@ -60,9 +60,9 @@ const SCALABLE_FTP_POOL_TYPES: FtpPoolType[] = ["write", "read"];
  */
 export default class FtpPooledConnectionManager implements FtpConnectionManager<SftpClient> {
     private static readonly POOL_CONFIG: FtpPoolConfiguration = Object.freeze({
-        internal: { min: ftpInternalPoolMin, max: ftpInternalPoolMax },
-        read: { min: ftpReadPoolMin, max: ftpReadPoolMax },
-        write: { min: ftpWritePoolMin, max: ftpWritePoolMax }
+        watcher: { min: ftpWatcherPoolMin, max: ftpWatcherPoolMax },
+        interactive: { min: ftpInteractivePoolMin, max: ftpInteractivePoolMax },
+        transfer: { min: ftpTransferPoolMin, max: ftpTransferPoolMax }
     });
     private static readonly MIN_CONNECTIONS_PER_USER = Object.values(FtpPooledConnectionManager.POOL_CONFIG).reduce(
         (total, { min }) => total + min,
@@ -118,11 +118,12 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         sharedPaths = [],
         treePaths = [],
         skipLocked = false,
+        readOnly = false,
         transfer = false,
         callback
     }: ExecuteFtpOperationParams<SftpClient, Result>): Promise<Result | undefined> {
         let session = this.sessions.get(authUser.id);
-        if (pool === "internal") {
+        if (pool === "watcher") {
             if (!session || !this.isSessionActive(session)) {
                 return undefined;
             }
@@ -130,7 +131,7 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
             session ??= await this.getSession(authUser);
         }
 
-        if (pool !== "internal") {
+        if (pool !== "watcher") {
             this.touchSession(session);
         }
 
@@ -142,23 +143,23 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
                 releaseTransfer = await this.acquireTransfer();
             }
 
-            if (pool === "write" || pool === "read") {
+            if (pool !== "watcher") {
                 releasePaths = await this.lockPaths(
                     session,
-                    pool === "write" ? paths : [],
-                    pool === "read" ? [...paths, ...sharedPaths] : sharedPaths,
+                    readOnly ? [] : paths,
+                    readOnly ? [...paths, ...sharedPaths] : sharedPaths,
                     treePaths
                 );
             }
 
             connection = await this.acquire(session, pool);
             if (skipLocked) {
-                const releaseInternalPaths = this.tryLockPaths(session, paths);
-                if (!releaseInternalPaths) {
+                const releaseWatcherPaths = this.tryLockPaths(session, [], paths);
+                if (!releaseWatcherPaths) {
                     return undefined;
                 }
 
-                releasePaths = releaseInternalPaths;
+                releasePaths = releaseWatcherPaths;
             }
 
             return await callback({ client: await connection.clientPromise });
@@ -193,12 +194,12 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         this.touchSession(session);
     }
 
-    async lockTransfer({ authUser, paths, sharedPaths, treePaths }: FtpLockTransferParams) {
+    async lockTransfer({ authUser, paths, sharedPaths, treePaths, sharedTreePaths }: FtpLockTransferParams) {
         const session = await this.getSession(authUser);
         this.touchSession(session);
         session.transferLocks += 1;
         try {
-            const release = await this.lockPaths(session, paths, sharedPaths, treePaths);
+            const release = await this.lockPaths(session, paths, sharedPaths, treePaths, sharedTreePaths);
             let released = false;
             return () => {
                 if (released) {
@@ -255,23 +256,36 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
             ownerId: authUser.id,
             lastActivity: Date.now(),
             pools: {
-                internal: { connections: [], queue: [] },
-                read: { connections: [], queue: [] },
-                write: { connections: [], queue: [] }
+                watcher: { connections: [], queue: [] },
+                interactive: { connections: [], queue: [] },
+                transfer: { connections: [], queue: [] }
             },
             lockedPaths: new Map<string, { exclusive: boolean; shared: number }>(),
             lockedTrees: new Set<string>(),
+            sharedTrees: new Map<string, number>(),
             transferLocks: 0,
             lockQueue: [],
             closing: false,
             initializing: Promise.resolve()
         };
         this.sessions.set(authUser.id, session);
-        session.initializing = Promise.allSettled(FTP_POOL_TYPES.map((pool) => this.addConnection(session, pool)))
+        session.initializing = Promise.allSettled(
+            FTP_POOL_TYPES.flatMap((pool) =>
+                Array.from({ length: FtpPooledConnectionManager.POOL_CONFIG[pool].min }, () =>
+                    this.addConnection(session, pool)
+                )
+            )
+        )
             .then((results) => {
                 const rejected = results.find((result) => result.status === "rejected");
                 if (rejected) {
                     throw rejected.reason;
+                }
+
+                for (const result of results) {
+                    if (result.status === "fulfilled" && result.value) {
+                        result.value.busy = false;
+                    }
                 }
             })
             .catch(async (error) => {
@@ -305,37 +319,36 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         return new Promise<FtpConnection>((resolve, reject) => {
             const pending: FtpConnectionPending = { resolve, reject };
             pool.queue.push(pending);
-            if (type === "read" && pool.connections.length < FtpPooledConnectionManager.POOL_CONFIG.read.max) {
-                void this.scale(session, type, pending);
-            }
-            if (type === "write" && pool.connections.length < FtpPooledConnectionManager.POOL_CONFIG.write.max) {
-                pending.scaleTimeout = setTimeout(() => void this.scale(session, type, pending), ftpScaleWait);
+            if (type === "transfer" && pool.connections.length < FtpPooledConnectionManager.POOL_CONFIG.transfer.max) {
+                pending.scaleTimeout = setTimeout(() => void this.scale(session, type), ftpScaleWait);
                 pending.scaleTimeout.unref();
             }
         });
     }
 
-    private async scale(session: FtpSession, type: FtpPoolType, pending: FtpConnectionPending): Promise<void> {
+    private async scale(session: FtpSession, type: FtpPoolType): Promise<void> {
         const pool = session.pools[type];
-        if (
-            !pool.queue.includes(pending) ||
-            pool.connections.length >= FtpPooledConnectionManager.POOL_CONFIG[type].max
-        ) {
+        if (!pool.queue.length || pool.connections.length >= FtpPooledConnectionManager.POOL_CONFIG[type].max) {
             return;
         }
         try {
-            const connection = await this.addConnection(session, type, () => pool.queue.includes(pending));
-            if (connection) {
-                this.dispatch(pool, connection);
+            const connection = await this.addConnection(
+                session,
+                type,
+                () =>
+                    pool.queue.length > 0 && pool.connections.length < FtpPooledConnectionManager.POOL_CONFIG[type].max
+            );
+            if (connection && !this.dispatch(pool, connection)) {
+                connection.busy = false;
             }
         } catch {
-            const index = pool.queue.indexOf(pending);
-            if (index === -1) {
+            const waiting = pool.queue.shift();
+            if (!waiting) {
                 return;
             }
-            pool.queue.splice(index, 1);
-            clearTimeout(pending.scaleTimeout);
-            pending.reject(
+
+            clearTimeout(waiting.scaleTimeout);
+            waiting.reject(
                 new ApiError({
                     message: "No se ha podido ampliar el pool SFTP",
                     apiError: ftpPoolScaleFailed
@@ -383,7 +396,7 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
             }
             connection = {
                 type,
-                busy: false,
+                busy: true,
                 lastUsed: Date.now(),
                 clientPromise: Promise.resolve().then(() => this.createClient({ ownerId: session.ownerId }))
             };
@@ -491,8 +504,8 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         }
         try {
             const connection = await this.addConnection(session, type);
-            if (connection) {
-                this.dispatch(pool, connection);
+            if (connection && !this.dispatch(pool, connection)) {
+                connection.busy = false;
             }
         } catch {
             throw new ApiError({
@@ -566,9 +579,10 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         session: FtpSession,
         paths: string[],
         sharedPaths: string[],
-        treePaths: string[]
+        treePaths: string[],
+        sharedTreePaths: string[] = []
     ): Promise<Release> {
-        const request = this.normalizeLockRequest(paths, sharedPaths, treePaths);
+        const request = this.normalizeLockRequest(paths, sharedPaths, treePaths, sharedTreePaths);
         const queuedRequest = {
             ...request,
             sharedPaths: request.sharedPaths.filter((path) => !session.lockedPaths.get(path)?.shared)
@@ -576,7 +590,8 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         const release =
             !session.lockQueue.some(
                 (pending) => !pending.treePaths.length && this.lockRequestsConflict(queuedRequest, pending)
-            ) && this.tryLockPaths(session, request.paths, request.sharedPaths, request.treePaths);
+            ) &&
+            this.tryLockPaths(session, request.paths, request.sharedPaths, request.treePaths, request.sharedTreePaths);
         if (release) {
             return release;
         }
@@ -588,11 +603,27 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         session: FtpSession,
         paths: string[],
         sharedPaths: string[] = [],
-        treePaths: string[] = []
+        treePaths: string[] = [],
+        sharedTreePaths: string[] = []
     ): Release | null {
         if (
             paths.some((path) => session.lockedPaths.has(path)) ||
             sharedPaths.some((path) => session.lockedPaths.get(path)?.exclusive) ||
+            [...paths, ...treePaths].some((path) =>
+                [...session.sharedTrees.keys()].some(
+                    (tree) => this.isWithinPath(path, tree) || this.isWithinPath(tree, path)
+                )
+            ) ||
+            sharedTreePaths.some(
+                (tree) =>
+                    [...session.lockedTrees].some(
+                        (lockedTree) => this.isWithinPath(tree, lockedTree) || this.isWithinPath(lockedTree, tree)
+                    ) ||
+                    [...session.lockedPaths].some(
+                        ([path, lock]) =>
+                            lock.exclusive && (this.isWithinPath(path, tree) || this.isWithinPath(tree, path))
+                    )
+            ) ||
             [...paths, ...sharedPaths, ...treePaths].some((path) =>
                 [...session.lockedTrees].some((tree) => this.isWithinPath(path, tree))
             ) ||
@@ -615,6 +646,7 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
             session.lockedPaths.set(path, lock);
         });
         treePaths.forEach((path) => session.lockedTrees.add(path));
+        sharedTreePaths.forEach((path) => session.sharedTrees.set(path, (session.sharedTrees.get(path) ?? 0) + 1));
         return () => {
             paths.forEach((path) => session.lockedPaths.delete(path));
             sharedPaths.forEach((path) => {
@@ -629,6 +661,15 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
                 }
             });
             treePaths.forEach((path) => session.lockedTrees.delete(path));
+            sharedTreePaths.forEach((path) => {
+                const remaining = (session.sharedTrees.get(path) ?? 0) - 1;
+                if (remaining === 0) {
+                    session.sharedTrees.delete(path);
+                    return;
+                }
+
+                session.sharedTrees.set(path, remaining);
+            });
             this.dispatchLocks(session);
         };
     }
@@ -645,7 +686,13 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
                 continue;
             }
 
-            const release = this.tryLockPaths(session, pending.paths, pending.sharedPaths, pending.treePaths);
+            const release = this.tryLockPaths(
+                session,
+                pending.paths,
+                pending.sharedPaths,
+                pending.treePaths,
+                pending.sharedTreePaths
+            );
             if (!release) {
                 index += 1;
                 continue;
@@ -657,8 +704,15 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
     }
 
     private static validateConfiguration(): void {
+        const { watcher, interactive, transfer } = FtpPooledConnectionManager.POOL_CONFIG;
         const validPools = Object.values(FtpPooledConnectionManager.POOL_CONFIG).every(({ min, max }) => min <= max);
-        if (!validPools || FtpPooledConnectionManager.MIN_CONNECTIONS_PER_USER > ftpMaxConnections) {
+        if (
+            !validPools ||
+            watcher.max > 1 ||
+            interactive.max > 1 ||
+            transfer.max > 4 ||
+            FtpPooledConnectionManager.MIN_CONNECTIONS_PER_USER > ftpMaxConnections
+        ) {
             throw new ApiError({
                 message: "La configuración de los pools SFTP no es válida",
                 apiError: ftpConfigurationInvalid
@@ -699,13 +753,19 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         );
     }
 
-    private normalizeLockRequest(paths: string[], sharedPaths: string[], treePaths: string[] = []): FtpLockRequest {
+    private normalizeLockRequest(
+        paths: string[],
+        sharedPaths: string[],
+        treePaths: string[] = [],
+        sharedTreePaths: string[] = []
+    ): FtpLockRequest {
         const normalizedPaths = [...new Set(paths)].sort();
         const exclusivePaths = new Set(normalizedPaths);
         return {
             paths: normalizedPaths,
             sharedPaths: [...new Set(sharedPaths)].filter((path) => !exclusivePaths.has(path)).sort(),
-            treePaths: [...new Set(treePaths)].sort()
+            treePaths: [...new Set(treePaths)].sort(),
+            sharedTreePaths: [...new Set(sharedTreePaths)].sort()
         };
     }
 
@@ -713,6 +773,16 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         const secondExclusive = new Set(second.paths);
         const secondShared = new Set(second.sharedPaths);
         return (
+            first.sharedTreePaths.some((tree) =>
+                [...second.paths, ...second.treePaths].some(
+                    (path) => this.isWithinPath(path, tree) || this.isWithinPath(tree, path)
+                )
+            ) ||
+            second.sharedTreePaths.some((tree) =>
+                [...first.paths, ...first.treePaths].some(
+                    (path) => this.isWithinPath(path, tree) || this.isWithinPath(tree, path)
+                )
+            ) ||
             first.paths.some((path) => secondExclusive.has(path) || secondShared.has(path)) ||
             first.sharedPaths.some((path) => secondExclusive.has(path)) ||
             first.treePaths.some((tree) =>

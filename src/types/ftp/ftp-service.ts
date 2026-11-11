@@ -6,7 +6,7 @@ export type FtpEntry = { name: string; type: FtpEntryType };
 
 export type FtpAuthParams = { authUser: FtpSessionUser };
 export type FtpDirectoryParams = FtpAuthParams & { dir: string };
-export type FtpDirectoryListParams = FtpDirectoryParams & { internal?: boolean };
+export type FtpDirectoryListParams = FtpDirectoryParams & { watcher?: boolean };
 export type FtpOwnerParams = { ownerId: string };
 export type FtpThumbnailResult<Thumbnail> = { name: string; thumbnail: Thumbnail | null };
 export type FtpThumbnailsParams<Thumbnail> = FtpDirectoryParams & {
