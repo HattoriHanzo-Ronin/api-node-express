@@ -106,15 +106,16 @@ export default class DefaultFtpService implements FtpService<
         return this.ftpConnectionManager.isActive({ ownerId });
     }
 
-    async dir(params: FtpDirectoryListParams & { internal?: false }): Promise<FtpSourceEntry[]>;
+    async dir(params: FtpDirectoryListParams & { watcher?: false }): Promise<FtpSourceEntry[]>;
     async dir(params: FtpDirectoryListParams): Promise<FtpSourceEntry[] | undefined>;
-    async dir({ dir, authUser, internal = false }: FtpDirectoryListParams): Promise<FtpSourceEntry[] | undefined> {
+    async dir({ dir, authUser, watcher = false }: FtpDirectoryListParams): Promise<FtpSourceEntry[] | undefined> {
         try {
             return await this.ftpConnectionManager.execute({
                 authUser,
-                pool: internal ? "internal" : "read",
+                pool: watcher ? "watcher" : "interactive",
+                readOnly: true,
                 paths: [dir],
-                skipLocked: internal,
+                skipLocked: watcher,
                 callback: ({ client }) => client.list(dir)
             });
         } catch (err) {
@@ -126,7 +127,8 @@ export default class DefaultFtpService implements FtpService<
         try {
             return await this.ftpConnectionManager.execute({
                 authUser,
-                pool: "read",
+                pool: "transfer",
+                readOnly: true,
                 transfer: true,
                 paths: names.map((name) => path.posix.join(dir, name)),
                 callback: async ({ client }) => {
@@ -193,7 +195,7 @@ export default class DefaultFtpService implements FtpService<
             while (true) {
                 const collision = await this.ftpConnectionManager.execute({
                     authUser,
-                    pool: "write",
+                    pool: "interactive",
                     paths: [remotePath],
                     callback: async ({ client }) => {
                         if (await client.exists(remotePath)) {
@@ -258,7 +260,7 @@ export default class DefaultFtpService implements FtpService<
                     try {
                         collision = await this.ftpConnectionManager.execute({
                             authUser,
-                            pool: "write",
+                            pool: "transfer",
                             callback: ({ client }) =>
                                 DefaultFtpService.renameAvailable({ client, sourcePath, destinationPath })
                         });
@@ -302,7 +304,7 @@ export default class DefaultFtpService implements FtpService<
             while (
                 await this.ftpConnectionManager.execute({
                     authUser,
-                    pool: "write",
+                    pool: "interactive",
                     paths: [sourcePath, destinationPath],
                     treePaths: entry.type === dirType ? [sourcePath, destinationPath] : [],
                     callback: ({ client }) => DefaultFtpService.renameAvailable({ client, sourcePath, destinationPath })
@@ -338,7 +340,7 @@ export default class DefaultFtpService implements FtpService<
             });
             const uploadSession = await this.ftpConnectionManager.execute({
                 authUser,
-                pool: "write",
+                pool: "transfer",
                 paths: [`\0upload:${dir}`],
                 callback: async ({ client }) => {
                     await DefaultFtpService.trackMissingDirectories({
@@ -469,7 +471,7 @@ export default class DefaultFtpService implements FtpService<
 
                 const result = await this.ftpConnectionManager.execute({
                     authUser,
-                    pool: "write",
+                    pool: "transfer",
                     transfer: true,
                     callback: async ({ client }) => {
                         if (!entry.remotePath) {
@@ -571,15 +573,20 @@ export default class DefaultFtpService implements FtpService<
         try {
             releaseLocks = await this.ftpConnectionManager.lockTransfer({
                 authUser,
-                paths: entries.map((entry) => path.posix.join(dir, entry.name)),
-                sharedPaths: DefaultFtpService.getParentPaths({ dir }),
-                treePaths: entries
+                paths: [],
+                sharedPaths: [
+                    ...DefaultFtpService.getParentPaths({ dir }),
+                    ...entries.map((entry) => path.posix.join(dir, entry.name))
+                ],
+                treePaths: [],
+                sharedTreePaths: entries
                     .filter((entry) => entry.type === dirType)
                     .map((entry) => path.posix.join(dir, entry.name))
             });
             const downloadSession = await this.ftpConnectionManager.execute({
                 authUser,
-                pool: "read",
+                pool: "transfer",
+                readOnly: true,
                 callback: async ({ client }) => {
                     const resolvedEntries: FtpDownloadManifestEntry[] = [];
                     let totalBytes = 0;
@@ -658,7 +665,8 @@ export default class DefaultFtpService implements FtpService<
         try {
             await this.ftpConnectionManager.execute({
                 authUser,
-                pool: "read",
+                pool: "transfer",
+                readOnly: true,
                 transfer: true,
                 paths: session.releaseLocks ? [] : [path.posix.join(session.dir, entryPath)],
                 callback: async ({ client }) => {
@@ -726,7 +734,7 @@ export default class DefaultFtpService implements FtpService<
         try {
             return await this.ftpConnectionManager.execute({
                 authUser,
-                pool: "write",
+                pool: "transfer",
                 paths: entries.map((entry) => path.posix.join(dir, entry.name)),
                 sharedPaths: DefaultFtpService.getParentPaths({ dir }),
                 treePaths: entries
@@ -841,7 +849,7 @@ export default class DefaultFtpService implements FtpService<
             yield { name, type, remotePath };
             yield* DefaultFtpService.createDownloadEntries({
                 client,
-                remoteDir,
+                remoteDir: remotePath,
                 entries: await client.list(remotePath),
                 relativeDir: name
             });
@@ -973,7 +981,8 @@ export default class DefaultFtpService implements FtpService<
     }: FtpAvailablePathParams): Promise<string> {
         const result = await this.ftpConnectionManager.execute({
             authUser,
-            pool: "write",
+            pool: "interactive",
+            readOnly: true,
             sharedPaths: protectedPath ? [] : [dir],
             callback: async ({ client }) => {
                 const list = await client.list(dir);
@@ -1032,7 +1041,7 @@ export default class DefaultFtpService implements FtpService<
         try {
             await this.ftpConnectionManager.execute({
                 authUser: { id: session.ownerId },
-                pool: "write",
+                pool: "transfer",
                 callback: async ({ client }) => {
                     for (const entry of session.entries.values()) {
                         if (entry.type !== fileType || !entry.remotePath) {

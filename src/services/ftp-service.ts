@@ -32,10 +32,10 @@ export default interface FtpService<MediaStream, DownloadStream, UploadFile, Thu
      *
      * @param params.dir Directory path
      * @param params.authUser Authenticated user
-     * @param params.internal Whether to omit locked internal checks
+     * @param params.watcher Whether the request is a background watch
      * @returns Directory entries or undefined if skipped
      */
-    dir(params: FtpDirectoryListParams & { internal?: false }): Promise<SourceEntry[]>;
+    dir(params: FtpDirectoryListParams & { watcher?: false }): Promise<SourceEntry[]>;
     dir(params: FtpDirectoryListParams): Promise<SourceEntry[] | undefined>;
 
     /**

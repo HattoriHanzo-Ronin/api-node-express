@@ -21,12 +21,12 @@ export type Environment = Readonly<{
     ftpIdleTimeout: number;
     ftpScaleWait: number;
     protectedUsers: ProtectedUsers;
-    ftpInternalPoolMin: number;
-    ftpInternalPoolMax: number;
-    ftpReadPoolMin: number;
-    ftpReadPoolMax: number;
-    ftpWritePoolMin: number;
-    ftpWritePoolMax: number;
+    ftpWatcherPoolMin: number;
+    ftpWatcherPoolMax: number;
+    ftpInteractivePoolMin: number;
+    ftpInteractivePoolMax: number;
+    ftpTransferPoolMin: number;
+    ftpTransferPoolMax: number;
     ftpMediaSessionTimeout: number;
     ftpTransferSessionTimeout: number;
     ftpMaxUploadChunkSize: number;

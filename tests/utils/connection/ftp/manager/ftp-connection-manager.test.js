@@ -7,12 +7,12 @@ const testEnvironment = vi.hoisted(() => ({
     ftpIdleTimeout: 15 * 60 * 1000,
     ftpScaleWait: 5000,
     protectedUsers: {},
-    ftpInternalPoolMin: 1,
-    ftpInternalPoolMax: 1,
-    ftpReadPoolMin: 1,
-    ftpReadPoolMax: 2,
-    ftpWritePoolMin: 1,
-    ftpWritePoolMax: 3
+    ftpWatcherPoolMin: 1,
+    ftpWatcherPoolMax: 1,
+    ftpInteractivePoolMin: 1,
+    ftpInteractivePoolMax: 1,
+    ftpTransferPoolMin: 1,
+    ftpTransferPoolMax: 4
 }));
 
 vi.mock("../../../../../src/config/environment.js", () => ({ ENV: testEnvironment }));
@@ -32,12 +32,12 @@ describe("FtpPooledConnectionManager", () => {
             ftpIdleTimeout: 15 * 60 * 1000,
             ftpScaleWait: 5000,
             protectedUsers: {},
-            ftpInternalPoolMin: 1,
-            ftpInternalPoolMax: 1,
-            ftpReadPoolMin: 1,
-            ftpReadPoolMax: 2,
-            ftpWritePoolMin: 1,
-            ftpWritePoolMax: 3
+            ftpWatcherPoolMin: 1,
+            ftpWatcherPoolMax: 1,
+            ftpInteractivePoolMin: 1,
+            ftpInteractivePoolMax: 1,
+            ftpTransferPoolMin: 1,
+            ftpTransferPoolMax: 4
         });
         vi.useFakeTimers();
         clients = [];
@@ -56,16 +56,17 @@ describe("FtpPooledConnectionManager", () => {
     });
 
     it("should open one reserved connection for every pool", async () => {
-        await manager.execute({ authUser, pool: "read", callback: async () => undefined });
+        await manager.execute({ authUser, pool: "transfer", readOnly: true, callback: async () => undefined });
         expect(createClient).toHaveBeenCalledTimes(3);
         expect(createClient).toHaveBeenCalledWith({ ownerId: authUser.id });
     });
 
     it("should preserve the user session after a username change", async () => {
-        await manager.execute({ authUser, pool: "read", callback: async () => undefined });
+        await manager.execute({ authUser, pool: "transfer", readOnly: true, callback: async () => undefined });
         await manager.execute({
             authUser: { ...authUser, username: "renamed-user" },
-            pool: "read",
+            pool: "transfer",
+            readOnly: true,
             callback: async () => undefined
         });
         expect(createClient).toHaveBeenCalledTimes(3);
@@ -73,12 +74,12 @@ describe("FtpPooledConnectionManager", () => {
     });
 
     it("should keep operations sequential within one connection", async () => {
-        await manager.execute({ authUser, pool: "read", callback: async () => undefined });
+        await manager.execute({ authUser, pool: "transfer", readOnly: true, callback: async () => undefined });
         const first = deferred();
         const calls = [];
         const firstOperation = manager.execute({
             authUser,
-            pool: "internal",
+            pool: "watcher",
             callback: async () => {
                 calls.push("first");
                 await first.promise;
@@ -87,7 +88,7 @@ describe("FtpPooledConnectionManager", () => {
         await vi.waitFor(() => expect(calls).toEqual(["first"]));
         const secondOperation = manager.execute({
             authUser,
-            pool: "internal",
+            pool: "watcher",
             callback: async () => calls.push("second")
         });
         await Promise.resolve();
@@ -97,40 +98,108 @@ describe("FtpPooledConnectionManager", () => {
         expect(calls).toEqual(["first", "second"]);
     });
 
-    it("should immediately add a second read connection under pressure", async () => {
+    it("should scale transfer connections after the configured wait", async () => {
         const first = deferred();
-        const firstOperation = manager.execute({ authUser, pool: "read", callback: () => first.promise });
+        const firstOperation = manager.execute({
+            authUser,
+            pool: "transfer",
+            readOnly: true,
+            callback: () => first.promise
+        });
         await vi.waitFor(() => expect(createClient).toHaveBeenCalledTimes(3));
-        const secondOperation = manager.execute({ authUser, pool: "read", callback: async () => "second" });
+        const secondOperation = manager.execute({
+            authUser,
+            pool: "transfer",
+            readOnly: true,
+            callback: async () => "second"
+        });
+        await vi.advanceTimersByTimeAsync(5000);
         await expect(secondOperation).resolves.toBe("second");
+        expect(createClient).toHaveBeenCalledTimes(4);
+        await expect(
+            manager.execute({
+                authUser,
+                pool: "transfer",
+                readOnly: true,
+                callback: async () => "reused"
+            })
+        ).resolves.toBe("reused");
         expect(createClient).toHaveBeenCalledTimes(4);
         first.resolve();
         await firstOperation;
     });
 
+    it("keeps watcher and interactive available while four transfers run and queues a fifth", async () => {
+        await manager.touch({ authUser });
+        const pending = Array.from({ length: 5 }, () => deferred());
+        const started = [];
+        const transfers = pending.map((item, index) =>
+            manager.execute({
+                authUser,
+                pool: "transfer",
+                callback: async () => {
+                    started.push(index);
+                    await item.promise;
+                }
+            })
+        );
+        await vi.advanceTimersByTimeAsync(5000);
+        await vi.waitFor(() => expect(started).toHaveLength(4));
+        expect(createClient).toHaveBeenCalledTimes(6);
+        await expect(
+            manager.execute({ authUser, pool: "interactive", callback: async () => "interactive" })
+        ).resolves.toBe("interactive");
+        await expect(manager.execute({ authUser, pool: "watcher", callback: async () => "watcher" })).resolves.toBe(
+            "watcher"
+        );
+        expect(started).toHaveLength(4);
+        pending[started[0]].resolve();
+        await vi.waitFor(() => expect(started).toHaveLength(5));
+        pending.forEach((item) => item.resolve());
+        await Promise.all(transfers);
+        expect(createClient).toHaveBeenCalledTimes(6);
+    });
+
+    it("opens the configured minimum connections for the transfer pool", async () => {
+        await manager.closeAll();
+        vi.clearAllMocks();
+        manager = await createConfiguredManager({ createClient, closeClient, environment: { ftpTransferPoolMin: 3 } });
+        await manager.execute({ authUser, pool: "interactive", callback: async () => undefined });
+        expect(createClient).toHaveBeenCalledTimes(5);
+    });
+
     it("should identify failures while scaling a pool", async () => {
         const first = deferred();
-        const firstOperation = manager.execute({ authUser, pool: "read", callback: () => first.promise });
+        const firstOperation = manager.execute({
+            authUser,
+            pool: "transfer",
+            readOnly: true,
+            callback: () => first.promise
+        });
         await vi.waitFor(() => expect(createClient).toHaveBeenCalledTimes(3));
         createClient.mockRejectedValueOnce(new Error("connection failed"));
-        await expect(manager.execute({
+        const scaling = manager.execute({
             authUser,
-            pool: "read",
+            pool: "transfer",
+            readOnly: true,
             callback: async () => undefined
-        })).rejects.toMatchObject({ code: "FTP_POOL_SCALE_FAILED" });
+        });
+        const rejected = expect(scaling).rejects.toMatchObject({ code: "FTP_POOL_SCALE_FAILED" });
+        await vi.advanceTimersByTimeAsync(5000);
+        await rejected;
         first.resolve();
         await firstOperation;
     });
 
-    it("should scale writes after the configured queue wait up to three connections", async () => {
+    it("should scale concurrent transfers up to three connections after the configured wait", async () => {
         const pending = [deferred(), deferred(), deferred()];
-        const operations = pending.map((item) => manager.execute({
-            authUser,
-            pool: "write",
-            callback: () => item.promise
-        }));
-        await vi.waitFor(() => expect(createClient).toHaveBeenCalledTimes(3));
-        expect(createClient).toHaveBeenCalledTimes(3);
+        const operations = pending.map((item) =>
+            manager.execute({
+                authUser,
+                pool: "transfer",
+                callback: () => item.promise
+            })
+        );
         await vi.advanceTimersByTimeAsync(5000);
         await vi.waitFor(() => expect(createClient).toHaveBeenCalledTimes(5));
         pending.forEach((item) => item.resolve());
@@ -141,18 +210,20 @@ describe("FtpPooledConnectionManager", () => {
         const write = deferred();
         const writeOperation = manager.execute({
             authUser,
-            pool: "write",
+            pool: "transfer",
             paths: ["files/photo.jpg"],
             callback: () => write.promise
         });
         await vi.waitFor(() => expect(createClient).toHaveBeenCalledTimes(3));
-        await expect(manager.execute({
-            authUser,
-            pool: "internal",
-            paths: ["files/photo.jpg"],
-            skipLocked: true,
-            callback: async () => "checked"
-        })).resolves.toBeUndefined();
+        await expect(
+            manager.execute({
+                authUser,
+                pool: "watcher",
+                paths: ["files/photo.jpg"],
+                skipLocked: true,
+                callback: async () => "checked"
+            })
+        ).resolves.toBeUndefined();
         write.resolve();
         await writeOperation;
     });
@@ -163,7 +234,7 @@ describe("FtpPooledConnectionManager", () => {
         const calls = [];
         const checking = manager.execute({
             authUser,
-            pool: "internal",
+            pool: "watcher",
             paths: ["files"],
             skipLocked: true,
             callback: async () => {
@@ -174,7 +245,7 @@ describe("FtpPooledConnectionManager", () => {
         await vi.waitFor(() => expect(calls).toEqual(["check"]));
         const writing = manager.execute({
             authUser,
-            pool: "write",
+            pool: "transfer",
             paths: ["files/photos"],
             callback: async () => calls.push("write")
         });
@@ -189,7 +260,7 @@ describe("FtpPooledConnectionManager", () => {
         const calls = [];
         const firstOperation = manager.execute({
             authUser,
-            pool: "write",
+            pool: "transfer",
             sharedPaths: ["files"],
             callback: async () => {
                 calls.push("first");
@@ -199,7 +270,7 @@ describe("FtpPooledConnectionManager", () => {
         await vi.waitFor(() => expect(calls).toEqual(["first"]));
         const secondOperation = manager.execute({
             authUser,
-            pool: "write",
+            pool: "transfer",
             sharedPaths: ["files"],
             callback: async () => calls.push("second")
         });
@@ -214,7 +285,7 @@ describe("FtpPooledConnectionManager", () => {
         const calls = [];
         const sharing = manager.execute({
             authUser,
-            pool: "write",
+            pool: "transfer",
             sharedPaths: ["files"],
             callback: async () => {
                 calls.push("shared");
@@ -224,7 +295,7 @@ describe("FtpPooledConnectionManager", () => {
         await vi.waitFor(() => expect(calls).toEqual(["shared"]));
         const exclusive = manager.execute({
             authUser,
-            pool: "write",
+            pool: "transfer",
             paths: ["files"],
             callback: async () => calls.push("exclusive")
         });
@@ -239,7 +310,10 @@ describe("FtpPooledConnectionManager", () => {
         const deletion = deferred();
         const calls = [];
         const deleting = manager.execute({
-            authUser, pool: "write", paths: ["files/photos"], treePaths: ["files/photos"],
+            authUser,
+            pool: "transfer",
+            paths: ["files/photos"],
+            treePaths: ["files/photos"],
             callback: async () => {
                 calls.push("delete");
                 await deletion.promise;
@@ -247,15 +321,23 @@ describe("FtpPooledConnectionManager", () => {
         });
         await vi.waitFor(() => expect(calls).toEqual(["delete"]));
         const reading = manager.execute({
-            authUser, pool: "read", paths: ["files/photos/image.jpg"],
+            authUser,
+            pool: "transfer",
+            readOnly: true,
+            paths: ["files/photos/image.jpg"],
             callback: async () => calls.push("read")
         });
         const writing = manager.execute({
-            authUser, pool: "write", paths: ["files/photos/new.txt"],
+            authUser,
+            pool: "transfer",
+            paths: ["files/photos/new.txt"],
             callback: async () => calls.push("write")
         });
         await manager.execute({
-            authUser, pool: "read", paths: ["files/photos-other"],
+            authUser,
+            pool: "interactive",
+            readOnly: true,
+            paths: ["files/photos-other"],
             callback: async () => calls.push("unrelated")
         });
         expect(calls).toEqual(["delete", "unrelated"]);
@@ -269,7 +351,10 @@ describe("FtpPooledConnectionManager", () => {
         const read = deferred();
         const calls = [];
         const reading = manager.execute({
-            authUser, pool: "read", paths: ["files/photos/image.jpg"],
+            authUser,
+            pool: "transfer",
+            readOnly: true,
+            paths: ["files/photos/image.jpg"],
             callback: async () => {
                 calls.push("read");
                 await read.promise;
@@ -277,7 +362,10 @@ describe("FtpPooledConnectionManager", () => {
         });
         await vi.waitFor(() => expect(calls).toEqual(["read"]));
         const deleting = manager.execute({
-            authUser, pool: "write", paths: ["files/photos"], treePaths: ["files/photos"],
+            authUser,
+            pool: "transfer",
+            paths: ["files/photos"],
+            treePaths: ["files/photos"],
             callback: async () => calls.push("delete")
         });
         await Promise.resolve();
@@ -299,7 +387,8 @@ describe("FtpPooledConnectionManager", () => {
         const calls = [];
         const firstTransfer = manager.execute({
             authUser,
-            pool: "read",
+            pool: "transfer",
+            readOnly: true,
             transfer: true,
             callback: async () => {
                 calls.push("first");
@@ -309,7 +398,7 @@ describe("FtpPooledConnectionManager", () => {
         await vi.waitFor(() => expect(calls).toEqual(["first"]));
         const secondTransfer = manager.execute({
             authUser,
-            pool: "write",
+            pool: "transfer",
             transfer: true,
             callback: async () => calls.push("second")
         });
@@ -331,14 +420,15 @@ describe("FtpPooledConnectionManager", () => {
         const first = deferred();
         const running = manager.execute({
             authUser,
-            pool: "read",
+            pool: "transfer",
+            readOnly: true,
             transfer: true,
             callback: () => first.promise
         });
         await vi.waitFor(() => expect(createClient).toHaveBeenCalledTimes(3));
         const queued = manager.execute({
             authUser,
-            pool: "write",
+            pool: "transfer",
             transfer: true,
             callback: async () => undefined
         });
@@ -351,7 +441,12 @@ describe("FtpPooledConnectionManager", () => {
 
     it("should close inactive sessions only after active operations finish", async () => {
         const operation = deferred();
-        const running = manager.execute({ authUser, pool: "read", callback: () => operation.promise });
+        const running = manager.execute({
+            authUser,
+            pool: "transfer",
+            readOnly: true,
+            callback: () => operation.promise
+        });
         await vi.waitFor(() => expect(createClient).toHaveBeenCalledTimes(3));
         await vi.advanceTimersByTimeAsync(15 * 60 * 1000);
         expect(closeClient).not.toHaveBeenCalled();
@@ -370,9 +465,21 @@ describe("FtpPooledConnectionManager", () => {
             environment: { protectedUsers: { [authUser.id]: { ftp: 6 } } }
         });
         const first = deferred();
-        const firstOperation = manager.execute({ authUser, pool: "read", callback: () => first.promise });
+        const firstOperation = manager.execute({
+            authUser,
+            pool: "transfer",
+            readOnly: true,
+            callback: () => first.promise
+        });
         await vi.waitFor(() => expect(createClient).toHaveBeenCalledTimes(3));
-        await manager.execute({ authUser, pool: "read", callback: async () => undefined });
+        const secondOperation = manager.execute({
+            authUser,
+            pool: "transfer",
+            readOnly: true,
+            callback: async () => undefined
+        });
+        await vi.advanceTimersByTimeAsync(5000);
+        await secondOperation;
         first.resolve();
         await firstOperation;
         expect(createClient).toHaveBeenCalledTimes(4);
@@ -390,11 +497,14 @@ describe("FtpPooledConnectionManager", () => {
             environment: { ftpMaxConnections: 7, protectedUsers: { "admin-id": { ftp: 4 } } }
         });
         const read = deferred();
-        const running = manager.execute({ authUser, pool: "read", callback: () => read.promise });
+        const running = manager.execute({ authUser, pool: "transfer", readOnly: true, callback: () => read.promise });
         await vi.waitFor(() => expect(createClient).toHaveBeenCalledTimes(3));
         let settled = false;
-        const queued = manager.execute({ authUser, pool: "read", callback: async () => "completed" })
-            .finally(() => { settled = true; });
+        const queued = manager
+            .execute({ authUser, pool: "transfer", readOnly: true, callback: async () => "completed" })
+            .finally(() => {
+                settled = true;
+            });
         await Promise.resolve();
         expect(settled).toBe(false);
         expect(createClient).toHaveBeenCalledTimes(3);
@@ -416,35 +526,41 @@ describe("FtpPooledConnectionManager", () => {
 
     it("should replace a connection invalidated by a network error", async () => {
         await manager.touch({ authUser });
-        await expect(manager.execute({
-            authUser,
-            pool: "internal",
-            callback: async () => {
-                const error = new Error("connection lost");
-                error.code = "ECONNRESET";
-                throw error;
-            }
-        })).rejects.toMatchObject({ code: "ECONNRESET" });
+        await expect(
+            manager.execute({
+                authUser,
+                pool: "watcher",
+                callback: async () => {
+                    const error = new Error("connection lost");
+                    error.code = "ECONNRESET";
+                    throw error;
+                }
+            })
+        ).rejects.toMatchObject({ code: "ECONNRESET" });
         expect(createClient).toHaveBeenCalledTimes(4);
-        await expect(manager.execute({
-            authUser,
-            pool: "internal",
-            callback: async ({ client }) => client.id
-        })).resolves.toBe(3);
+        await expect(
+            manager.execute({
+                authUser,
+                pool: "watcher",
+                callback: async ({ client }) => client.id
+            })
+        ).resolves.toBe(3);
     });
 
     it("should identify failures while restoring a pool", async () => {
         await manager.touch({ authUser });
         createClient.mockRejectedValueOnce(new Error("connection failed"));
-        await expect(manager.execute({
-            authUser,
-            pool: "internal",
-            callback: async () => {
-                const error = new Error("connection lost");
-                error.code = "ECONNRESET";
-                throw error;
-            }
-        })).rejects.toMatchObject({ code: "FTP_POOL_RESTORE_FAILED" });
+        await expect(
+            manager.execute({
+                authUser,
+                pool: "watcher",
+                callback: async () => {
+                    const error = new Error("connection lost");
+                    error.code = "ECONNRESET";
+                    throw error;
+                }
+            })
+        ).rejects.toMatchObject({ code: "FTP_POOL_RESTORE_FAILED" });
     });
 
     it("should identify failures while closing a connection", async () => {
@@ -458,17 +574,34 @@ describe("FtpPooledConnectionManager", () => {
         await manager.closeAll();
         testEnvironment.protectedUsers = { [authUser.id]: { ftp: 1 } };
         vi.resetModules();
-        await expect(import("../../../../../src/utils/connection/ftp/manager/impl/ftp-pooled-connection-manager.js")).rejects.toMatchObject({
+        await expect(
+            import("../../../../../src/utils/connection/ftp/manager/impl/ftp-pooled-connection-manager.js")
+        ).rejects.toMatchObject({
             name: "ApiError",
             code: "FTP_CONFIGURATION_INVALID"
         });
+    });
+
+    it.each([
+        ["ftpWatcherPoolMax", 2],
+        ["ftpInteractivePoolMax", 2],
+        ["ftpTransferPoolMax", 5]
+    ])("rejects %s above the per-user limit", async (key, value) => {
+        await manager.closeAll();
+        testEnvironment[key] = value;
+        vi.resetModules();
+        await expect(
+            import("../../../../../src/utils/connection/ftp/manager/impl/ftp-pooled-connection-manager.js")
+        ).rejects.toMatchObject({ code: "FTP_CONFIGURATION_INVALID" });
     });
 
     it("should reject invalid pool limits with an API error", async () => {
         await manager.closeAll();
         testEnvironment.ftpMaxConnections = 2;
         vi.resetModules();
-        await expect(import("../../../../../src/utils/connection/ftp/manager/impl/ftp-pooled-connection-manager.js")).rejects.toMatchObject({
+        await expect(
+            import("../../../../../src/utils/connection/ftp/manager/impl/ftp-pooled-connection-manager.js")
+        ).rejects.toMatchObject({
             name: "ApiError",
             code: "FTP_CONFIGURATION_INVALID"
         });
@@ -478,9 +611,8 @@ describe("FtpPooledConnectionManager", () => {
 async function createConfiguredManager({ createClient, closeClient, environment }) {
     Object.assign(testEnvironment, environment);
     vi.resetModules();
-    const { default: ConfiguredFtpPooledConnectionManager } = await import(
-        "../../../../../src/utils/connection/ftp/manager/impl/ftp-pooled-connection-manager.js"
-    );
+    const { default: ConfiguredFtpPooledConnectionManager } =
+        await import("../../../../../src/utils/connection/ftp/manager/impl/ftp-pooled-connection-manager.js");
     return new ConfiguredFtpPooledConnectionManager({ createClient, closeClient });
 }
 
