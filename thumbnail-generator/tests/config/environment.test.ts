@@ -22,6 +22,7 @@ describe("environment", () => {
         setEnvironment(validEnvironment);
         const { ENV } = await import("../../src/config/environment.js");
         expect(ENV).toMatchObject({
+            apiUrl: validEnvironment.API_URL,
             thumbnailInitialConcurrency: 20,
             thumbnailCpuTarget: 80,
             thumbnailMemoryTarget: 80,
@@ -29,6 +30,13 @@ describe("environment", () => {
             thumbnailMaxOutputSize: 5_242_880,
             thumbnailMaxPixels: 40_000_000,
             thumbnailTimeout: 30_000
+        });
+    });
+
+    it("should reject a missing API URL", async () => {
+        setEnvironment({ ...validEnvironment, API_URL: "" });
+        await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
+            code: "CONFIGURATION_INVALID"
         });
     });
 

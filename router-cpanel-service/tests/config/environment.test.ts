@@ -23,10 +23,27 @@ describe("environment", () => {
         setEnvironment(validEnvironment);
         const { ENV } = await import("../../src/config/environment.js");
         expect(ENV).toMatchObject({
+            publicUrl: validEnvironment.PUBLIC_URL,
+            chromePath: validEnvironment.CHROME_PATH,
+            jwtAccessTokenExpiresIn: validEnvironment.JWT_ACCESS_TOKEN_EXPIRES_IN,
             maxActiveUsers: 10,
             maxSessionsPerUser: 1,
             maxVncConnectionsPerSession: 1,
             sessionInactivityTimeout: 600_000
+        });
+    });
+
+    it.each(["PUBLIC_URL", "CHROME_PATH", "JWT_ACCESS_TOKEN_EXPIRES_IN"])("should reject a missing %s", async (key) => {
+        setEnvironment({ ...validEnvironment, [key]: "" });
+        await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
+            code: "CONFIGURATION_INVALID"
+        });
+    });
+
+    it("should reject an invalid token expiration", async () => {
+        setEnvironment({ ...validEnvironment, JWT_ACCESS_TOKEN_EXPIRES_IN: "invalid" });
+        await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
+            code: "CONFIGURATION_INVALID"
         });
     });
 
