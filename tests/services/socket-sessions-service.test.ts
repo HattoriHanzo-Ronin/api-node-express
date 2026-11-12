@@ -13,6 +13,8 @@ const testEnvironment = vi.hoisted(() => ({
 }));
 
 vi.mock("../../src/config/environment.js", () => ({ ENV: testEnvironment }));
+const logger = vi.hoisted(() => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+vi.mock("../../src/utils/logger/logger.js", () => ({ default: { getLogger: () => logger } }));
 
 const authUser = { id: "user-id", roles: [USER_ROLE.net], iat: 1_800_000_000, exp: 1_900_000_000 };
 
@@ -27,6 +29,7 @@ describe("SocketSessionsService", () => {
             socketPingTimeout: 1000,
             protectedUsers: {}
         });
+        vi.clearAllMocks();
         vi.useFakeTimers();
         vi.setSystemTime(new Date("2026-10-28T00:00:00.000Z"));
         service = new SocketSessionsService();
@@ -66,6 +69,9 @@ describe("SocketSessionsService", () => {
         expect(() => service.refresh({ authUser: { ...authUser, id: "other-user" }, id })).toThrow(
             expect.objectContaining({ code: "SOCKET_SESSION_INVALID" })
         );
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.objectContaining({ event: "authorization.denied", context: `User: other-user, session: ${id}` })
+        );
     });
 
     it("should close a session after inactivity", async () => {
@@ -93,6 +99,12 @@ describe("SocketSessionsService", () => {
         await expect(
             service.connect({ authUser, id: sessions[3].id, webSocket: createWebSocket() })
         ).rejects.toMatchObject({ code: "SOCKET_CONNECTION_LIMIT_REACHED" });
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: "socket.connection.limit_reached",
+                context: "User: user-id, limit: 3"
+            })
+        );
     });
 
     it("should reuse capacity from a socket that does not answer ping", async () => {

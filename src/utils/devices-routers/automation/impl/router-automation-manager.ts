@@ -1,5 +1,7 @@
 import ApiError from "../../../error/api-error.js";
 import { API_ERROR } from "../../../../config/errors.js";
+import { LOG_EVENT } from "../../../../config/log-events.js";
+import Logger from "../../../logger/logger.js";
 import ArcherAX53Router from "../routers/tp-link/archer-ax53.js";
 import TLWDR5620GigabitEditionRouter from "../routers/tp-link/tl-wdr5620-gigabit-edition.js";
 import {
@@ -20,12 +22,14 @@ const { routerImplementationNotFound, routerAddFailed, routerDeleteFailed } = AP
  * @author HattoriHanzo-Ronin
  */
 export default class RouterAutomationManager implements RouterAutomation {
+    private static readonly LOGGER = Logger.getLogger(RouterAutomationManager);
     private static readonly IMPLEMENTATIONS: RouterAutomationImplementations = Object.freeze({
         "TP-Link TL-WDR5620 Gigabit Edition": TLWDR5620GigabitEditionRouter,
         "TP-Link Archer AX53": ArcherAX53Router
     } as const);
 
     private readonly router: AbstractRouter;
+    private readonly routerId: RouterAutomationPayload["id"];
 
     constructor({ router }: { router: RouterAutomationPayload }) {
         const RouterImplementation = RouterAutomationManager.IMPLEMENTATIONS[router.model];
@@ -37,6 +41,7 @@ export default class RouterAutomationManager implements RouterAutomation {
                 status: 400
             }
         ]);
+        this.routerId = router.id;
         this.router = new RouterImplementation({ router });
     }
 
@@ -53,10 +58,26 @@ export default class RouterAutomationManager implements RouterAutomation {
             return;
         }
 
+        const started = performance.now();
         const added = await this.router.addAllow({ key, mac, name });
+        if (added) {
+            RouterAutomationManager.LOGGER.info({
+                event: LOG_EVENT.routerOperationCompleted,
+                message: "Router automation completed",
+                context: `Router: ${this.routerId}, operation: add, duration: ${performance.now() - started} ms`
+            });
+        }
+
         ApiError.handle([
             {
                 condition: !added,
+                execute: () => {
+                    RouterAutomationManager.LOGGER.warn({
+                        event: LOG_EVENT.routerOperationFailed,
+                        message: "Router automation operation failed",
+                        context: `Router: ${this.routerId}, operation: add`
+                    });
+                },
                 message: `Error al insertar el dispositivo en el router`,
                 status: 400,
                 apiError: routerAddFailed
@@ -69,10 +90,26 @@ export default class RouterAutomationManager implements RouterAutomation {
             return;
         }
 
+        const started = performance.now();
         const deleted = await this.router.deleteAllow({ key, mac });
+        if (deleted) {
+            RouterAutomationManager.LOGGER.info({
+                event: LOG_EVENT.routerOperationCompleted,
+                message: "Router automation completed",
+                context: `Router: ${this.routerId}, operation: delete, duration: ${performance.now() - started} ms`
+            });
+        }
+
         ApiError.handle([
             {
                 condition: !deleted,
+                execute: () => {
+                    RouterAutomationManager.LOGGER.warn({
+                        event: LOG_EVENT.routerOperationFailed,
+                        message: "Router automation operation failed",
+                        context: `Router: ${this.routerId}, operation: delete`
+                    });
+                },
                 message: "Error al eliminar el dispositivo del router",
                 status: 400,
                 apiError: routerDeleteFailed

@@ -1,5 +1,7 @@
 import type { Browser, Page } from "puppeteer-core";
 import AbstractRouter from "../abstract-router.js";
+import { LOG_EVENT } from "../../../../../config/log-events.js";
+import Logger from "../../../../logger/logger.js";
 import {
     AddAllowParams,
     DeleteAllowParams,
@@ -12,6 +14,7 @@ import {
  * @author HattoriHanzo-Ronin
  */
 export default class ArcherAX53Router extends AbstractRouter {
+    private static readonly LOGGER = Logger.getLogger(ArcherAX53Router);
     private browser: Browser | undefined;
 
     getCapabilities() {
@@ -84,7 +87,15 @@ export default class ArcherAX53Router extends AbstractRouter {
                 }
             }
             return false;
-        } catch {
+        } catch (error) {
+            const { id, admin_pass, ip } = this.getRouter();
+            ArcherAX53Router.LOGGER.warn({
+                event: LOG_EVENT.routerAutomationError,
+                message: "Router automation failed",
+                context: `Router: ${id}`,
+                error,
+                redact: [admin_pass, ip]
+            });
             return false;
         } finally {
             await this.closePuppeteerBrowser(this.browser);
@@ -127,7 +138,15 @@ export default class ArcherAX53Router extends AbstractRouter {
                 }
             }
             return false;
-        } catch {
+        } catch (error) {
+            const { id, admin_pass, ip } = this.getRouter();
+            ArcherAX53Router.LOGGER.warn({
+                event: LOG_EVENT.routerAutomationError,
+                message: "Router automation failed",
+                context: `Router: ${id}`,
+                error,
+                redact: [admin_pass, ip]
+            });
             return false;
         } finally {
             await this.closePuppeteerBrowser(this.browser);

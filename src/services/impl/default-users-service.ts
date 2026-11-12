@@ -12,6 +12,8 @@ import type { PostgresError } from "../../types/utils/postgres-error.js";
 import ApiError from "../../utils/error/api-error.js";
 import ValidateUtils from "../../utils/validate-utils.js";
 import { API_ERROR } from "../../config/errors.js";
+import { LOG_EVENT } from "../../config/log-events.js";
+import Logger from "../../utils/logger/logger.js";
 
 const { userNotFound, userInvalidCredentials, userIncorrectPassword, userEmptyUpdate } = API_ERROR;
 
@@ -21,6 +23,8 @@ const { userNotFound, userInvalidCredentials, userIncorrectPassword, userEmptyUp
  * @author HattoriHanzo-Ronin
  */
 export default class DefaultUsersService<Transaction> implements UsersService<Transaction> {
+    private static readonly LOGGER = Logger.getLogger(DefaultUsersService);
+
     constructor(private readonly dependencies: UsersServiceDependencies<Transaction>) {}
 
     async getAll({}: GetAllUsersParams = {}) {
@@ -46,6 +50,9 @@ export default class DefaultUsersService<Transaction> implements UsersService<Tr
         ApiError.handle([
             {
                 condition: !result || !result.active,
+                execute: () => {
+                    DefaultUsersService.LOGGER.info({ event: LOG_EVENT.authLoginFailed, message: "Login failed" });
+                },
                 message: "Usuario o contraseña incorrectos",
                 status: 401,
                 apiError: userInvalidCredentials

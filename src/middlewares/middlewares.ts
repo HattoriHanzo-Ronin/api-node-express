@@ -4,6 +4,8 @@ import type { Readable } from "node:stream";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import ApiError from "../utils/error/api-error.js";
 import { API_ERROR } from "../config/errors.js";
+import { LOG_EVENT } from "../config/log-events.js";
+import Logger from "../utils/logger/logger.js";
 import type { ApiErrorResponse } from "../types/utils/api-error.js";
 import type { AuthAccessTokenPayload, VerifiedAccessToken } from "../types/auth/auth-facade.js";
 import type { MiddlewareError } from "../types/middlewares/middlewares.js";
@@ -18,6 +20,8 @@ const { routeNotFound, internalError, authenticationRequired, aclPermissionDenie
  * @author HattoriHanzo-Ronin
  */
 export default class Middlewares {
+    private static readonly LOGGER = Logger.getLogger(Middlewares);
+
     /**
      * Creates JSON body parser middleware
      *
@@ -106,6 +110,10 @@ export default class Middlewares {
      * Handles application errors
      */
     static errorHandler(err: MiddlewareError, req: Request, res: Response, next: NextFunction): void {
+        if (!(err instanceof ApiError)) {
+            Middlewares.LOGGER.error({ event: LOG_EVENT.httpRequestFailed, message: "API request failed", error: err });
+        }
+
         if (res.headersSent) {
             next(err);
             return;
@@ -137,15 +145,15 @@ export default class Middlewares {
         return (req: Request, res: Response, next: NextFunction): void => {
             try {
                 const { authorization } = req.headers;
-                if (!authorization?.startsWith("Bearer ")) {
-                    throw new ApiError({
+                ApiError.handle([
+                    {
+                        condition: !authorization?.startsWith("Bearer "),
                         message: "No hay sesión",
                         status: 401,
                         apiError: authenticationRequired
-                    });
-                }
-
-                const token = authorization.split(" ")[1];
+                    }
+                ]);
+                const token = authorization!.split(" ")[1];
                 req.user = accessTokenProvider.verify({ token });
                 next();
             } catch (err) {
@@ -164,13 +172,21 @@ export default class Middlewares {
         return (req: Request, res: Response, next: NextFunction): void => {
             try {
                 const { roles: userRoles } = req.user;
-                if (!roles.some((role) => userRoles.includes(role))) {
-                    throw new ApiError({
+                ApiError.handle([
+                    {
+                        condition: !roles.some((role) => userRoles.includes(role)),
+                        execute: () => {
+                            Middlewares.LOGGER.warn({
+                                event: LOG_EVENT.authorizationDenied,
+                                message: "Authenticated user attempted to access a restricted route",
+                                context: `User: ${req.user.id}, method: ${req.method}, route: ${`${req.baseUrl}/${String(req.route.path)}`.split("/").filter(Boolean).join(" > ")}`
+                            });
+                        },
                         message: "No tiene permisos para realizar esa acción",
                         status: 403,
                         apiError: aclPermissionDenied
-                    });
-                }
+                    }
+                ]);
 
                 next();
             } catch (err) {

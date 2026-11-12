@@ -4,6 +4,8 @@ import type { ConnectionsByDevicesParams, WriteConnectionsParams } from "../../t
 import type { ConnectionsUpdateResult, UpdateConnectionsParams } from "../../types/connections/connections-service.js";
 import type { PostgresError } from "../../types/utils/postgres-error.js";
 import ApiError from "../../utils/error/api-error.js";
+import Logger from "../../utils/logger/logger.js";
+import { LOG_EVENT } from "../../config/log-events.js";
 import { API_ERROR } from "../../config/errors.js";
 
 const { connectionRequired, connectionCreateFailed, connectionUpdateFailed } = API_ERROR;
@@ -14,6 +16,8 @@ const { connectionRequired, connectionCreateFailed, connectionUpdateFailed } = A
  * @author HattoriHanzo-Ronin
  */
 export default class DefaultConnectionsService<Transaction> implements ConnectionsService<Transaction> {
+    private static readonly LOGGER = Logger.getLogger(DefaultConnectionsService);
+
     constructor(private readonly dependencies: ConnectionsServiceDependencies<Transaction>) {}
 
     async getByDevices({ devicesId }: ConnectionsByDevicesParams) {
@@ -35,8 +39,18 @@ export default class DefaultConnectionsService<Transaction> implements Connectio
             ApiError.handle([
                 {
                     condition: !(err instanceof ApiError && err.code === connectionRequired),
+                    execute: () => {
+                        if (!(err instanceof ApiError)) {
+                            DefaultConnectionsService.LOGGER.error({
+                                event: LOG_EVENT.databaseOperationFailed,
+                                message: "Failed to create connections",
+                                error: err
+                            });
+                        }
+                    },
                     message: "Error al crear las conexiones del dispositivo",
-                    apiError: connectionCreateFailed
+                    apiError: connectionCreateFailed,
+                    cause: err
                 }
             ]);
             throw err;
@@ -83,9 +97,18 @@ export default class DefaultConnectionsService<Transaction> implements Connectio
             return result;
         } catch (err) {
             this.dependencies.entityError(err as PostgresError);
+            if (!(err instanceof ApiError)) {
+                DefaultConnectionsService.LOGGER.error({
+                    event: LOG_EVENT.databaseOperationFailed,
+                    message: "Failed to update connections",
+                    error: err
+                });
+            }
+
             throw new ApiError({
                 message: "Error al actualizar las conexiones del dispositivo",
-                apiError: connectionUpdateFailed
+                apiError: connectionUpdateFailed,
+                cause: err
             });
         }
     }

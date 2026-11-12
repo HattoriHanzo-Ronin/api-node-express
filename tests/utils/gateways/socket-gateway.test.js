@@ -3,6 +3,8 @@ import { createServer } from "node:http";
 import WebSocket from "ws";
 import SocketEventsGateway from "../../../src/utils/gateways/impl/socket-events-gateway.js";
 import ApiError from "../../../src/utils/error/api-error.js";
+const logger = vi.hoisted(() => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+vi.mock("../../../src/utils/logger/logger.js", () => ({ default: { getLogger: () => logger } }));
 
 describe("SocketEventsGateway", () => {
     const authUser = { id: "user-id", exp: 1_900_000_000, roles: ["NET"] };
@@ -37,12 +39,14 @@ describe("SocketEventsGateway", () => {
         webSocket.send(JSON.stringify({ accessToken: "access-token", entities: ["devices"] }));
         await vi.waitFor(() => expect(socketSessionsFacade.subscribe).toHaveBeenCalledOnce());
         expect(accessTokenProvider.verify).toHaveBeenCalledWith({ token: "access-token" });
-        expect(socketSessionsFacade.subscribe).toHaveBeenCalledWith(expect.objectContaining({
-            authUser,
-            entities: ["devices"],
-            id: "session-id",
-            webSocket: expect.any(Object)
-        }));
+        expect(socketSessionsFacade.subscribe).toHaveBeenCalledWith(
+            expect.objectContaining({
+                authUser,
+                entities: ["devices"],
+                id: "session-id",
+                webSocket: expect.any(Object)
+            })
+        );
         webSocket.close();
     });
 
@@ -66,6 +70,18 @@ describe("SocketEventsGateway", () => {
         await expectMessage(webSocket, { code: "ACL_PERMISSION_DENIED", message: "forbidden" });
         await new Promise((resolve) => webSocket.once("close", resolve));
         expect(socketSessionsFacade.invalidate).toHaveBeenCalledWith({ id: "session-id" });
+    });
+
+    it("records unexpected subscription errors without sending internal details", async () => {
+        const error = new Error("internal failure");
+        socketSessionsFacade.subscribe.mockRejectedValue(error);
+        const webSocket = await openSocket(`${origin}/events/session-id`);
+        webSocket.send(JSON.stringify({ accessToken: "access-token", entities: ["devices"] }));
+        await expectMessage(webSocket, { code: "INTERNAL_ERROR", message: "Error inesperado" });
+        await new Promise((resolve) => webSocket.once("close", resolve));
+        expect(logger.error).toHaveBeenCalledWith(
+            expect.objectContaining({ event: "socket.connection.failed", error })
+        );
     });
 });
 

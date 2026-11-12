@@ -1,4 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../src/utils/logger/logger.js", () => {
+    return {
+        default: { getLogger: () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }) }
+    };
+});
 import RefreshTokensService from "../../src/services/impl/default-refresh-tokens-service.js";
 import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
 

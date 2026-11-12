@@ -1,6 +1,8 @@
 import { API_ERROR } from "../../../../config/errors.js";
 import type RouterCpanel from "../router-cpanel.js";
 import ApiError from "../../../error/api-error.js";
+import Logger from "../../../logger/logger.js";
+import { LOG_EVENT } from "../../../../config/log-events.js";
 import type {
     CloseRouterCpanelParams,
     CreateRouterCpanelParams,
@@ -19,6 +21,8 @@ const { routerCpanelServiceUnavailable, routerCpanelSessionFailed } = API_ERROR;
  * @author HattoriHanzo-Ronin
  */
 export default class RouterCpanelClient implements RouterCpanel {
+    private static readonly LOGGER = Logger.getLogger(RouterCpanelClient);
+
     private readonly routerCpanelServiceUrl: string;
 
     constructor({ routerCpanelServiceUrl }: RouterCpanelDependencies) {
@@ -58,10 +62,19 @@ export default class RouterCpanelClient implements RouterCpanel {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body)
             });
-        } catch {
+        } catch (error) {
+            const password =
+                "routerPassword" in body && typeof body.routerPassword === "string" ? body.routerPassword : "";
+            RouterCpanelClient.LOGGER.error({
+                event: LOG_EVENT.routerCpanelConnectionFailed,
+                message: "Router panel service connection failed",
+                error,
+                redact: [password]
+            });
             throw new ApiError({
                 message: "No se ha podido conectar con el servicio de paneles de router",
-                apiError: routerCpanelServiceUnavailable
+                apiError: routerCpanelServiceUnavailable,
+                cause: error
             });
         }
 

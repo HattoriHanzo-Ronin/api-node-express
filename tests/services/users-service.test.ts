@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const logger = vi.hoisted(() => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }));
+vi.mock("../../src/utils/logger/logger.js", () => ({ default: { getLogger: () => logger } }));
 import type { ITask } from "pg-promise";
 import UsersService from "../../src/services/impl/default-users-service.js";
 import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
@@ -58,6 +61,7 @@ describe("UsersService", () => {
             await expect(usersService.authenticate({ username: "admin", password: "bad" })).rejects.toThrow(
                 "Usuario o contraseña incorrectos"
             );
+            expect(logger.info).toHaveBeenCalledWith({ event: "auth.login.failed", message: "Login failed" });
         });
 
         it("should fail if user is inactive", async () => {

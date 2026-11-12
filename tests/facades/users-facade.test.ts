@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const logger = vi.hoisted(() => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+vi.mock("../../src/utils/logger/logger.js", () => ({ default: { getLogger: () => logger } }));
 import type { ITask } from "pg-promise";
 import UsersFacade from "../../src/facades/impl/default-users-facade.js";
 import type { UsersFacadeDependencies } from "../../src/types/users/default-users-facade.js";
@@ -39,6 +42,7 @@ describe("UsersFacade", () => {
     let usersFacade: UsersFacade<ITask<unknown>>;
 
     beforeEach(() => {
+        vi.clearAllMocks();
         usersService = createUsersServiceMock();
         dataVersionsFacade = createDataVersionsFacadeMock();
         userRolesFacade = createUserRolesFacadeMock();
@@ -95,6 +99,12 @@ describe("UsersFacade", () => {
             usersService.getById.mockResolvedValue({ id: "1", username: "user" });
             usersMapper.userToDomain.mockReturnValue({ id: "1", username: "user", roles: ["NET"] });
             await expect(usersFacade.getById({ authUser: ADMIN_FTP, id: "1" })).rejects.toThrow("El usuario no existe");
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: "authorization.denied",
+                    context: "User: 1, operation: view user"
+                })
+            );
         });
     });
 
@@ -123,6 +133,12 @@ describe("UsersFacade", () => {
             });
             expect(result.id).toBe("1");
             expect(userRolesFacade.createMany).toHaveBeenCalled();
+            expect(logger.info).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: "user.operation.completed",
+                    context: "User: 1, affected user: 1, operation: create"
+                })
+            );
         });
 
         it("should fail when non super admin sends roles", async () => {
@@ -132,6 +148,12 @@ describe("UsersFacade", () => {
                     user: { username: "user", password: "Password123!", active: true, roles: ["NET"] }
                 })
             ).rejects.toThrow("No tiene permisos para realizar esa acción");
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: "authorization.denied",
+                    context: "User: 1, operation: user management"
+                })
+            );
         });
 
         it("should inherit admin scope when creating a user", async () => {
@@ -329,6 +351,12 @@ describe("UsersFacade", () => {
             const result = await usersFacade.delete({ authUser: ADMIN_FTP, id: "1" });
             expect(result).toEqual({ id: "1" });
             expect(usersService.delete).toHaveBeenCalledWith({ id: "1" });
+            expect(logger.info).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: "user.operation.completed",
+                    context: "User: 1, affected user: 1, operation: delete"
+                })
+            );
         });
     });
 });

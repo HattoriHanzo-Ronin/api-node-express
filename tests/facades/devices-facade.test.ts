@@ -7,6 +7,8 @@ import type { Connection } from "../../src/types/connections/connections-model.j
 import type { DeviceMapperParams, DevicesMapperParams } from "../../src/types/devices/devices-mapper.js";
 import ApiError from "../../src/utils/error/api-error.js";
 import { API_ERROR } from "../../src/config/errors.js";
+const logger = vi.hoisted(() => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+vi.mock("../../src/utils/logger/logger.js", () => ({ default: { getLogger: () => logger } }));
 
 const createDevicesServiceMock = () => ({
     getAll: vi.fn(),
@@ -339,6 +341,18 @@ describe("DevicesFacade", () => {
 
         await expect(devicesFacade.delete({ id: "device-1" })).rejects.toMatchObject({ code });
         expect(firstRouter.create).toHaveBeenCalled();
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: "Router whitelist update failed during device operation",
+                context: "Router: router-2, device: device-1"
+            })
+        );
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: "Router whitelist rollback failed",
+                context: "Router: router-1, device: device-1"
+            })
+        );
         expect(devicesService.delete).not.toHaveBeenCalled();
     });
 });

@@ -5,11 +5,20 @@ import DevicesController from "../../src/controllers/devices-controller.js";
 const NEXT: NextFunction = vi.fn();
 const UUID = "550e8400-e29b-41d4-a716-446655440000";
 
-const createDevicesFacadeMock = () => ({
-    getAll: vi.fn(), getById: vi.fn(), getAllowedDevices: vi.fn(), getNotAllowedDevices: vi.fn(),
-    create: vi.fn(), update: vi.fn(), delete: vi.fn(), createRouterCpanel: vi.fn(),
-    navigateRouterCpanel: vi.fn(), closeRouterCpanel: vi.fn()
-});
+const createDevicesFacadeMock = () => {
+    return {
+        getAll: vi.fn(),
+        getById: vi.fn(),
+        getAllowedDevices: vi.fn(),
+        getNotAllowedDevices: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+        createRouterCpanel: vi.fn(),
+        navigateRouterCpanel: vi.fn(),
+        closeRouterCpanel: vi.fn()
+    };
+};
 
 describe("DevicesController", () => {
     let devicesFacade: ReturnType<typeof createDevicesFacadeMock>;
@@ -117,7 +126,11 @@ describe("DevicesController", () => {
         req.body = { action: "back" };
         res.send = vi.fn();
         await controller.navigateRouterCpanel(req, res, NEXT);
-        expect(devicesFacade.navigateRouterCpanel).toHaveBeenCalledWith({ authUser: req.user, sessionId: UUID, action: "back" });
+        expect(devicesFacade.navigateRouterCpanel).toHaveBeenCalledWith({
+            authUser: req.user,
+            sessionId: UUID,
+            action: "back"
+        });
         expect(res.status).toHaveBeenCalledWith(204);
         expect(res.send).toHaveBeenCalledWith();
     });
@@ -237,7 +250,17 @@ function validClient(): { name: string; connections: { mac: string; ctype: strin
     };
 }
 
-function validRouter(): { name: string; model: string; connections: { mac: string; ctype: string }[]; type: string; ip: string; admin_pass: string; ssid: string; wifi_pass: string; mac_filter: boolean } {
+function validRouter(): {
+    name: string;
+    model: string;
+    connections: { mac: string; ctype: string }[];
+    type: string;
+    ip: string;
+    admin_pass: string;
+    ssid: string;
+    wifi_pass: string;
+    mac_filter: boolean;
+} {
     return {
         name: "Router Test",
         model: "TP-Link Archer AX53",

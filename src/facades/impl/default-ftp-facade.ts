@@ -31,8 +31,12 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { FILE_TYPE, SOCKET_ENTITY } from "../../config/constants.js";
 import { API_ERROR } from "../../config/errors.js";
+import { LOG_EVENT } from "../../config/log-events.js";
 import ApiError from "../../utils/error/api-error.js";
+import Logger from "../../utils/logger/logger.js";
 import { ENV } from "../../config/environment.js";
+
+const { sftpOperationCompleted, sftpOperationCancelled, backgroundFailed } = LOG_EVENT;
 
 const { dir: directoryType } = FILE_TYPE;
 const { ftpDirectoryCheckTimeout } = ENV;
@@ -49,6 +53,7 @@ export default class DefaultFtpFacade implements FtpFacade<
     UploadedFile,
     Buffer
 > {
+    private static readonly LOGGER = Logger.getLogger(DefaultFtpFacade);
     private static readonly HASH_ALGORITHM = "sha256";
     private readonly thumbnailJobs = new Map<string, Set<string>>();
 
@@ -94,6 +99,7 @@ export default class DefaultFtpFacade implements FtpFacade<
     }
 
     async move({ dir, entries, destination, authUser, stream }: FtpFacadeMoveParams<FtpProgressStream>) {
+        const started = performance.now();
         let completed = 0;
         let cacheCleared = false;
         try {
@@ -145,6 +151,11 @@ export default class DefaultFtpFacade implements FtpFacade<
                     stream.end();
                 }
             });
+            DefaultFtpFacade.LOGGER.info({
+                event: sftpOperationCompleted,
+                message: "SFTP operation completed",
+                context: `User: ${authUser.id}, operation: move, duration: ${performance.now() - started} ms`
+            });
         } finally {
             if (!cacheCleared) {
                 this.clearDirectoryCache(authUser.id, dir);
@@ -177,7 +188,7 @@ export default class DefaultFtpFacade implements FtpFacade<
     }
 
     async completeUpload({ id, authUser }: FtpFacadeTransferParams) {
-        return this.dependencies.ftpService.completeUpload({
+        const result = await this.dependencies.ftpService.completeUpload({
             id,
             authUser,
             onComplete: async ({ dir }: Pick<FtpDirectoryParams, "dir">) => {
@@ -186,10 +197,21 @@ export default class DefaultFtpFacade implements FtpFacade<
                 return result;
             }
         });
+        DefaultFtpFacade.LOGGER.info({
+            event: sftpOperationCompleted,
+            message: "SFTP operation completed",
+            context: `User: ${authUser.id}, operation: upload`
+        });
+        return result;
     }
 
     async cancelTransfer({ id, authUser }: FtpFacadeTransferParams) {
         await this.dependencies.ftpService.cancelTransfer({ id, authUser });
+        DefaultFtpFacade.LOGGER.info({
+            event: sftpOperationCancelled,
+            message: "SFTP operation cancelled",
+            context: `User: ${authUser.id}`
+        });
     }
 
     async createDownload({ dir, entries, authUser }: FtpFacadeEntriesParams) {
@@ -197,10 +219,17 @@ export default class DefaultFtpFacade implements FtpFacade<
     }
 
     async downloadEntry({ id, entryPath, offset, authUser, stream }: FtpFacadeDownloadParams<FtpDownloadStream>) {
+        const started = performance.now();
         await this.dependencies.ftpService.download({ id, entryPath, offset, authUser, stream });
+        DefaultFtpFacade.LOGGER.info({
+            event: sftpOperationCompleted,
+            message: "SFTP operation completed",
+            context: `User: ${authUser.id}, operation: download, duration: ${performance.now() - started} ms`
+        });
     }
 
     async delete({ dir, entries, authUser, stream }: FtpFacadeDeleteParams<FtpProgressStream>) {
+        const started = performance.now();
         let completed = 0;
         let cacheCleared = false;
         try {
@@ -233,6 +262,11 @@ export default class DefaultFtpFacade implements FtpFacade<
                     await this.writeProgress({ stream, progress: { event: "complete", version: hash } });
                     stream.end();
                 }
+            });
+            DefaultFtpFacade.LOGGER.info({
+                event: sftpOperationCompleted,
+                message: "SFTP operation completed",
+                context: `User: ${authUser.id}, operation: delete, duration: ${performance.now() - started} ms`
             });
         } finally {
             if (!cacheCleared) {
@@ -322,7 +356,15 @@ export default class DefaultFtpFacade implements FtpFacade<
                     }
                 }
             });
-        } catch {
+        } catch (error) {
+            if (!(error instanceof ApiError)) {
+                DefaultFtpFacade.LOGGER.error({
+                    event: backgroundFailed,
+                    message: "Thumbnail background task failed",
+                    context: `User: ${authUser.id}`,
+                    error
+                });
+            }
             const thumbnailJobs = this.thumbnailJobs.get(jobKey);
             names.forEach((name) => thumbnailJobs?.delete(name));
             if (!thumbnailJobs?.size) {
@@ -372,7 +414,16 @@ export default class DefaultFtpFacade implements FtpFacade<
                 this.dependencies.directoryCache.set(ownerId, dir, { ...cachedDirectory, hash });
                 this.notify({ authUser: { id: ownerId }, dir, version: hash });
             }
-        } catch {}
+        } catch (error) {
+            if (!(error instanceof ApiError)) {
+                DefaultFtpFacade.LOGGER.warn({
+                    event: backgroundFailed,
+                    message: "Directory watcher failed",
+                    context: `User: ${ownerId}`,
+                    error
+                });
+            }
+        }
 
         if (this.dependencies.directoryCache.has(ownerId, dir)) {
             setTimeout(() => this.checkDirectory(ownerId, dir), ftpDirectoryCheckTimeout);

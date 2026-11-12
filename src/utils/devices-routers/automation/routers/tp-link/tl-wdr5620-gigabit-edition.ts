@@ -4,6 +4,8 @@ import {
     GeneratedKeysParams
 } from "../../../../../types/utils/router-automation.js";
 import AbstractRouter from "../abstract-router.js";
+import { LOG_EVENT } from "../../../../../config/log-events.js";
+import Logger from "../../../../logger/logger.js";
 
 /**
  * TP-Link TL-WDR5620 Gigabit Edition router implementation
@@ -11,6 +13,7 @@ import AbstractRouter from "../abstract-router.js";
  * @author HattoriHanzo-Ronin
  */
 export default class TLWDR5620GigabitEditionRouter extends AbstractRouter {
+    private static readonly LOGGER = Logger.getLogger(TLWDR5620GigabitEditionRouter);
     private client = this.getAxiosClient();
 
     getCapabilities() {
@@ -63,8 +66,25 @@ export default class TLWDR5620GigabitEditionRouter extends AbstractRouter {
             const result = await this.client.post(this.getUrl() + `/stok=${stok}/ds`, data, {
                 headers: { "Content-Type": "application/json" }
             });
-            return result.data?.error_code === 0;
-        } catch {
+            const code: unknown = result.data?.error_code;
+            if (typeof code === "number" && code !== 0) {
+                TLWDR5620GigabitEditionRouter.LOGGER.warn({
+                    event: LOG_EVENT.routerAutomationError,
+                    message: "Router rejected an automation operation",
+                    context: `Router: ${this.getRouter().id}, code: ${code}`
+                });
+            }
+
+            return code === 0;
+        } catch (error) {
+            const { id, admin_pass, ip } = this.getRouter();
+            TLWDR5620GigabitEditionRouter.LOGGER.warn({
+                event: LOG_EVENT.routerAutomationError,
+                message: "Router automation failed",
+                context: `Router: ${id}`,
+                error,
+                redact: [admin_pass, ip]
+            });
             return false;
         }
     }

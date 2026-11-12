@@ -1,4 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const logger = vi.hoisted(() => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }));
+vi.mock("../../src/utils/logger/logger.js", () => {
+    return {
+        default: { getLogger: () => logger }
+    };
+});
 import WhitelistService from "../../src/services/impl/default-whitelist-service.js";
 import type { Whitelist } from "../../src/types/whitelist/whitelist-model.js";
 import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
@@ -10,6 +17,7 @@ describe("WhitelistService", () => {
     let whitelistService: WhitelistService<object>;
 
     beforeEach(() => {
+        vi.clearAllMocks();
         whitelistModel = createWhitelistModelMock();
         whitelistService = new WhitelistService({ whitelistModel, entityError: PostgresErrors.whitelist });
     });
@@ -37,14 +45,20 @@ describe("WhitelistService", () => {
             await expect(whitelistService.create({ clientTx: {}, whitelist: {} as Whitelist })).rejects.toThrow(
                 "El dispositivo ya se encuentra autorizado"
             );
+            expect(logger.error).not.toHaveBeenCalled();
         });
 
         it("should fail if router whitelist key is duplicated", async () => {
-            const error = Object.assign(new Error("duplicate"), { code: "23505", constraint: "whitelist_router_id_key_unique" });
+            const error = Object.assign(new Error("duplicate"), {
+                code: "23505",
+                constraint: "whitelist_router_id_key_unique"
+            });
             whitelistModel.insert.mockRejectedValue(error);
             await expect(whitelistService.create({ clientTx: {}, whitelist: {} as Whitelist })).rejects.toMatchObject({
                 code: "WHITELIST_KEY_GENERATION_FAILED"
             });
+            expect(logger.error).toHaveBeenCalledOnce();
+            expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ error }));
         });
     });
 

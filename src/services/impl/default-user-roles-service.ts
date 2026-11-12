@@ -3,6 +3,8 @@ import type { UserRolesServiceDependencies } from "../../types/user-roles/defaul
 import type { UsersByIdParams } from "../../types/user-roles/user-roles-model.js";
 import type { CreateUserRolesParams, ReplaceUserRolesParams } from "../../types/user-roles/user-roles-service.js";
 import ApiError from "../../utils/error/api-error.js";
+import Logger from "../../utils/logger/logger.js";
+import { LOG_EVENT } from "../../config/log-events.js";
 import { API_ERROR } from "../../config/errors.js";
 
 const { aclRoleRequired, aclRoleCreateFailed, aclRoleUpdateFailed } = API_ERROR;
@@ -13,6 +15,8 @@ const { aclRoleRequired, aclRoleCreateFailed, aclRoleUpdateFailed } = API_ERROR;
  * @author HattoriHanzo-Ronin
  */
 export default class DefaultUserRolesService<Transaction> implements UserRolesService<Transaction> {
+    private static readonly LOGGER = Logger.getLogger(DefaultUserRolesService);
+
     private readonly userRolesModel: UserRolesServiceDependencies<Transaction>["userRolesModel"];
 
     constructor({ userRolesModel }: UserRolesServiceDependencies<Transaction>) {
@@ -37,8 +41,18 @@ export default class DefaultUserRolesService<Transaction> implements UserRolesSe
             ApiError.handle([
                 {
                     condition: !(err instanceof ApiError && err.code === aclRoleRequired),
+                    execute: () => {
+                        if (!(err instanceof ApiError)) {
+                            DefaultUserRolesService.LOGGER.error({
+                                event: LOG_EVENT.databaseOperationFailed,
+                                message: "Failed to create user roles",
+                                error: err
+                            });
+                        }
+                    },
                     message: "Error al crear los roles del usuario",
-                    apiError: aclRoleCreateFailed
+                    apiError: aclRoleCreateFailed,
+                    cause: err
                 }
             ]);
             throw err;
@@ -53,8 +67,18 @@ export default class DefaultUserRolesService<Transaction> implements UserRolesSe
             ApiError.handle([
                 {
                     condition: !(err instanceof ApiError && err.code === aclRoleRequired),
+                    execute: () => {
+                        if (!(err instanceof ApiError)) {
+                            DefaultUserRolesService.LOGGER.error({
+                                event: LOG_EVENT.databaseOperationFailed,
+                                message: "Failed to update user roles",
+                                error: err
+                            });
+                        }
+                    },
                     message: "Error al actualizar los roles del usuario",
-                    apiError: aclRoleUpdateFailed
+                    apiError: aclRoleUpdateFailed,
+                    cause: err
                 }
             ]);
             throw err;

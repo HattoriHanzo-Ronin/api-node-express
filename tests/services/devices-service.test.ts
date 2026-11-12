@@ -1,12 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../src/utils/logger/logger.js", () => {
+    return {
+        default: { getLogger: () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }) }
+    };
+});
 import DevicesService from "../../src/services/impl/default-devices-service.js";
 import type { DeviceInsert } from "../../src/types/devices/devices-model.js";
 import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
 
-const createDevicesModelMock = () => ({
-    getAll: vi.fn(), getById: vi.fn(), getAllowedDevices: vi.fn(), getNotAllowedDevices: vi.fn(),
-    getRoutersByAllowedDevice: vi.fn(), insert: vi.fn(), update: vi.fn(), delete: vi.fn()
-});
+const createDevicesModelMock = () => {
+    return {
+        getAll: vi.fn(),
+        getById: vi.fn(),
+        getAllowedDevices: vi.fn(),
+        getNotAllowedDevices: vi.fn(),
+        getRoutersByAllowedDevice: vi.fn(),
+        insert: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn()
+    };
+};
 
 describe("DevicesService", () => {
     let devicesModel: ReturnType<typeof createDevicesModelMock>;
@@ -79,15 +93,23 @@ describe("DevicesService", () => {
                 }
             ];
             devicesModel.getRoutersByAllowedDevice.mockResolvedValue(rows);
-            await expect(devicesService.getRoutersByAllowedDevice({ allowedDeviceId: "device-1" })).resolves.toEqual(rows);
+            await expect(devicesService.getRoutersByAllowedDevice({ allowedDeviceId: "device-1" })).resolves.toEqual(
+                rows
+            );
         });
     });
 
     describe("create", () => {
         it("should create device", async () => {
             const device: DeviceInsert = {
-                name: "Desktop", type: "CLIENT", model: null, ip: null, ssid: null,
-                wifi_pass: null, admin_pass: null, mac_filter: null
+                name: "Desktop",
+                type: "CLIENT",
+                model: null,
+                ip: null,
+                ssid: null,
+                wifi_pass: null,
+                admin_pass: null,
+                mac_filter: null
             };
             devicesModel.insert.mockResolvedValue(device);
             await expect(devicesService.create({ clientTx: {}, device })).resolves.toEqual(device);
@@ -131,8 +153,9 @@ describe("DevicesService", () => {
 
         it("should reject a missing device returned by an update", async () => {
             devicesModel.update.mockResolvedValue(null);
-            await expect(devicesService.update({ clientTx: {}, id: "device-1", data: { name: "Desktop" } }))
-                .rejects.toMatchObject({ code: "VALIDATION_FAILED", status: 400 });
+            await expect(
+                devicesService.update({ clientTx: {}, id: "device-1", data: { name: "Desktop" } })
+            ).rejects.toMatchObject({ code: "VALIDATION_FAILED", status: 400 });
         });
     });
 

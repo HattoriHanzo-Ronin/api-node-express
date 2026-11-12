@@ -32,6 +32,10 @@ export type RouterRollbackParams = Pick<RouterOperationParams, "key" | "routerIm
     delDevice: RouterOperationParams["addDevice"];
 };
 export type RouterRollback = (params: RouterRollbackParams) => Promise<void>;
-export type UpdatedRouter = { routerImpl: RouterAutomation; updatedMacs: Omit<RouterOperationParams, "routerImpl">[] };
+export type UpdatedRouter = {
+    routerId: string;
+    routerImpl: RouterAutomation;
+    updatedMacs: Omit<RouterOperationParams, "routerImpl">[];
+};
 export type MapDeviceResult = { id: string; result: DeviceMapperSource };
 export type MapDevicesResult = { id?: never; result: DeviceModel[] };

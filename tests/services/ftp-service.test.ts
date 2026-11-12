@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PassThrough, Readable, Writable } from "node:stream";
 
 const authUser = { id: "user-id", roles: ["FTP"] as Role[] };
+const logger = vi.hoisted(() => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+vi.mock("../../src/utils/logger/logger.js", () => ({ default: { getLogger: () => logger } }));
 const { mockClient, mockCloseClient } = vi.hoisted(() => ({
     mockClient: {
         list: vi.fn(),
@@ -78,6 +80,45 @@ describe("FtpService", () => {
         vi.unstubAllGlobals();
     });
 
+    it("records pool saturation once while operations wait and resumes them", async () => {
+        let release = () => {};
+        const hold = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const firstStarted = vi.fn();
+        const first = ftpConnectionManager.execute({
+            authUser,
+            pool: "interactive",
+            callback: async () => {
+                firstStarted();
+                await hold;
+            }
+        });
+        await vi.waitFor(() => expect(firstStarted).toHaveBeenCalledOnce());
+        const secondStarted = vi.fn();
+        const second = ftpConnectionManager.execute({
+            authUser,
+            pool: "interactive",
+            callback: async () => {
+                secondStarted();
+            }
+        });
+        const third = ftpConnectionManager.execute({ authUser, pool: "interactive", callback: async () => {} });
+        await vi.waitFor(() => {
+            return expect(logger.info).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: "sftp.pool.saturated",
+                    context: "User: user-id, pool: interactive, limit: 1, waiting operations: 1"
+                })
+            );
+        });
+        expect(logger.info.mock.calls.filter(([event]) => event.event === "sftp.pool.saturated")).toHaveLength(1);
+        expect(secondStarted).not.toHaveBeenCalled();
+        release();
+        await Promise.all([first, second, third]);
+        expect(secondStarted).toHaveBeenCalledOnce();
+    });
+
     describe("dir", () => {
         it("should list ftp resources", async () => {
             const modifyTime = new Date("2026-09-20T10:00:00.000Z");
@@ -112,8 +153,17 @@ describe("FtpService", () => {
         });
 
         it("should translate list errors", async () => {
-            mockClient.list.mockRejectedValue(new Error("ftp down"));
+            const error = new Error("ftp down");
+            mockClient.list.mockRejectedValue(error);
             await expect(ftpService.dir({ dir: "files", authUser })).rejects.toThrow("Error al listar la carpeta");
+            expect(logger.error).toHaveBeenCalledOnce();
+            expect(logger.error).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: "SFTP operation failed",
+                    context: "Error code: FTP_DIR_FAILED",
+                    error
+                })
+            );
         });
     });
 
@@ -125,6 +175,22 @@ describe("FtpService", () => {
             mockClient.stat.mockResolvedValue({ size: media.length });
             mockClient.createReadStream.mockImplementation((remote, { start, end }) =>
                 Readable.from(media.subarray(start, end + 1))
+            );
+        });
+
+        it("records an unexpected thumbnail service failure", async () => {
+            vi.stubGlobal(
+                "fetch",
+                vi.fn(async () => new Response(null, { status: 503 }))
+            );
+            const callback = vi.fn();
+            await ftpService.getThumbnails({ dir: "media", names: ["photo.PNG"], authUser, callback });
+            expect(callback).toHaveBeenCalledWith({ name: "photo.PNG", thumbnail: null });
+            expect(logger.warn).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: "background.failed",
+                    context: expect.stringMatching(/^Request: [a-f0-9-]+, HTTP status: 503$/)
+                })
             );
         });
 
@@ -190,6 +256,62 @@ describe("FtpService", () => {
             await ftpService.getThumbnails({ dir: "media", names: ["photo.PNG"], authUser, callback });
             expect(callback).toHaveBeenCalledWith({ name: "photo.PNG", thumbnail });
             expect(mockClient.createReadStream).toHaveBeenCalledWith("media/photo.PNG", { start: 0, end: 9 });
+        });
+
+        it("accepts an early consumer close without hiding source errors", async () => {
+            const source = new PassThrough();
+            mockClient.createReadStream.mockReturnValue(source);
+            vi.stubGlobal(
+                "fetch",
+                vi.fn(async (url) => {
+                    const id = url.split("/").at(-1);
+                    const output = new PassThrough() as PassThrough & import("node:http").ServerResponse;
+                    output.writeHead = vi.fn();
+                    const pending = ftpService.streamMedia({ id, method: "GET", stream: output });
+                    output.destroy();
+                    await expect(pending).resolves.toBeUndefined();
+                    expect(source.destroyed).toBe(true);
+                    return new Response(Buffer.from([0xff, 0xd8]));
+                })
+            );
+            await ftpService.getThumbnails({ dir: "media", names: ["photo.PNG"], authUser, callback: vi.fn() });
+        });
+
+        it("propagates an SFTP source failure during media streaming", async () => {
+            const source = new PassThrough();
+            const error = new Error("SFTP source failed");
+            mockClient.createReadStream.mockReturnValue(source);
+            vi.stubGlobal(
+                "fetch",
+                vi.fn(async (url) => {
+                    const id = url.split("/").at(-1);
+                    const output = new PassThrough() as PassThrough & import("node:http").ServerResponse;
+                    output.writeHead = vi.fn();
+                    const pending = ftpService.streamMedia({ id, method: "GET", stream: output });
+                    source.destroy(error);
+                    await expect(pending).rejects.toBe(error);
+                    return new Response(Buffer.from([0xff, 0xd8]));
+                })
+            );
+            await ftpService.getThumbnails({ dir: "media", names: ["photo.PNG"], authUser, callback: vi.fn() });
+        });
+
+        it("propagates a prematurely closed SFTP source", async () => {
+            const source = new PassThrough();
+            mockClient.createReadStream.mockReturnValue(source);
+            vi.stubGlobal(
+                "fetch",
+                vi.fn(async (url) => {
+                    const id = url.split("/").at(-1);
+                    const output = new PassThrough() as PassThrough & import("node:http").ServerResponse;
+                    output.writeHead = vi.fn();
+                    const pending = ftpService.streamMedia({ id, method: "GET", stream: output });
+                    source.destroy();
+                    await expect(pending).rejects.toMatchObject({ code: "ERR_STREAM_PREMATURE_CLOSE" });
+                    return new Response(Buffer.from([0xff, 0xd8]));
+                })
+            );
+            await ftpService.getThumbnails({ dir: "media", names: ["photo.PNG"], authUser, callback: vi.fn() });
         });
 
         it("returns null when the generator response exceeds the allowed size", async () => {
@@ -803,7 +925,10 @@ describe("FtpService", () => {
         it("prepares files in nested directories using their remote paths", async () => {
             mockClient.list.mockImplementation(async (remotePath) => {
                 if (remotePath === "files/docs") {
-                    return [{ name: "sub", type: "d" }, { name: "first.txt", type: "-" }];
+                    return [
+                        { name: "sub", type: "d" },
+                        { name: "first.txt", type: "-" }
+                    ];
                 }
 
                 if (remotePath === "files/docs/sub") {

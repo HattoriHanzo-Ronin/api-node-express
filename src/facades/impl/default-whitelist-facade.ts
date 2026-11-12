@@ -7,8 +7,10 @@ import type { AllowedDevice, WhitelistParams } from "../../types/whitelist/white
 import ApiError from "../../utils/error/api-error.js";
 import { SOCKET_ENTITY } from "../../config/constants.js";
 import { API_ERROR } from "../../config/errors.js";
+import { LOG_EVENT } from "../../config/log-events.js";
+import Logger from "../../utils/logger/logger.js";
 
-const { deviceNotFound, whitelistRouterNotFound, connectionMacMismatch } = API_ERROR;
+const { deviceNotFound, whitelistRouterNotFound, connectionMacMismatch, routerImplementationNotFound } = API_ERROR;
 
 /**
  * Default whitelist facade
@@ -16,11 +18,13 @@ const { deviceNotFound, whitelistRouterNotFound, connectionMacMismatch } = API_E
  * @author HattoriHanzo-Ronin
  */
 export default class DefaultWhitelistFacade<Transaction> implements WhitelistFacade {
+    private static readonly LOGGER = Logger.getLogger(DefaultWhitelistFacade);
+
     constructor(private readonly dependencies: WhitelistFacadeDependencies<Transaction>) {}
 
     async create({ routerId, allowedDevice }: WhitelistParams) {
         const { id, name, mac } = await this.resolveAllowedDevice(allowedDevice);
-        const routerImpl = await this.getRouterImpl(routerId);
+        const routerImpl = await this.getRouterImpl(routerId, id);
         const key = await this.dependencies.whitelistService.getKey({
             routerId,
             generateKey: (keys) => routerImpl.generateKey({ keys })
@@ -34,12 +38,17 @@ export default class DefaultWhitelistFacade<Transaction> implements WhitelistFac
             return { id, mac };
         });
         await this.dependencies.socketSessionsFacade.notify({ entities: [SOCKET_ENTITY.whitelist] });
+        DefaultWhitelistFacade.LOGGER.info({
+            event: LOG_EVENT.whitelistOperationCompleted,
+            message: "Device added in router whitelist",
+            context: `Router: ${routerId}, device: ${id}, operation: add`
+        });
         return result;
     }
 
     async delete({ routerId, allowedDevice }: WhitelistParams) {
         const { id, mac } = await this.resolveAllowedDevice(allowedDevice);
-        const routerImpl = await this.getRouterImpl(routerId);
+        const routerImpl = await this.getRouterImpl(routerId, id);
         const result = await this.dependencies.tx(async (clientTx) => {
             const { key } = await this.dependencies.whitelistService.delete({
                 clientTx,
@@ -50,20 +59,34 @@ export default class DefaultWhitelistFacade<Transaction> implements WhitelistFac
             return { id, mac };
         });
         await this.dependencies.socketSessionsFacade.notify({ entities: [SOCKET_ENTITY.whitelist] });
+        DefaultWhitelistFacade.LOGGER.info({
+            event: LOG_EVENT.whitelistOperationCompleted,
+            message: "Device removed in router whitelist",
+            context: `Router: ${routerId}, device: ${id}, operation: delete`
+        });
         return result;
     }
 
-    private async getRouterImpl(id: string): Promise<RouterAutomation> {
+    private async getRouterImpl(id: string, deviceId: string): Promise<RouterAutomation> {
         try {
             const router = await this.dependencies.devicesFacade.getById({ id });
             return new this.dependencies.routerAutomation({ router: router as RouterAutomationPayload });
         } catch (err) {
+            if (err instanceof ApiError && err.code === routerImplementationNotFound) {
+                DefaultWhitelistFacade.LOGGER.warn({
+                    event: LOG_EVENT.routerOperationFailed,
+                    message: "Router automation is unavailable",
+                    context: `Router: ${id}, device: ${deviceId}`
+                });
+            }
+
             ApiError.handle([
                 {
                     condition: err instanceof ApiError && err.code === deviceNotFound,
                     message: "El router no existe",
                     status: 404,
-                    apiError: whitelistRouterNotFound
+                    apiError: whitelistRouterNotFound,
+                    cause: err
                 }
             ]);
             throw err;
