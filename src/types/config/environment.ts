@@ -1,4 +1,5 @@
 import type { JwtExpiresIn } from "../utils/jwt-provider.js";
+import type { LogLevel } from "../logger/logger.js";
 
 export type ProtectedService = "ftp" | "socket";
 
@@ -43,4 +44,7 @@ export type Environment = Readonly<{
     socketSessionInactivityTimeout: number;
     socketPingTimeout: number;
     chromePath: string;
+    logLevel: LogLevel;
+    logDirectory: string;
+    logRetentionWeeks: number;
 }>;

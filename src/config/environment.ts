@@ -8,6 +8,7 @@ import type {
     ProtectedUsers
 } from "../types/config/environment.js";
 import type { JwtExpiresIn } from "../types/utils/jwt-provider.js";
+import type { LogLevel } from "../types/logger/logger.js";
 
 const {
     PORT,
@@ -45,7 +46,10 @@ const {
     SOCKET_MAX_CONNECTIONS_PER_USER,
     SOCKET_SESSION_INACTIVITY_TIMEOUT,
     SOCKET_PING_TIMEOUT,
-    CHROME_PATH
+    CHROME_PATH,
+    LOG_LEVEL,
+    LOG_DIRECTORY,
+    LOG_RETENTION_WEEKS
 } = process.env;
 const PROTECTED_SERVICE = Object.freeze({ ftp: "ftp", socket: "socket" } as const);
 const ENV: Environment = Object.freeze(
@@ -85,7 +89,10 @@ const ENV: Environment = Object.freeze(
         socketMaxConnectionsPerUser: Number(SOCKET_MAX_CONNECTIONS_PER_USER),
         socketSessionInactivityTimeout: Number(SOCKET_SESSION_INACTIVITY_TIMEOUT),
         socketPingTimeout: Number(SOCKET_PING_TIMEOUT),
-        chromePath: CHROME_PATH
+        chromePath: CHROME_PATH,
+        logLevel: toLogLevel(LOG_LEVEL),
+        logDirectory: LOG_DIRECTORY,
+        logRetentionWeeks: Number(LOG_RETENTION_WEEKS)
     })
 );
 
@@ -124,7 +131,7 @@ function validateConfiguration(environment: Partial<Environment>): Environment {
                 break;
             }
             case "string": {
-                const validStrings = value.length > 0;
+                const validStrings = key === "logDirectory" ? value.trim().length > 0 : value.length > 0;
                 const validUrls =
                     !["thumbnailGeneratorUrl", "routerCpanelServiceUrl"].includes(key) || URL.canParse(value);
                 invalidConfig(!validStrings || !validUrls);
@@ -175,6 +182,14 @@ function parseProtectedUsers(source: string | undefined): ProtectedUsers {
 
 function isProtectedService(value: string): value is ProtectedService {
     return value === PROTECTED_SERVICE.ftp || value === PROTECTED_SERVICE.socket;
+}
+
+function toLogLevel(value: string | undefined): LogLevel | undefined {
+    if (value === "debug" || value === "info" || value === "warn" || value === "error") {
+        return value;
+    }
+
+    return undefined;
 }
 
 function toJwtExpiresIn(value: string | undefined): JwtExpiresIn | undefined {

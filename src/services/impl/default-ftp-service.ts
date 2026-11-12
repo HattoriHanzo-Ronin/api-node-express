@@ -57,6 +57,10 @@ import ApiError from "../../utils/error/api-error.js";
 import { FILE_TYPE, FTP_TRANSFER_TYPE } from "../../config/constants.js";
 import { API_ERROR } from "../../config/errors.js";
 import { ENV } from "../../config/environment.js";
+import { LOG_EVENT } from "../../config/log-events.js";
+import Logger from "../../utils/logger/logger.js";
+
+const { backgroundFailed } = LOG_EVENT;
 
 const {
     ftpMediaSessionTimeout,
@@ -94,6 +98,7 @@ export default class DefaultFtpService implements FtpService<
     Buffer,
     FtpSourceEntry
 > {
+    private static readonly LOGGER = Logger.getLogger(DefaultFtpService);
     private readonly ftpConnectionManager: FtpServiceDependencies<SftpClient>["ftpConnectionManager"];
     private readonly transferSessions = new Map<string, FtpTransferState>();
     private readonly mediaSessions = new Map<string, FtpMediaState>();
@@ -119,7 +124,11 @@ export default class DefaultFtpService implements FtpService<
                 callback: ({ client }) => client.list(dir)
             });
         } catch (err) {
-            throw DefaultFtpService.ftpError({ message: "Error al listar la carpeta", apiError: ftpDirFailed });
+            throw DefaultFtpService.ftpError({
+                message: "Error al listar la carpeta",
+                apiError: ftpDirFailed,
+                cause: err
+            });
         }
     }
 
@@ -139,7 +148,16 @@ export default class DefaultFtpService implements FtpService<
                                 const remotePath = path.posix.join(dir, name);
                                 const { size } = await client.stat(remotePath);
                                 thumbnail = await this.createThumbnail({ client, remotePath, size });
-                            } catch {
+                            } catch (error) {
+                                if (!(error instanceof ApiError)) {
+                                    DefaultFtpService.LOGGER.warn({
+                                        event: backgroundFailed,
+                                        message: "Thumbnail generation failed",
+                                        context: `User: ${authUser.id}`,
+                                        error
+                                    });
+                                }
+
                                 thumbnail = null;
                             }
 
@@ -148,9 +166,10 @@ export default class DefaultFtpService implements FtpService<
                     );
                 }
             });
-        } catch {
+        } catch (err) {
             throw DefaultFtpService.ftpError({
                 message: "Error al generar las miniaturas",
+                cause: err,
                 apiError: ftpThumbnailFailed
             });
         }
@@ -186,7 +205,44 @@ export default class DefaultFtpService implements FtpService<
             return;
         }
 
-        await pipeline(createReadStream({ start, end }), stream);
+        const source = createReadStream({ start, end });
+        let responseClosed = false;
+        let sourceFailed = false;
+        const onClose = () => {
+            responseClosed = !stream.writableFinished;
+        };
+        const onSourceError = () => {
+            if (!responseClosed) {
+                sourceFailed = true;
+            }
+        };
+        const onSourceClose = () => {
+            if (!responseClosed && !source.readableEnded) {
+                sourceFailed = true;
+            }
+        };
+        stream.once("close", onClose);
+        source.once("error", onSourceError);
+        source.once("close", onSourceClose);
+        try {
+            await pipeline(source, stream);
+        } catch (error) {
+            if (
+                responseClosed &&
+                !sourceFailed &&
+                error instanceof Error &&
+                "code" in error &&
+                error.code === "ERR_STREAM_PREMATURE_CLOSE"
+            ) {
+                return;
+            }
+
+            throw error;
+        } finally {
+            stream.off("close", onClose);
+            source.off("error", onSourceError);
+            source.off("close", onSourceClose);
+        }
     }
 
     async makeDir({ dir, name, authUser }: FtpMakeDirParams) {
@@ -221,7 +277,11 @@ export default class DefaultFtpService implements FtpService<
                 remotePath = await this.getAvailableRemotePath({ dir, name, authUser });
             }
         } catch (err) {
-            throw DefaultFtpService.ftpError({ message: "Error al crear la carpeta", apiError: ftpMkdirFailed });
+            throw DefaultFtpService.ftpError({
+                message: "Error al crear la carpeta",
+                apiError: ftpMkdirFailed,
+                cause: err
+            });
         }
     }
 
@@ -290,7 +350,11 @@ export default class DefaultFtpService implements FtpService<
 
             await onComplete();
         } catch (err) {
-            throw DefaultFtpService.ftpError({ message: "Error al mover los archivos", apiError: ftpMoveFailed });
+            throw DefaultFtpService.ftpError({
+                message: "Error al mover los archivos",
+                apiError: ftpMoveFailed,
+                cause: err
+            });
         } finally {
             releaseDestinations.forEach((release) => release());
             releaseSources?.();
@@ -315,7 +379,7 @@ export default class DefaultFtpService implements FtpService<
 
             return { ...entry, name: path.posix.basename(destinationPath) };
         } catch (err) {
-            throw DefaultFtpService.ftpError({ message: "Error al renombrar", apiError: ftpRenameFailed });
+            throw DefaultFtpService.ftpError({ message: "Error al renombrar", apiError: ftpRenameFailed, cause: err });
         }
     }
 
@@ -395,7 +459,10 @@ export default class DefaultFtpService implements FtpService<
                             { ...entry, type: fileType, receivedBytes: 0, uploaded: false, uploading: false }
                         ];
                     });
-                    const timeout = setTimeout(() => void this.expireTransfer({ id }), ftpTransferSessionTimeout);
+                    const timeout = setTimeout(
+                        () => void this.expireTransfer({ id }).catch(DefaultFtpService.logBackgroundFailure),
+                        ftpTransferSessionTimeout
+                    );
                     timeout.unref();
                     session.timeout = timeout;
                     session.entries = new Map(sessionEntries);
@@ -406,7 +473,11 @@ export default class DefaultFtpService implements FtpService<
             return uploadSession;
         } catch (err) {
             await this.cleanupTransfer({ session });
-            throw DefaultFtpService.ftpError({ message: "Error al preparar la subida", apiError: ftpUploadFailed });
+            throw DefaultFtpService.ftpError({
+                message: "Error al preparar la subida",
+                apiError: ftpUploadFailed,
+                cause: err
+            });
         }
     }
 
@@ -521,7 +592,11 @@ export default class DefaultFtpService implements FtpService<
             clearTimeout(session.timeout);
             this.transferSessions.delete(id);
             await this.cleanupTransfer({ session });
-            throw DefaultFtpService.ftpError({ message: "Error al subir los datos", apiError: ftpUploadFailed });
+            throw DefaultFtpService.ftpError({
+                message: "Error al subir los datos",
+                apiError: ftpUploadFailed,
+                cause: err
+            });
         } finally {
             entry.uploading = false;
             session.activeStreams.delete(uploadedFile.stream);
@@ -611,7 +686,10 @@ export default class DefaultFtpService implements FtpService<
                         resolvedEntries.push(resolvedEntry);
                     }
 
-                    const timeout = setTimeout(() => void this.expireTransfer({ id }), ftpTransferSessionTimeout);
+                    const timeout = setTimeout(
+                        () => void this.expireTransfer({ id }).catch(DefaultFtpService.logBackgroundFailure),
+                        ftpTransferSessionTimeout
+                    );
                     timeout.unref();
                     const session: FtpDownloadState = {
                         type: FTP_TRANSFER_TYPE.download,
@@ -636,7 +714,11 @@ export default class DefaultFtpService implements FtpService<
             return downloadSession;
         } catch (err) {
             releaseLocks?.();
-            throw DefaultFtpService.ftpError({ message: "Error al preparar la descarga", apiError: ftpDownloadFailed });
+            throw DefaultFtpService.ftpError({
+                message: "Error al preparar la descarga",
+                apiError: ftpDownloadFailed,
+                cause: err
+            });
         }
     }
 
@@ -674,8 +756,8 @@ export default class DefaultFtpService implements FtpService<
                     let size;
                     try {
                         ({ size } = await client.stat(remotePath));
-                    } catch {
-                        throw DefaultFtpService.createStaleDownloadError();
+                    } catch (error) {
+                        throw DefaultFtpService.createStaleDownloadError(error);
                     }
 
                     if (size !== entry.size) {
@@ -709,7 +791,11 @@ export default class DefaultFtpService implements FtpService<
                 throw err;
             }
 
-            throw DefaultFtpService.ftpError({ message: "Error al descargar", apiError: ftpDownloadFailed });
+            throw DefaultFtpService.ftpError({
+                message: "Error al descargar",
+                apiError: ftpDownloadFailed,
+                cause: err
+            });
         } finally {
             if (source) {
                 session.activeStreams.delete(source);
@@ -757,7 +843,7 @@ export default class DefaultFtpService implements FtpService<
                 }
             });
         } catch (err) {
-            throw DefaultFtpService.ftpError({ message: "Error al borrar", apiError: ftpDeleteFailed });
+            throw DefaultFtpService.ftpError({ message: "Error al borrar", apiError: ftpDeleteFailed, cause: err });
         }
     }
 
@@ -778,6 +864,14 @@ export default class DefaultFtpService implements FtpService<
                 signal: AbortSignal.timeout(ftpMediaSessionTimeout)
             });
             if (!response.ok) {
+                if (response.status >= 500) {
+                    DefaultFtpService.LOGGER.warn({
+                        event: backgroundFailed,
+                        message: "Thumbnail service request failed",
+                        context: `Request: ${id}, HTTP status: ${response.status}`
+                    });
+                }
+
                 return null;
             }
 
@@ -938,11 +1032,20 @@ export default class DefaultFtpService implements FtpService<
         });
     }
 
-    private static createStaleDownloadError(): ApiError {
+    private static createStaleDownloadError(cause?: unknown): ApiError {
+        if (cause !== undefined && !(cause instanceof ApiError)) {
+            DefaultFtpService.LOGGER.error({
+                event: LOG_EVENT.sftpOperationFailed,
+                message: "Failed to check download file",
+                error: cause
+            });
+        }
+
         return new ApiError({
             message: "El archivo ha cambiado desde que se creó la sesión",
             status: 409,
-            apiError: ftpDownloadStale
+            apiError: ftpDownloadStale,
+            cause
         });
     }
 
@@ -970,6 +1073,14 @@ export default class DefaultFtpService implements FtpService<
         const session = this.transferSessions.get(id);
         this.transferSessions.delete(id);
         await this.cleanupTransfer({ session });
+    }
+
+    private static logBackgroundFailure(error: unknown): void {
+        DefaultFtpService.LOGGER.error({
+            event: backgroundFailed,
+            message: "SFTP transfer expiration failed",
+            error
+        });
     }
 
     private async getAvailableRemotePath({
@@ -1050,7 +1161,13 @@ export default class DefaultFtpService implements FtpService<
 
                         try {
                             await client.delete(entry.remotePath);
-                        } catch {
+                        } catch (error) {
+                            DefaultFtpService.LOGGER.warn({
+                                event: backgroundFailed,
+                                message: "SFTP upload cleanup failed",
+                                context: `User: ${session.ownerId}`,
+                                error
+                            });
                             continue;
                         }
                     }
@@ -1061,13 +1178,25 @@ export default class DefaultFtpService implements FtpService<
                     for (const remoteDir of directories) {
                         try {
                             await client.rmdir(remoteDir, false);
-                        } catch {
+                        } catch (error) {
+                            DefaultFtpService.LOGGER.warn({
+                                event: backgroundFailed,
+                                message: "SFTP directory cleanup failed",
+                                context: `User: ${session.ownerId}`,
+                                error
+                            });
                             continue;
                         }
                     }
                 }
             });
-        } catch {
+        } catch (error) {
+            DefaultFtpService.LOGGER.warn({
+                event: backgroundFailed,
+                message: "SFTP transfer cleanup failed",
+                context: `User: ${session.ownerId}`,
+                error: error instanceof ApiError ? undefined : error
+            });
             return;
         } finally {
             session.fileLocks.forEach((release) => release());
@@ -1088,7 +1217,20 @@ export default class DefaultFtpService implements FtpService<
         }
     }
 
-    private static ftpError({ message, apiError }: Pick<ApiErrorOptions, "message" | "apiError">): ApiError {
-        return new ApiError({ message, apiError });
+    private static ftpError({
+        message,
+        apiError,
+        cause
+    }: Pick<ApiErrorOptions, "message" | "apiError" | "cause">): ApiError {
+        if (!(cause instanceof ApiError)) {
+            DefaultFtpService.LOGGER.error({
+                event: LOG_EVENT.sftpOperationFailed,
+                message: "SFTP operation failed",
+                context: `Error code: ${apiError}`,
+                error: cause
+            });
+        }
+
+        return new ApiError({ message, apiError, cause });
     }
 }

@@ -25,6 +25,10 @@ import { WebSocket } from "ws";
 import { ENV } from "../../config/environment.js";
 import { API_ERROR } from "../../config/errors.js";
 import ApiError from "../../utils/error/api-error.js";
+import Logger from "../../utils/logger/logger.js";
+import { LOG_EVENT } from "../../config/log-events.js";
+
+const { socketConnectionFailed } = LOG_EVENT;
 
 const {
     socketMaxConnections,
@@ -47,6 +51,7 @@ const {
  * @author HattoriHanzo-Ronin
  */
 export default class DefaultSocketSessionsService implements SocketSessionsService<WebSocket> {
+    private static readonly LOGGER = Logger.getLogger(DefaultSocketSessionsService);
     private readonly sessions = new Map<string, SocketSession>();
     private readonly ownerSessions = new Map<string, Set<string>>();
     private readonly connectingSessions = new Set<string>();
@@ -162,7 +167,13 @@ export default class DefaultSocketSessionsService implements SocketSessionsServi
             try {
                 session.webSocket.send(JSON.stringify({ entity, ...data }));
                 this.touch({ session, exp: session.exp });
-            } catch {
+            } catch (error) {
+                DefaultSocketSessionsService.LOGGER.warn({
+                    event: socketConnectionFailed,
+                    message: "Socket notification failed",
+                    context: `User: ${session.ownerId}`,
+                    error
+                });
                 this.delete({ session });
             }
         }
@@ -199,6 +210,13 @@ export default class DefaultSocketSessionsService implements SocketSessionsServi
             },
             {
                 condition: session?.ownerId !== authUser.id,
+                execute: () => {
+                    DefaultSocketSessionsService.LOGGER.warn({
+                        event: LOG_EVENT.authorizationDenied,
+                        message: "Authenticated user attempted to access another user's socket session",
+                        context: `User: ${authUser.id}, session: ${id}`
+                    });
+                },
                 message: "La sesión de notificaciones no es válida",
                 status: 401,
                 apiError: socketSessionInvalid
@@ -221,6 +239,13 @@ export default class DefaultSocketSessionsService implements SocketSessionsServi
                     condition:
                         this.activeConnectionsByOwner(ownerId) + this.pendingConnectionsByOwner.get(ownerId)! >
                         socketMaxConnectionsPerUser,
+                    execute: () => {
+                        DefaultSocketSessionsService.LOGGER.info({
+                            event: LOG_EVENT.socketConnectionLimitReached,
+                            message: "Socket connection limit reached",
+                            context: `User: ${ownerId}, limit: ${socketMaxConnectionsPerUser}`
+                        });
+                    },
                     message: `Has alcanzado el límite de ${socketMaxConnectionsPerUser} conexiones simultáneas. Cierra una conexión en otro dispositivo para continuar.`,
                     status: 429,
                     apiError: socketConnectionLimitReached
@@ -232,6 +257,13 @@ export default class DefaultSocketSessionsService implements SocketSessionsServi
             ApiError.handle([
                 {
                     condition: !this.hasGlobalCapacity(),
+                    execute: () => {
+                        DefaultSocketSessionsService.LOGGER.info({
+                            event: LOG_EVENT.socketConnectionLimitReached,
+                            message: "Global socket connection capacity reached",
+                            context: `User: ${ownerId}, global limit: ${socketMaxConnections}`
+                        });
+                    },
                     message: "Se alcanzó el máximo global de conexiones de notificaciones",
                     status: 429,
                     apiError: socketConnectionCapacityReached
@@ -329,7 +361,12 @@ export default class DefaultSocketSessionsService implements SocketSessionsServi
             webSocket.once("pong", onPong);
             try {
                 webSocket.ping();
-            } catch {
+            } catch (error) {
+                DefaultSocketSessionsService.LOGGER.warn({
+                    event: socketConnectionFailed,
+                    message: "Socket ping failed",
+                    error
+                });
                 complete(false);
             }
         });

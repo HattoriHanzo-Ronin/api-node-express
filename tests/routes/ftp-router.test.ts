@@ -6,6 +6,11 @@ import type { AuthAccessTokenPayload, VerifiedAccessToken } from "../../src/type
 import type TokenProvider from "../../src/utils/token-providers/token-provider.js";
 import type { FtpRouterDependencies } from "../../src/types/ftp/ftp-router.js";
 import type { FtpRouterController } from "../types/routers.js";
+vi.mock("../../src/utils/logger/logger.js", () => {
+    return {
+        default: { getLogger: () => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }) }
+    };
+});
 
 import createFtpRouter from "../../src/routes/ftp-router.js";
 

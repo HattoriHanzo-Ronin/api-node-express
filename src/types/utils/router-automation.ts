@@ -6,7 +6,7 @@ export type RouterCapabilities = {
     deleteAllow: boolean;
 };
 
-export type RouterAutomationPayload = Pick<RouterDevice, "name" | "model" | "ip" | "admin_pass">;
+export type RouterAutomationPayload = Pick<RouterDevice, "id" | "name" | "model" | "ip" | "admin_pass">;
 
 export type GeneratedKeysParams = {
     keys: WhitelistKey[];

@@ -1,6 +1,8 @@
 import FtpClient from "../../ftp-client.js";
 import type SftpClient from "ssh2-sftp-client";
 import { ENV } from "../../../../../config/environment.js";
+import { LOG_EVENT } from "../../../../../config/log-events.js";
+import Logger from "../../../../logger/logger.js";
 import { API_ERROR } from "../../../../../config/errors.js";
 import ApiError from "../../../../error/api-error.js";
 import type FtpConnectionManager from "../ftp-connection-manager.js";
@@ -26,6 +28,8 @@ import type {
     FtpSessionUser,
     ExecuteRequiredFtpOperationParams
 } from "../../../../../types/ftp/ftp-connection-manager.js";
+
+const { sftpConnectionFailed, sftpConnectionOpened, sftpConnectionClosed, backgroundFailed } = LOG_EVENT;
 
 const {
     ftpMaxConnections,
@@ -59,6 +63,7 @@ const SCALABLE_FTP_POOL_TYPES: FtpPoolType[] = ["transfer"];
  * @author HattoriHanzo-Ronin
  */
 export default class FtpPooledConnectionManager implements FtpConnectionManager<SftpClient> {
+    private static readonly LOGGER = Logger.getLogger(FtpPooledConnectionManager);
     private static readonly POOL_CONFIG: FtpPoolConfiguration = Object.freeze({
         watcher: { min: ftpWatcherPoolMin, max: ftpWatcherPoolMax },
         interactive: { min: ftpInteractivePoolMin, max: ftpInteractivePoolMax },
@@ -140,7 +145,7 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         let connection: FtpConnection | undefined;
         try {
             if (transfer) {
-                releaseTransfer = await this.acquireTransfer();
+                releaseTransfer = await this.acquireTransfer(authUser.id);
             }
 
             if (pool !== "watcher") {
@@ -179,7 +184,7 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
             releasePaths();
             releaseTransfer();
             if (!connection && session.expired) {
-                void this.closeSession(session);
+                void this.closeSession(session).catch(FtpPooledConnectionManager.logBackgroundFailure);
             }
         }
     }
@@ -210,7 +215,7 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
                 release();
                 session.transferLocks -= 1;
                 if (session.expired) {
-                    void this.closeSession(session);
+                    void this.closeSession(session).catch(FtpPooledConnectionManager.logBackgroundFailure);
                 }
             };
         } catch (error) {
@@ -229,11 +234,19 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         await Promise.all([...this.sessions.values()].map((session) => this.closeSession(session, true)));
     }
 
-    private acquireTransfer(): Promise<Release> {
+    private acquireTransfer(ownerId: string): Promise<Release> {
         if (this.activeTransfers < ftpMaxTransfers) {
             this.activeTransfers += 1;
             return Promise.resolve(() => this.releaseTransfer());
         }
+        if (this.transferQueue.length === 0) {
+            FtpPooledConnectionManager.LOGGER.info({
+                event: LOG_EVENT.sftpTransferLimitReached,
+                message: "SFTP transfer capacity has waiting operations",
+                context: `User: ${ownerId}, global limit: ${ftpMaxTransfers}`
+            });
+        }
+
         return new Promise<Release>((resolve, reject) => this.transferQueue.push({ resolve, reject }));
     }
 
@@ -318,7 +331,12 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
 
         return new Promise<FtpConnection>((resolve, reject) => {
             const pending: FtpConnectionPending = { resolve, reject };
+            const wasEmpty = pool.queue.length === 0;
             pool.queue.push(pending);
+            if (wasEmpty && pool.connections.length >= FtpPooledConnectionManager.POOL_CONFIG[type].max) {
+                FtpPooledConnectionManager.logSaturatedPool(session, type);
+            }
+
             if (type === "transfer" && pool.connections.length < FtpPooledConnectionManager.POOL_CONFIG.transfer.max) {
                 pending.scaleTimeout = setTimeout(() => void this.scale(session, type), ftpScaleWait);
                 pending.scaleTimeout.unref();
@@ -341,7 +359,22 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
             if (connection && !this.dispatch(pool, connection)) {
                 connection.busy = false;
             }
-        } catch {
+            if (
+                connection &&
+                pool.queue.length &&
+                pool.connections.length >= FtpPooledConnectionManager.POOL_CONFIG[type].max
+            ) {
+                FtpPooledConnectionManager.logSaturatedPool(session, type);
+            }
+        } catch (error) {
+            if (!(error instanceof ApiError)) {
+                FtpPooledConnectionManager.LOGGER.error({
+                    event: sftpConnectionFailed,
+                    message: "SFTP pool expansion failed",
+                    context: `User: ${session.ownerId}, pool: ${type}`,
+                    error
+                });
+            }
             const waiting = pool.queue.shift();
             if (!waiting) {
                 return;
@@ -351,7 +384,8 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
             waiting.reject(
                 new ApiError({
                     message: "No se ha podido ampliar el pool SFTP",
-                    apiError: ftpPoolScaleFailed
+                    apiError: ftpPoolScaleFailed,
+                    cause: error
                 })
             );
         }
@@ -363,7 +397,7 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         const pool = session.pools[type];
         this.capacityQueue.shift()?.resolve();
         if (!this.dispatch(pool, connection) && session.expired) {
-            void this.closeSession(session);
+            void this.closeSession(session).catch(FtpPooledConnectionManager.logBackgroundFailure);
         }
     }
 
@@ -410,8 +444,18 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         }
         try {
             await connection.clientPromise;
+            FtpPooledConnectionManager.LOGGER.info({
+                event: sftpConnectionOpened,
+                message: "SFTP connection opened",
+                context: `User: ${session.ownerId}, pool: ${type}`
+            });
             return connection;
         } catch (error) {
+            FtpPooledConnectionManager.LOGGER.info({
+                event: sftpConnectionFailed,
+                message: "SFTP connection failed",
+                context: `User: ${session.ownerId}, pool: ${type}`
+            });
             await this.removeConnection(session, type, connection);
             throw error;
         }
@@ -424,6 +468,14 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
             }
             const candidate = this.getEvictionCandidate(requestSession.ownerId);
             if (!candidate) {
+                if (this.capacityQueue.length === 0) {
+                    FtpPooledConnectionManager.LOGGER.info({
+                        event: LOG_EVENT.sftpCapacitySaturated,
+                        message: "SFTP connection capacity has waiting operations",
+                        context: `User: ${requestSession.ownerId}, global limit: ${ftpMaxConnections}`
+                    });
+                }
+
                 await new Promise<void>((resolve, reject) => this.capacityQueue.push({ resolve, reject }));
                 continue;
             }
@@ -486,10 +538,24 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         }
         try {
             await this.closeClient({ client: result[0].value });
-        } catch {
+            FtpPooledConnectionManager.LOGGER.info({
+                event: sftpConnectionClosed,
+                message: "SFTP connection closed",
+                context: `User: ${session.ownerId}, pool: ${type}`
+            });
+        } catch (error) {
+            if (!(error instanceof ApiError)) {
+                FtpPooledConnectionManager.LOGGER.error({
+                    event: sftpConnectionFailed,
+                    message: "SFTP connection close failed",
+                    context: `User: ${session.ownerId}, pool: ${type}`,
+                    error
+                });
+            }
             throw new ApiError({
                 message: "No se ha podido cerrar la conexión SFTP",
-                apiError: ftpConnectionCloseFailed
+                apiError: ftpConnectionCloseFailed,
+                cause: error
             });
         }
     }
@@ -507,10 +573,19 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
             if (connection && !this.dispatch(pool, connection)) {
                 connection.busy = false;
             }
-        } catch {
+        } catch (error) {
+            if (!(error instanceof ApiError)) {
+                FtpPooledConnectionManager.LOGGER.error({
+                    event: sftpConnectionFailed,
+                    message: "SFTP pool restoration failed",
+                    context: `User: ${session.ownerId}, pool: ${type}`,
+                    error
+                });
+            }
             throw new ApiError({
                 message: "No se ha podido restaurar el pool SFTP",
-                apiError: ftpPoolRestoreFailed
+                apiError: ftpPoolRestoreFailed,
+                cause: error
             });
         }
     }
@@ -519,7 +594,10 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         session.lastActivity = Date.now();
         session.expired = false;
         clearTimeout(session.idleTimeout);
-        session.idleTimeout = setTimeout(() => void this.expire(session), ftpIdleTimeout);
+        session.idleTimeout = setTimeout(
+            () => void this.expire(session).catch(FtpPooledConnectionManager.logBackgroundFailure),
+            ftpIdleTimeout
+        );
         session.idleTimeout.unref();
     }
 
@@ -701,6 +779,26 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
             session.lockQueue.splice(index, 1);
             pending.resolve(release);
         }
+    }
+
+    private static logSaturatedPool(session: FtpSession, type: FtpPoolType): void {
+        FtpPooledConnectionManager.LOGGER.info({
+            event: LOG_EVENT.sftpPoolSaturated,
+            message: "SFTP pool has waiting operations at its connection limit",
+            context: `User: ${session.ownerId}, pool: ${type}, limit: ${FtpPooledConnectionManager.POOL_CONFIG[type].max}, waiting operations: ${session.pools[type].queue.length}`
+        });
+    }
+
+    private static logBackgroundFailure(error: unknown): void {
+        if (error instanceof ApiError) {
+            return;
+        }
+
+        FtpPooledConnectionManager.LOGGER.error({
+            event: backgroundFailed,
+            message: "SFTP background task failed",
+            error
+        });
     }
 
     private static validateConfiguration(): void {

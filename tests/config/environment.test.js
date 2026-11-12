@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const validEnvironment = {
     PORT: "59998",
+    LOG_LEVEL: "info",
+    LOG_DIRECTORY: "/tmp/api-test-logs",
+    LOG_RETENTION_WEEKS: "8",
     THUMBNAIL_GENERATOR_URL: "http://thumbnail-generator:3000",
     ROUTER_CPANEL_SERVICE_URL: "http://router-cpanel-service:3000",
     HOSTDB: "postgres",
@@ -60,6 +63,21 @@ describe("environment", () => {
 
     it("should reject missing runtime configuration", async () => {
         setEnvironment({ ...validEnvironment, MEMORY_CACHE_MAX_SIZE: "" });
+        await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
+            code: "CONFIGURATION_INVALID"
+        });
+    });
+
+    it.each(["LOG_LEVEL", "LOG_DIRECTORY", "LOG_RETENTION_WEEKS"])("should require %s", async (key) => {
+        setEnvironment(validEnvironment);
+        vi.stubEnv(key, undefined);
+        await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
+            code: "CONFIGURATION_INVALID"
+        });
+    });
+
+    it("should reject a blank log directory", async () => {
+        setEnvironment({ ...validEnvironment, LOG_DIRECTORY: "   " });
         await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
             code: "CONFIGURATION_INVALID"
         });

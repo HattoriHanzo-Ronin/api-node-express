@@ -1,4 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
+
+vi.mock("../../src/utils/logger/logger.js", () => {
+    return {
+        default: { getLogger: () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }) }
+    };
+});
 import ConnectionsService from "../../src/services/impl/default-connections-service.js";
 import type { Connection, ConnectionData } from "../../src/types/connections/connections-model.js";
 import PostgresErrors from "../../src/utils/error/postgres/postgres-errors.js";
@@ -26,15 +32,21 @@ describe("ConnectionsService createMany", () => {
 
     it("should fail if connections are not defined", async () => {
         const { connectionsService } = setup();
-        await expect(connectionsService.createMany({ clientTx: {}, connections: undefined as unknown as Connection[] })).rejects.toMatchObject({
+        await expect(
+            connectionsService.createMany({ clientTx: {}, connections: undefined as unknown as Connection[] })
+        ).rejects.toMatchObject({
             code: "CONNECTION_REQUIRED"
         });
     });
 
     it("should wrap non-API errors even when their code matches the validation error", async () => {
         const { connectionsModel, connectionsService } = setup();
-        connectionsModel.insertMany.mockRejectedValue(Object.assign(new Error("database error"), { code: "CONNECTION_REQUIRED" }));
-        await expect(connectionsService.createMany(createParams())).rejects.toMatchObject({ code: "CONNECTION_CREATE_FAILED" });
+        connectionsModel.insertMany.mockRejectedValue(
+            Object.assign(new Error("database error"), { code: "CONNECTION_REQUIRED" })
+        );
+        await expect(connectionsService.createMany(createParams())).rejects.toMatchObject({
+            code: "CONNECTION_CREATE_FAILED"
+        });
     });
 
     it("should translate duplicated mac errors", async () => {
@@ -98,10 +110,7 @@ describe("ConnectionsService update operations", () => {
 describe("ConnectionsService update combined operations and errors", () => {
     it("should execute delete, create and update operations when all connection groups change", async () => {
         const { connectionsModel, connectionsService } = setup();
-        const oldConnections = [
-            connection(),
-            connection({ mac: "AA:BB:CC:DD:EE:02", ctype: "WIFI" })
-        ];
+        const oldConnections = [connection(), connection({ mac: "AA:BB:CC:DD:EE:02", ctype: "WIFI" })];
         const connections = [
             connection({ mac: "AA:BB:CC:DD:EE:03" }),
             connection({ mac: "AA:BB:CC:DD:EE:04", ctype: "WAN" })
@@ -153,7 +162,10 @@ function createParams() {
     return { clientTx: {}, connections: [connection()] };
 }
 
-function updateParams({ connections, oldConnections }: { connections?: Connection[]; oldConnections?: Connection[] } = {}) {
+function updateParams({
+    connections,
+    oldConnections
+}: { connections?: Connection[]; oldConnections?: Connection[] } = {}) {
     return {
         clientTx: {},
         connections: connections ?? [connection({ mac: "AA:BB:CC:DD:EE:02" })],

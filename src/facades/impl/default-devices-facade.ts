@@ -22,6 +22,10 @@ import type { RouterAutomationPayload } from "../../types/utils/router-automatio
 import ApiError from "../../utils/error/api-error.js";
 import { DEVICE_TYPE, SOCKET_ENTITY } from "../../config/constants.js";
 import { API_ERROR } from "../../config/errors.js";
+import { LOG_EVENT } from "../../config/log-events.js";
+import Logger from "../../utils/logger/logger.js";
+
+const { deviceOperationCompleted, routerOperationFailed } = LOG_EVENT;
 
 const { routerCpanelNotRouter, routerAddFailed, routerDeleteFailed, routerRollbackFailed } = API_ERROR;
 
@@ -31,6 +35,8 @@ const { routerCpanelNotRouter, routerAddFailed, routerDeleteFailed, routerRollba
  * @author HattoriHanzo-Ronin
  */
 export default class DefaultDevicesFacade<Transaction> implements DevicesFacade {
+    private static readonly LOGGER = Logger.getLogger(DefaultDevicesFacade);
+
     constructor(private readonly dependencies: DevicesFacadeDependencies<Transaction>) {}
 
     async getAll({}: GetAllDevicesParams = {}) {
@@ -119,6 +125,11 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
         await this.dependencies.socketSessionsFacade.notify({
             entities: [SOCKET_ENTITY.devices, SOCKET_ENTITY.whitelist]
         });
+        DefaultDevicesFacade.LOGGER.info({
+            event: deviceOperationCompleted,
+            message: "Device operation completed",
+            context: `Device: ${result.id}, operation: create`
+        });
         return result;
     }
 
@@ -184,6 +195,11 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
         await this.dependencies.socketSessionsFacade.notify({
             entities: [SOCKET_ENTITY.devices, SOCKET_ENTITY.whitelist]
         });
+        DefaultDevicesFacade.LOGGER.info({
+            event: deviceOperationCompleted,
+            message: "Device operation completed",
+            context: `Device: ${id}, operation: update`
+        });
         return this.mapResult({ id, result });
     }
 
@@ -193,6 +209,11 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
         const result = await this.dependencies.devicesService.delete({ id });
         await this.dependencies.socketSessionsFacade.notify({
             entities: [SOCKET_ENTITY.devices, SOCKET_ENTITY.whitelist]
+        });
+        DefaultDevicesFacade.LOGGER.info({
+            event: deviceOperationCompleted,
+            message: "Device operation completed",
+            context: `Device: ${id}, operation: delete`
         });
         return result;
     }
@@ -209,7 +230,7 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
         const updatedRouters = new Map<string, UpdatedRouter>();
         let currentMac;
         for (const router of routers) {
-            const { name: routerName, connections: oldConnections } = router;
+            const { id: routerId, name: routerName, connections: oldConnections } = router;
             try {
                 const routerImpl = new this.dependencies.routerAutomation({
                     router: router as RouterAutomationPayload
@@ -223,7 +244,7 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
                         await callback({ key, addDevice, delDevice, routerImpl });
                         let updatedRouter = updatedRouters.get(routerName);
                         if (!updatedRouter) {
-                            updatedRouter = { routerImpl, updatedMacs: [] };
+                            updatedRouter = { routerId, routerImpl, updatedMacs: [] };
                             updatedRouters.set(routerName, updatedRouter);
                         }
 
@@ -231,12 +252,20 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
                     }
                 }
             } catch (err) {
+                DefaultDevicesFacade.LOGGER.warn({
+                    event: routerOperationFailed,
+                    message: "Router whitelist update failed during device operation",
+                    context: `Router: ${routerId}, device: ${id}`
+                });
                 const restoredRouters: string[] = [];
                 const addFailed = err instanceof ApiError && err.code === routerAddFailed;
                 const apiError = err instanceof ApiError ? err.code : undefined;
                 const affectedRouters = addFailed ? [routerName] : [];
                 let message;
-                for (const [updatedRouterName, { routerImpl, updatedMacs }] of updatedRouters) {
+                for (const [
+                    updatedRouterName,
+                    { routerId: updatedRouterId, routerImpl, updatedMacs }
+                ] of updatedRouters) {
                     let currentUpdatedMac;
                     try {
                         for (const { key, addDevice, delDevice } of updatedMacs) {
@@ -250,6 +279,11 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
                         }
                         restoredRouters.push(updatedRouterName);
                     } catch (err) {
+                        DefaultDevicesFacade.LOGGER.warn({
+                            event: LOG_EVENT.routerRollbackFailed,
+                            message: "Router whitelist rollback failed",
+                            context: `Router: ${updatedRouterId}, device: ${id}`
+                        });
                         updatedRouters.forEach((_, key) => {
                             if (!restoredRouters.includes(key) && key !== updatedRouterName) {
                                 affectedRouters.push(key);
@@ -264,7 +298,8 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
                                     err instanceof ApiError &&
                                     (err.code === routerAddFailed || err.code === routerDeleteFailed),
                                 message,
-                                apiError: routerRollbackFailed
+                                apiError: routerRollbackFailed,
+                                cause: err
                             }
                         ]);
                         throw err;
@@ -273,7 +308,7 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
                 message =
                     `Error al actualizar la mac ${currentMac}, ha quedado eliminada de la lista en el router ${routerName}` +
                     ` debe restaurarla de forma manual`;
-                ApiError.handle([{ condition: addFailed, message, apiError }]);
+                ApiError.handle([{ condition: addFailed, message, apiError, cause: err }]);
                 throw err;
             }
         }

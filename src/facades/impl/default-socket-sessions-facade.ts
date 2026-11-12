@@ -15,6 +15,8 @@ import type { SocketSessionsFacadeDependencies } from "../../types/socket-sessio
 import { API_ERROR } from "../../config/errors.js";
 import { SOCKET_ENTITY, USER_ROLE } from "../../config/constants.js";
 import ApiError from "../../utils/error/api-error.js";
+import Logger from "../../utils/logger/logger.js";
+import { LOG_EVENT } from "../../config/log-events.js";
 
 const { admin, ftp, net } = USER_ROLE;
 const { aclPermissionDenied } = API_ERROR;
@@ -25,6 +27,7 @@ const { aclPermissionDenied } = API_ERROR;
  * @author HattoriHanzo-Ronin
  */
 export default class DefaultSocketSessionsFacade implements SocketSessionsFacade<WebSocket> {
+    private static readonly LOGGER = Logger.getLogger(DefaultSocketSessionsFacade);
     private static readonly ENTITY_ROLES = Object.freeze({
         [SOCKET_ENTITY.devices]: net,
         [SOCKET_ENTITY.whitelist]: net,
@@ -48,6 +51,13 @@ export default class DefaultSocketSessionsFacade implements SocketSessionsFacade
                 condition: entities.some(
                     (entity) => !authUser.roles.includes(DefaultSocketSessionsFacade.ENTITY_ROLES[entity])
                 ),
+                execute: () => {
+                    DefaultSocketSessionsFacade.LOGGER.warn({
+                        event: LOG_EVENT.authorizationDenied,
+                        message: "Authenticated user attempted a restricted socket subscription",
+                        context: `User: ${authUser.id}, entities: ${entities.join(", ")}`
+                    });
+                },
                 message: "No tiene permisos para suscribirse a una de las entidades solicitadas",
                 status: 403,
                 apiError: aclPermissionDenied

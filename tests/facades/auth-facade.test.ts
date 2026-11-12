@@ -3,11 +3,18 @@ import AuthFacade from "../../src/facades/impl/default-auth-facade.js";
 import type { AuthFacadeDependencies } from "../../src/types/auth/default-auth-facade.js";
 import ApiError from "../../src/utils/error/api-error.js";
 import { API_ERROR } from "../../src/config/errors.js";
+const logger = vi.hoisted(() => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+vi.mock("../../src/utils/logger/logger.js", () => ({ default: { getLogger: () => logger } }));
 
 const createUsersFacadeMock = () => ({ authenticate: vi.fn(), getById: vi.fn() });
 const createRefreshTokensServiceMock = () => ({ getByToken: vi.fn(), create: vi.fn(), delete: vi.fn() });
 const createAccessTokenProviderMock = () => ({ create: vi.fn(() => "access-token"), verify: vi.fn() });
-const createRefreshTokenProviderMock = () => ({ create: vi.fn(() => "refresh-token"), verify: vi.fn(() => ({ id: "1" })) });
+const createRefreshTokenProviderMock = () => {
+    return {
+        create: vi.fn(() => "refresh-token"),
+        verify: vi.fn(() => ({ id: "1" }))
+    };
+};
 
 describe("AuthFacade", () => {
     let usersFacade: ReturnType<typeof createUsersFacadeMock>;
@@ -17,11 +24,17 @@ describe("AuthFacade", () => {
     let authFacade: AuthFacade;
 
     beforeEach(() => {
+        vi.clearAllMocks();
         usersFacade = createUsersFacadeMock();
         refreshTokensService = createRefreshTokensServiceMock();
         accessTokenProvider = createAccessTokenProviderMock();
         refreshTokenProvider = createRefreshTokenProviderMock();
-        authFacade = new AuthFacade({ usersFacade: usersFacade as unknown as AuthFacadeDependencies["usersFacade"], refreshTokensService, accessTokenProvider, refreshTokenProvider });
+        authFacade = new AuthFacade({
+            usersFacade: usersFacade as unknown as AuthFacadeDependencies["usersFacade"],
+            refreshTokensService,
+            accessTokenProvider,
+            refreshTokenProvider
+        });
     });
 
     describe("login", () => {
@@ -33,6 +46,11 @@ describe("AuthFacade", () => {
                 scope: ["ADMIN"]
             });
             const result = await authFacade.login({ username: "admin", password: "password" });
+            expect(logger.info).toHaveBeenCalledWith({
+                event: "auth.login.succeeded",
+                message: "Login succeeded",
+                context: "User: 1"
+            });
             expect(result).toEqual({
                 user: { id: "1", username: "admin", roles: ["ADMIN"], scope: ["ADMIN"] },
                 accessToken: "access-token",
@@ -45,6 +63,11 @@ describe("AuthFacade", () => {
             });
             expect(refreshTokenProvider.create).toHaveBeenCalledWith({ payload: { id: "1" } });
         });
+    });
+
+    it("propagates an unexpected authentication failure", async () => {
+        usersFacade.authenticate.mockRejectedValue(new Error("failed"));
+        await expect(authFacade.login({ username: "admin", password: "password" })).rejects.toThrow("failed");
     });
 
     describe("refresh", () => {
@@ -66,7 +89,9 @@ describe("AuthFacade", () => {
         });
 
         it("should revoke invalid refresh tokens", async () => {
-            refreshTokensService.getByToken.mockRejectedValue(new ApiError({ message: "Token no válido", apiError: API_ERROR.invalidToken }));
+            refreshTokensService.getByToken.mockRejectedValue(
+                new ApiError({ message: "Token no válido", apiError: API_ERROR.invalidToken })
+            );
             await expect(authFacade.refresh({ refreshToken: "refresh-token" })).rejects.toThrow("Token no válido");
             expect(refreshTokensService.delete).toHaveBeenCalledWith({ token: "refresh-token" });
         });

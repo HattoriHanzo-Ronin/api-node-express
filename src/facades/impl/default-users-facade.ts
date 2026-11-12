@@ -20,6 +20,8 @@ import type { Role } from "../../types/user-roles/user-roles-model.js";
 import ApiError from "../../utils/error/api-error.js";
 import { SOCKET_ENTITY, USER_ROLE } from "../../config/constants.js";
 import { API_ERROR } from "../../config/errors.js";
+import { LOG_EVENT } from "../../config/log-events.js";
+import Logger from "../../utils/logger/logger.js";
 
 const { admin } = USER_ROLE;
 const { userNotFound, aclPermissionDenied } = API_ERROR;
@@ -30,6 +32,8 @@ const { userNotFound, aclPermissionDenied } = API_ERROR;
  * @author HattoriHanzo-Ronin
  */
 export default class DefaultUsersFacade<Transaction> implements UsersFacade {
+    private static readonly LOGGER = Logger.getLogger(DefaultUsersFacade);
+
     constructor(private readonly dependencies: UsersFacadeDependencies<Transaction>) {}
 
     async getAll({ authUser }: AuthUserParams) {
@@ -55,6 +59,13 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
         ApiError.handle([
             {
                 condition: Boolean(authUser && !this.allowedManage({ authUser, userRoles: user.roles })),
+                execute: () => {
+                    DefaultUsersFacade.LOGGER.warn({
+                        event: LOG_EVENT.authorizationDenied,
+                        message: "Authenticated user attempted to access a user outside their scope",
+                        context: `User: ${authUser?.id}, operation: view user`
+                    });
+                },
                 message: "El usuario no existe",
                 status: 404,
                 apiError: userNotFound
@@ -79,7 +90,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
         const { scope: authScope } = authUser;
         const superAdmin = authScope!.includes(admin);
         if (!superAdmin) {
-            this.forbiddenError({ condition: userRoles || userScope });
+            this.forbiddenError({ authUser, condition: userRoles || userScope });
             userRoles = authScope!;
         }
 
@@ -95,6 +106,11 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
             return this.filterAcl({ authUser, source: createdUser });
         });
         await this.dependencies.socketSessionsFacade.notify({ entities: [SOCKET_ENTITY.users] });
+        DefaultUsersFacade.LOGGER.info({
+            event: LOG_EVENT.userOperationCompleted,
+            message: "User created",
+            context: `User: ${authUser.id}, affected user: ${result.id}, operation: create`
+        });
         return result;
     }
 
@@ -124,6 +140,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
                 condition: !isAdmin,
                 execute: () => {
                     this.forbiddenError({
+                        authUser,
                         condition:
                             updatedUserRoles ||
                             updatedUserScope ||
@@ -136,12 +153,16 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
             {
                 condition: isAdmin,
                 execute: () => {
-                    this.forbiddenError({ condition: isSelf && (updatesActive || (password && !changePassword)) });
+                    this.forbiddenError({
+                        authUser,
+                        condition: isSelf && (updatesActive || (password && !changePassword))
+                    });
                     ApiError.handle([
                         {
                             condition: !superAdmin,
                             execute: () => {
                                 this.forbiddenError({
+                                    authUser,
                                     condition:
                                         updatedUserRoles ||
                                         updatedUserScope ||
@@ -162,7 +183,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
                                     userRoles.includes(admin) &&
                                     updatedUserRoles &&
                                     !updatedUserRoles.includes(admin);
-                                this.forbiddenError({ condition: wouldLoseAdminScope || wouldLoseAdminRole });
+                                this.forbiddenError({ authUser, condition: wouldLoseAdminScope || wouldLoseAdminRole });
                             }
                         }
                     ]);
@@ -205,6 +226,11 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
             return result;
         });
         await this.dependencies.socketSessionsFacade.notify({ entities: [SOCKET_ENTITY.users] });
+        DefaultUsersFacade.LOGGER.info({
+            event: LOG_EVENT.userOperationCompleted,
+            message: "User updated",
+            context: `User: ${authUser.id}, affected user: ${updatedUserId}, operation: ${changePassword ? "change password" : "update"}`
+        });
         return result;
     }
 
@@ -218,6 +244,11 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
         await this.getById({ authUser, id });
         const result = await this.dependencies.usersService.delete({ id });
         await this.dependencies.socketSessionsFacade.notify({ entities: [SOCKET_ENTITY.users] });
+        DefaultUsersFacade.LOGGER.info({
+            event: LOG_EVENT.userOperationCompleted,
+            message: "User deleted",
+            context: `${authUser ? `User: ${authUser.id}, ` : ""}affected user: ${id}, operation: delete`
+        });
         return result;
     }
 
@@ -237,10 +268,17 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
         return result;
     }
 
-    private forbiddenError({ condition }: ForbiddenParams): void {
+    private forbiddenError({ authUser, condition }: ForbiddenParams): void {
         ApiError.handle([
             {
                 condition: Boolean(condition),
+                execute: () => {
+                    DefaultUsersFacade.LOGGER.warn({
+                        event: LOG_EVENT.authorizationDenied,
+                        message: "Authenticated user attempted a restricted user management operation",
+                        context: `User: ${authUser.id}, operation: user management`
+                    });
+                },
                 message: "No tiene permisos para realizar esa acción",
                 status: 403,
                 apiError: aclPermissionDenied

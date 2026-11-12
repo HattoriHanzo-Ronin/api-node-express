@@ -1,5 +1,7 @@
 import { API_ERROR } from "../../../config/errors.js";
 import ApiError from "../api-error.js";
+import Logger from "../../logger/logger.js";
+import { LOG_EVENT } from "../../../config/log-events.js";
 import type { PostgresError } from "../../../types/utils/postgres-error.js";
 
 const {
@@ -18,16 +20,17 @@ const {
  * @author HattoriHanzo-Ronin
  */
 export default class PostgresErrors {
+    private static readonly LOGGER = Logger.getLogger(PostgresErrors);
     private static readonly UNIQUE_VIOLATION = "23505";
     private static readonly FOREIGN_KEY_VIOLATION = "23503";
 
     /**
      * Translates whitelist PostgreSQL errors
      *
-     * @param code PostgreSQL error code
-     * @param constraint PostgreSQL constraint
+     * @param error PostgreSQL error
      */
-    static whitelist({ code, constraint }: PostgresError): void {
+    static whitelist(error: PostgresError): void {
+        const { code, constraint } = error;
         ApiError.handle([
             {
                 condition: code === PostgresErrors.UNIQUE_VIOLATION,
@@ -37,12 +40,21 @@ export default class PostgresErrors {
                             condition: constraint === "whitelist_pk",
                             message: "El dispositivo ya se encuentra autorizado",
                             status: 400,
-                            apiError: whitelistAlreadyAllowed
+                            apiError: whitelistAlreadyAllowed,
+                            cause: error
                         },
                         {
                             condition: constraint === "whitelist_router_id_key_unique",
+                            execute: () => {
+                                PostgresErrors.LOGGER.error({
+                                    event: LOG_EVENT.databaseOperationFailed,
+                                    message: "Failed to generate whitelist key",
+                                    error
+                                });
+                            },
                             message: "Error al generar la clave de autorización",
-                            apiError: whitelistKeyGenerationFailed
+                            apiError: whitelistKeyGenerationFailed,
+                            cause: error
                         }
                     ]);
                 }
@@ -53,10 +65,10 @@ export default class PostgresErrors {
     /**
      * Translates device PostgreSQL errors
      *
-     * @param code PostgreSQL error code
-     * @param constraint PostgreSQL constraint
+     * @param error PostgreSQL error
      */
-    static devices({ code, constraint }: PostgresError): void {
+    static devices(error: PostgresError): void {
+        const { code, constraint } = error;
         ApiError.handle([
             {
                 condition: code === PostgresErrors.UNIQUE_VIOLATION,
@@ -66,13 +78,15 @@ export default class PostgresErrors {
                             condition: constraint === "devices_name_unique",
                             message: "El nombre del dispositivo ya está en uso",
                             status: 409,
-                            apiError: deviceNameAlreadyExists
+                            apiError: deviceNameAlreadyExists,
+                            cause: error
                         },
                         {
                             condition: constraint === "devices_ip_unique",
                             message: "La ip ya está en uso",
                             status: 409,
-                            apiError: deviceIpAlreadyInUse
+                            apiError: deviceIpAlreadyInUse,
+                            cause: error
                         }
                     ]);
                 }
@@ -83,15 +97,17 @@ export default class PostgresErrors {
     /**
      * Translates connection PostgreSQL errors
      *
-     * @param code PostgreSQL error code
+     * @param error PostgreSQL error
      */
-    static connections({ code }: PostgresError): void {
+    static connections(error: PostgresError): void {
+        const { code } = error;
         ApiError.handle([
             {
                 condition: code === PostgresErrors.UNIQUE_VIOLATION,
                 message: "La mac ya está en uso",
                 status: 409,
-                apiError: connectionMacAlreadyExists
+                apiError: connectionMacAlreadyExists,
+                cause: error
             }
         ]);
     }
@@ -99,15 +115,17 @@ export default class PostgresErrors {
     /**
      * Translates user PostgreSQL errors
      *
-     * @param code PostgreSQL error code
+     * @param error PostgreSQL error
      */
-    static users({ code }: PostgresError): void {
+    static users(error: PostgresError): void {
+        const { code } = error;
         ApiError.handle([
             {
                 condition: code === PostgresErrors.UNIQUE_VIOLATION,
                 message: "El nombre de usuario ya está en uso",
                 status: 409,
-                apiError: userUsernameAlreadyExists
+                apiError: userUsernameAlreadyExists,
+                cause: error
             }
         ]);
     }
@@ -115,15 +133,17 @@ export default class PostgresErrors {
     /**
      * Translates refresh token PostgreSQL errors
      *
-     * @param code PostgreSQL error code
+     * @param error PostgreSQL error
      */
-    static refreshTokens({ code }: PostgresError): void {
+    static refreshTokens(error: PostgresError): void {
+        const { code } = error;
         ApiError.handle([
             {
                 condition: code === PostgresErrors.FOREIGN_KEY_VIOLATION,
                 message: "El usuario no existe",
                 status: 404,
-                apiError: refreshTokenUserNotFound
+                apiError: refreshTokenUserNotFound,
+                cause: error
             }
         ]);
     }

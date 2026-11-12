@@ -1,5 +1,7 @@
 import { createServer } from "node:http";
 import { createApp } from "./app.js";
+import Logger from "./utils/logger/logger.js";
+import { LOG_EVENT } from "./config/log-events.js";
 
 import PostgresClient from "./utils/connection/postgres/postgres-client.js";
 import PostgresErrors from "./utils/error/postgres/postgres-errors.js";
@@ -179,7 +181,8 @@ const app = createApp({
 });
 const server = createServer(app);
 socketGateway.attach({ server });
-server.listen(ENV.port);
+const logger = Logger.getLogger({ name: "server" });
+server.listen(ENV.port, () => logger.info({ event: LOG_EVENT.serviceStarted, message: "API started" }));
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.once(signal, async () => {

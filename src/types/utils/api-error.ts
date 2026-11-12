@@ -8,6 +8,8 @@ export type ApiErrorOptions = {
     details?: ErrorDetail | ErrorDetail[];
     status?: number;
     apiError?: ApiErrorCode;
+    cause?: unknown;
+    context?: Record<string, unknown>;
 };
 
 export type ApiErrorResponse = {
@@ -22,4 +24,6 @@ export type ErrorCondition = {
     message?: string;
     status?: number;
     apiError?: ApiErrorCode;
+    cause?: unknown;
+    context?: Record<string, unknown>;
 };

@@ -7,6 +7,11 @@ import type TokenProvider from "../../src/utils/token-providers/token-provider.j
 import type { SocketSessionsRouterDependencies } from "../../src/types/socket-sessions/socket-sessions-router.js";
 import type { SocketSessionsRouterController } from "../types/routers.js";
 import createSocketSessionsRouter from "../../src/routes/socket-sessions-router.js";
+vi.mock("../../src/utils/logger/logger.js", () => {
+    return {
+        default: { getLogger: () => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }) }
+    };
+});
 
 describe("SocketSessionsRouter", () => {
     const authUser: VerifiedAccessToken = { id: "user-id", roles: ["NET"], iat: 1_800_000_000, exp: 1_900_000_000 };

@@ -20,4 +20,4 @@ export type UsersFacadeDependencies<Transaction> = {
 
 export type AllowedManageParams = AuthUserParams & { userRoles: Role[] };
 export type FilterAclParams = Partial<AuthUserParams> & { source: UserBasicInfo & Partial<UserAcl> };
-export type ForbiddenParams = { condition: unknown };
+export type ForbiddenParams = AuthUserParams & { condition: unknown };

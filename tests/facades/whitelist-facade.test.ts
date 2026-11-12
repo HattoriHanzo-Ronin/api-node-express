@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const logger = vi.hoisted(() => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+vi.mock("../../src/utils/logger/logger.js", () => ({ default: { getLogger: () => logger } }));
 import type { WhitelistFacadeDependencies } from "../../src/types/whitelist/default-whitelist-facade.js";
 import ApiError from "../../src/utils/error/api-error.js";
 import { API_ERROR } from "../../src/config/errors.js";
@@ -70,6 +73,12 @@ describe("WhitelistFacade", () => {
             mac: "AA:BB:CC:DD:EE:01"
         });
         expect(socketSessionsFacade.notify).toHaveBeenCalledWith({ entities: ["whitelist"] });
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: "whitelist.operation.completed",
+                context: "Router: router-1, device: device-1, operation: add"
+            })
+        );
     });
 
     it("should delete whitelist entry and synchronize router", async () => {

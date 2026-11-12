@@ -1,4 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const logger = vi.hoisted(() => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }));
+vi.mock("../../src/utils/logger/logger.js", () => {
+    return {
+        default: { getLogger: () => logger }
+    };
+});
 import type { ITask } from "pg-promise";
 import type { UserRole } from "../../src/types/user-roles/user-roles-model.js";
 import UserRolesService from "../../src/services/impl/default-user-roles-service.js";
@@ -11,6 +18,7 @@ describe("UserRolesService", () => {
     let userRolesService: UserRolesService<ITask<unknown>>;
 
     beforeEach(() => {
+        vi.clearAllMocks();
         userRolesModel = createUserRolesModelMock();
         userRolesService = new UserRolesService({ userRolesModel });
     });
@@ -52,6 +60,7 @@ describe("UserRolesService", () => {
                 "Se debe especificar al menos un rol para el usuario"
             );
             expect(userRolesModel.insertMany).not.toHaveBeenCalled();
+            expect(logger.error).not.toHaveBeenCalled();
         });
 
         it("should translate model errors even when they have the required-role code", async () => {
@@ -73,6 +82,16 @@ describe("UserRolesService", () => {
             });
             expect(userRolesModel.deleteByUser).toHaveBeenCalledWith({ clientTx: CLIENT_TX, userId: "1" });
             expect(result).toEqual(createdRoles);
+        });
+
+        it("logs the original failure only once when createMany is wrapped by replace", async () => {
+            const error = new Error("database failed");
+            userRolesModel.insertMany.mockRejectedValue(error);
+            await expect(
+                userRolesService.replace({ clientTx: CLIENT_TX, userId: "1", userRoles: [] })
+            ).rejects.toMatchObject({ code: "ACL_ROLE_UPDATE_FAILED" });
+            expect(logger.error).toHaveBeenCalledOnce();
+            expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ error }));
         });
 
         it("should translate non-API model errors", async () => {

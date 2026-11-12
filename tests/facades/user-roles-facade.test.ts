@@ -1,4 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../src/utils/logger/logger.js", () => {
+    return {
+        default: { getLogger: () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }) }
+    };
+});
 import type { ITask } from "pg-promise";
 import UserRolesFacade from "../../src/facades/impl/default-user-roles-facade.js";
 import UserRolesService from "../../src/services/impl/default-user-roles-service.js";

@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const logger = vi.hoisted(() => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+vi.mock("../../src/utils/logger/logger.js", () => ({ default: { getLogger: () => logger } }));
 import type { WebSocket } from "ws";
 import type { SocketSessionsFacadeDependencies } from "../../src/types/socket-sessions/default-socket-sessions-facade.js";
 import { USER_ROLE } from "../../src/config/constants.js";
@@ -22,6 +25,7 @@ describe("SocketSessionsFacade", () => {
     let facade: SocketSessionsFacade;
 
     beforeEach(() => {
+        vi.clearAllMocks();
         socketSessionsService = createServiceMock();
         dataVersionsFacade = { getById: vi.fn() };
         facade = new SocketSessionsFacade({
@@ -53,6 +57,9 @@ describe("SocketSessionsFacade", () => {
             })
         ).rejects.toMatchObject({ code: "ACL_PERMISSION_DENIED" });
         expect(socketSessionsService.connect).not.toHaveBeenCalled();
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.objectContaining({ event: "authorization.denied", context: "User: user-id, entities: users" })
+        );
     });
 
     it("queries and publishes each requested entity version", async () => {

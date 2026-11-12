@@ -5,6 +5,10 @@ import type { UserCredentials } from "../../types/users/users-model.js";
 import type { MappedUserIdentity } from "../../types/users/users-mapper.js";
 import ApiError from "../../utils/error/api-error.js";
 import { API_ERROR } from "../../config/errors.js";
+import { LOG_EVENT } from "../../config/log-events.js";
+import Logger from "../../utils/logger/logger.js";
+
+const { authLoginSucceeded, authRefreshSucceeded, authRefreshFailed, authLogoutSucceeded } = LOG_EVENT;
 
 /**
  * Default authentication facade
@@ -12,10 +16,20 @@ import { API_ERROR } from "../../config/errors.js";
  * @author HattoriHanzo-Ronin
  */
 export default class DefaultAuthFacade implements AuthFacade {
+    private static readonly LOGGER = Logger.getLogger(DefaultAuthFacade);
+
     constructor(private readonly dependencies: AuthFacadeDependencies) {}
 
     async login({ username, password }: UserCredentials) {
-        return this.createPayload(await this.dependencies.usersFacade.authenticate({ username, password }));
+        const session = await this.createPayload(
+            await this.dependencies.usersFacade.authenticate({ username, password })
+        );
+        DefaultAuthFacade.LOGGER.info({
+            event: authLoginSucceeded,
+            message: "Login succeeded",
+            context: `User: ${session.user.id}`
+        });
+        return session;
     }
 
     async refresh({ refreshToken }: AuthRefreshParams) {
@@ -24,8 +38,16 @@ export default class DefaultAuthFacade implements AuthFacade {
             const { id } = this.dependencies.refreshTokenProvider.verify({ token: refreshToken });
             const user = await this.dependencies.usersFacade.getById({ id });
             await this.dependencies.refreshTokensService.delete({ token: refreshToken });
-            return this.createPayload(user);
+            return this.createPayload(user).then((session) => {
+                DefaultAuthFacade.LOGGER.info({
+                    event: authRefreshSucceeded,
+                    message: "Token refresh succeeded",
+                    context: `User: ${id}`
+                });
+                return session;
+            });
         } catch (err) {
+            DefaultAuthFacade.LOGGER.info({ event: authRefreshFailed, message: "Token refresh failed" });
             if (err instanceof ApiError && err.code === API_ERROR.invalidToken) {
                 await this.dependencies.refreshTokensService.delete({ token: refreshToken });
             }
@@ -35,7 +57,9 @@ export default class DefaultAuthFacade implements AuthFacade {
     }
 
     async logout({ refreshToken }: AuthRefreshParams) {
-        return this.dependencies.refreshTokensService.delete({ token: refreshToken });
+        const result = await this.dependencies.refreshTokensService.delete({ token: refreshToken });
+        DefaultAuthFacade.LOGGER.info({ event: authLogoutSucceeded, message: "Logout succeeded" });
+        return result;
     }
 
     private async createPayload({ id, username, roles, scope }: MappedUserIdentity): Promise<AuthSession> {

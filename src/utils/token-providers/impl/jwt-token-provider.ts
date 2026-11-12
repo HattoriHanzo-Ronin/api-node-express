@@ -37,7 +37,8 @@ export default class JwtProvider<
                     condition: err instanceof jwt.JsonWebTokenError,
                     message: "Token no válido",
                     status: 401,
-                    apiError: API_ERROR.invalidToken
+                    apiError: API_ERROR.invalidToken,
+                    cause: err
                 }
             ]);
 
