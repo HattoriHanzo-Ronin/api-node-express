@@ -7,9 +7,11 @@ const { childProcesses, mockReadFile, mockSpawn } = vi.hoisted(() => ({
     mockReadFile: vi.fn(),
     mockSpawn: vi.fn()
 }));
+const logger = vi.hoisted(() => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
 
 vi.mock("node:child_process", () => ({ spawn: mockSpawn }));
 vi.mock("node:fs/promises", () => ({ readFile: mockReadFile }));
+vi.mock("../../src/utils/logger/logger.js", () => ({ default: { getLogger: () => logger } }));
 
 describe("ThumbnailService queue", () => {
     let resourceUsage: ResourceUsage;
@@ -21,6 +23,9 @@ describe("ThumbnailService queue", () => {
         vi.useFakeTimers();
         childProcesses.length = 0;
         resourceUsage = { cpu: 0, memory: 100 };
+        vi.stubEnv("LOG_LEVEL", "info");
+        vi.stubEnv("LOG_DIRECTORY", "/tmp/thumbnail-test-logs");
+        vi.stubEnv("LOG_RETENTION_WEEKS", "8");
         vi.stubEnv("PORT", "3000");
         vi.stubEnv("API_URL", "http://127.0.0.1:59998");
         vi.stubEnv("THUMBNAIL_INITIAL_CONCURRENCY", "2");
@@ -77,6 +82,21 @@ describe("ThumbnailService queue", () => {
             Buffer.from([0xff, 0xd8]),
             Buffer.from([0xff, 0xd8])
         ]);
+    });
+
+    it("records an unexpected processing failure where it is transformed", async () => {
+        const error = new Error("FFmpeg spawn failed");
+        mockSpawn.mockImplementation(() => {
+            throw error;
+        });
+        await expect(service.create({ id: "test" })).rejects.toMatchObject({
+            code: "THUMBNAIL_GENERATION_FAILED",
+            cause: error
+        });
+        expect(logger.error).toHaveBeenCalledOnce();
+        expect(logger.error).toHaveBeenCalledWith(
+            expect.objectContaining({ event: "thumbnail.generation.failed", context: "Request: test", error })
+        );
     });
 
     it("should increase admission when the container has capacity", async () => {
