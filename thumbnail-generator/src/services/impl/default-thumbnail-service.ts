@@ -6,7 +6,9 @@ import { isIP } from "node:net";
 import { availableParallelism } from "node:os";
 import { ENV } from "../../config/environment.js";
 import { API_ERROR } from "../../config/errors.js";
+import { LOG_EVENT } from "../../config/log-events.js";
 import ApiError from "../../utils/error/api-error.js";
+import Logger from "../../utils/logger/logger.js";
 import type ThumbnailService from "../thumbnail-service.js";
 import type { CreateThumbnailParams } from "../../types/thumbnail/thumbnail-service.js";
 import type {
@@ -15,6 +17,15 @@ import type {
     ResourceUsageParams,
     ThumbnailJob
 } from "../../types/thumbnail/default-thumbnail-service.js";
+
+const {
+    thumbnailSchedulerStarted,
+    thumbnailSchedulerStopped,
+    thumbnailSchedulerFailed,
+    thumbnailSchedulerResourcesUnavailable,
+    thumbnailGenerationFailed: thumbnailGenerationFailedEvent,
+    thumbnailGenerationTimeout: thumbnailGenerationTimeoutEvent
+} = LOG_EVENT;
 
 const REQUIRE = createRequire(import.meta.url);
 const FFMPEG_PATH: typeof import("ffmpeg-static").default = REQUIRE("ffmpeg-static");
@@ -42,6 +53,7 @@ const {
  * @author HattoriHanzo-Ronin
  */
 export default class DefaultThumbnailService implements ThumbnailService {
+    private static readonly LOGGER = Logger.getLogger(DefaultThumbnailService);
     private static readonly DEMUXERS =
         "avi,asf,bmp_pipe,flv,gif,hevc,jpeg_pipe,matroska,mjpeg,mov,mpeg,mpegts,mpegvideo,ogg,png_pipe,tiff_pipe,webm,webp_pipe";
     private static readonly MAX_ALLOC = 256 * 1024 * 1024;
@@ -50,6 +62,7 @@ export default class DefaultThumbnailService implements ThumbnailService {
     private targetConcurrency = thumbnailInitialConcurrency;
     private scheduler?: NodeJS.Timeout;
     private lastCpuSample?: CpuSample;
+    private resourceWarningLogged = false;
 
     create({ id, signal }: CreateThumbnailParams) {
         if (signal?.aborted) {
@@ -110,10 +123,17 @@ export default class DefaultThumbnailService implements ThumbnailService {
                 return;
             }
 
+            DefaultThumbnailService.LOGGER.error({
+                event: thumbnailGenerationFailedEvent,
+                message: "Thumbnail generation failed",
+                context: `Request: ${job.id}`,
+                error
+            });
             job.reject(
                 new ApiError({
                     message: "No se pudo generar la miniatura",
-                    apiError: thumbnailGenerationFailed
+                    apiError: thumbnailGenerationFailed,
+                    cause: error
                 })
             );
         } finally {
@@ -134,6 +154,11 @@ export default class DefaultThumbnailService implements ThumbnailService {
     private async generate({ id, signal }: CreateThumbnailParams): Promise<Buffer> {
         const mediaUrl = await DefaultThumbnailService.getMediaUrl(id);
         if (!FFMPEG_PATH) {
+            DefaultThumbnailService.LOGGER.error({
+                event: thumbnailGenerationFailedEvent,
+                message: "FFmpeg is unavailable",
+                context: `Request: ${id}`
+            });
             throw new ApiError({
                 message: "No se pudo generar la miniatura",
                 apiError: thumbnailGenerationFailed
@@ -204,6 +229,11 @@ export default class DefaultThumbnailService implements ThumbnailService {
                 }
 
                 if (timeoutReached) {
+                    DefaultThumbnailService.LOGGER.warn({
+                        event: thumbnailGenerationTimeoutEvent,
+                        message: "Thumbnail generation timed out",
+                        context: `Request: ${id}`
+                    });
                     reject(
                         new ApiError({
                             message: "Se agotó el tiempo para generar la miniatura",
@@ -230,7 +260,8 @@ export default class DefaultThumbnailService implements ThumbnailService {
                         new ApiError({
                             message: "El archivo multimedia no es válido",
                             status: 422,
-                            apiError: thumbnailMediaInvalid
+                            apiError: thumbnailMediaInvalid,
+                            context: { exitCode: code }
                         })
                     );
                     return;
@@ -256,9 +287,13 @@ export default class DefaultThumbnailService implements ThumbnailService {
             return;
         }
 
-        this.scheduler = setInterval(() => void this.adjustConcurrency(), thumbnailSchedulerInterval);
+        this.scheduler = setInterval(() => this.updateScheduler(), thumbnailSchedulerInterval);
         this.scheduler.unref();
-        void this.adjustConcurrency();
+        DefaultThumbnailService.LOGGER.info({
+            event: thumbnailSchedulerStarted,
+            message: "Thumbnail scheduler started"
+        });
+        this.updateScheduler();
     }
 
     private stopScheduler(): void {
@@ -270,6 +305,20 @@ export default class DefaultThumbnailService implements ThumbnailService {
         this.scheduler = undefined;
         this.lastCpuSample = undefined;
         this.targetConcurrency = thumbnailInitialConcurrency;
+        DefaultThumbnailService.LOGGER.info({
+            event: thumbnailSchedulerStopped,
+            message: "Thumbnail scheduler stopped"
+        });
+    }
+
+    private updateScheduler(): void {
+        void this.adjustConcurrency().catch((error: unknown) => {
+            DefaultThumbnailService.LOGGER.error({
+                event: thumbnailSchedulerFailed,
+                message: "Thumbnail scheduler failed",
+                error
+            });
+        });
     }
 
     /**
@@ -340,7 +389,16 @@ export default class DefaultThumbnailService implements ThumbnailService {
                 memoryCurrent: Number(memoryCurrent.trim()),
                 memoryLimit: Number(memoryLimit.trim())
             });
-        } catch {
+        } catch (error) {
+            if (!this.resourceWarningLogged) {
+                DefaultThumbnailService.LOGGER.warn({
+                    event: thumbnailSchedulerResourcesUnavailable,
+                    message: "Resource usage is unavailable; retaining the current concurrency target",
+                    error
+                });
+                this.resourceWarningLogged = true;
+            }
+
             return null;
         }
     }

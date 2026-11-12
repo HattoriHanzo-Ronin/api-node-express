@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const validEnvironment = {
     PORT: "3001",
+    LOG_LEVEL: "info",
+    LOG_DIRECTORY: "/tmp/thumbnail-test-logs",
+    LOG_RETENTION_WEEKS: "8",
     API_URL: "http://api-node-express:60004",
     THUMBNAIL_INITIAL_CONCURRENCY: "20",
     THUMBNAIL_CPU_TARGET: "80",
@@ -42,6 +45,21 @@ describe("environment", () => {
 
     it("should reject an invalid thumbnail configuration", async () => {
         setEnvironment({ ...validEnvironment, THUMBNAIL_CPU_TARGET: "101" });
+        await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
+            code: "CONFIGURATION_INVALID"
+        });
+    });
+
+    it("should reject invalid logging configuration", async () => {
+        setEnvironment({ ...validEnvironment, LOG_LEVEL: "verbose" });
+        await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
+            code: "CONFIGURATION_INVALID"
+        });
+    });
+
+    it.each(["LOG_LEVEL", "LOG_DIRECTORY", "LOG_RETENTION_WEEKS"])("should require %s", async (name) => {
+        setEnvironment(validEnvironment);
+        vi.stubEnv(name, undefined);
         await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
             code: "CONFIGURATION_INVALID"
         });

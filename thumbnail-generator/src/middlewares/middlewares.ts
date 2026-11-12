@@ -1,7 +1,9 @@
-import type { NextFunction, Request, RequestHandler, Response } from "express";
+import type { ErrorRequestHandler, NextFunction, Request, RequestHandler, Response } from "express";
 import { API_ERROR } from "../config/errors.js";
+import { LOG_EVENT } from "../config/log-events.js";
 import ApiError from "../utils/error/api-error.js";
 import type { MiddlewareError } from "../types/middlewares/middlewares.js";
+import Logger from "../utils/logger/logger.js";
 
 /**
  * Application middleware factory
@@ -9,6 +11,8 @@ import type { MiddlewareError } from "../types/middlewares/middlewares.js";
  * @author HattoriHanzo-Ronin
  */
 export default class Middlewares {
+    private static readonly LOGGER = Logger.getLogger(Middlewares);
+
     /**
      * Wraps an async Express handler and forwards errors to the next middleware
      *
@@ -42,16 +46,24 @@ export default class Middlewares {
      * @param res Express response
      * @param next Express next function
      */
-    static errorHandler(err: MiddlewareError, req: Request, res: Response, next: NextFunction): void {
+    static errorHandler: ErrorRequestHandler = (err: MiddlewareError, req, res, next): void => {
+        const isApiError = err instanceof ApiError;
+        const status = err.status ?? 500;
+        if (!isApiError) {
+            Middlewares.LOGGER.error({
+                event: LOG_EVENT.httpRequestFailed,
+                message: "Thumbnail request failed",
+                error: err
+            });
+        }
+
         if (res.headersSent) {
             next(err);
             return;
         }
 
-        const isApiError = err instanceof ApiError;
-        const status = err.status ?? 500;
         const message = isApiError ? err.message : "Error inesperado";
         const code = isApiError ? err.code : undefined;
         res.status(status).json({ code, message });
-    }
+    };
 }
