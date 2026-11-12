@@ -1,7 +1,9 @@
 import express from "express";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { API_ERROR } from "../config/errors.js";
+import { LOG_EVENT } from "../config/log-events.js";
 import ApiError from "../utils/error/api-error.js";
+import Logger from "../utils/logger/logger.js";
 import type { MiddlewareError } from "../types/middlewares/middlewares.js";
 
 const { internalError, routeNotFound } = API_ERROR;
@@ -12,6 +14,8 @@ const { internalError, routeNotFound } = API_ERROR;
  * @author HattoriHanzo-Ronin
  */
 export default class Middlewares {
+    private static readonly LOGGER = Logger.getLogger(Middlewares);
+
     /**
      * Creates JSON body parser middleware
      *
@@ -55,13 +59,21 @@ export default class Middlewares {
      * @param next Express next function
      */
     static errorHandler(err: MiddlewareError, req: Request, res: Response, next: NextFunction): void {
+        const status = err.status ?? 500;
+        const isApiError = err instanceof ApiError;
+        if (!isApiError) {
+            Middlewares.LOGGER.error({
+                event: LOG_EVENT.httpRequestFailed,
+                message: "Router panel request failed",
+                error: err
+            });
+        }
+
         if (res.headersSent) {
             next(err);
             return;
         }
 
-        const status = err.status ?? 500;
-        const isApiError = err instanceof ApiError;
         const message = isApiError ? err.message : "Error inesperado";
         const code = isApiError ? err.code : internalError;
         res.status(status).json({ code, message });

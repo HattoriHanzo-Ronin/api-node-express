@@ -18,13 +18,14 @@ export default class JwtProvider<Payload extends object> implements TokenProvide
     }
 
     verify({ token }: VerifyTokenParams) {
+        const { routerSessionInvalid } = API_ERROR;
         try {
             const payload = jwt.verify(token, this.dependencies.secret);
             if (typeof payload === "string") {
                 throw new ApiError({
                     message: "Sesión no válida",
                     status: 401,
-                    apiError: API_ERROR.routerSessionInvalid
+                    apiError: routerSessionInvalid
                 });
             }
 
@@ -35,7 +36,8 @@ export default class JwtProvider<Payload extends object> implements TokenProvide
                     condition: err instanceof jwt.JsonWebTokenError,
                     message: "Sesión no válida",
                     status: 401,
-                    apiError: API_ERROR.routerSessionInvalid
+                    apiError: routerSessionInvalid,
+                    cause: err
                 }
             ]);
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import jwt from "jsonwebtoken";
 import JwtProvider from "../../../src/utils/token-providers/impl/jwt-provider.js";
 
 describe("JwtProvider", () => {
@@ -13,7 +14,8 @@ describe("JwtProvider", () => {
         expect(() => tokenProvider.verify({ token: "invalid" })).toThrow(
             expect.objectContaining({
                 code: "ROUTER_SESSION_INVALID",
-                status: 401
+                status: 401,
+                cause: expect.any(jwt.JsonWebTokenError)
             })
         );
     });

@@ -7,8 +7,11 @@ import DefaultRouterSessionService from "./services/impl/default-router-session-
 import type { RouterSessionTokenPayload } from "./types/router-session/default-router-session-service.js";
 import JwtProvider from "./utils/token-providers/impl/jwt-provider.js";
 import NoVncGateway from "./utils/gateways/impl/no-vnc-gateway.js";
+import Logger from "./utils/logger/logger.js";
+import { LOG_EVENT } from "./config/log-events.js";
 
 const { jwtAccessTokenExpiresIn, port } = ENV;
+const logger = Logger.getLogger({ name: "server" });
 const tokenProvider = new JwtProvider<RouterSessionTokenPayload>({
     secret: SECRETS.jwtSecret,
     expiresIn: jwtAccessTokenExpiresIn
@@ -20,7 +23,7 @@ const app = createApp({ routerSessionController });
 const server = createServer(app);
 
 vncGateway.attach({ server });
-server.listen(port);
+server.listen(port, () => logger.info({ event: LOG_EVENT.serviceStarted, message: "Router panel service started" }));
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
     process.once(signal, () => shutdown());

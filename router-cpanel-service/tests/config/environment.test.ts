@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const validEnvironment = {
     PORT: "3001",
+    LOG_LEVEL: "info",
+    LOG_DIRECTORY: "/tmp/router-cpanel-test-logs",
+    LOG_RETENTION_WEEKS: "8",
     PUBLIC_URL: "https://router-cpanel.example",
     CHROME_PATH: "/usr/bin/chromium",
     DISPLAY_BASE: "100",
@@ -42,6 +45,21 @@ describe("environment", () => {
 
     it("should reject an invalid token expiration", async () => {
         setEnvironment({ ...validEnvironment, JWT_ACCESS_TOKEN_EXPIRES_IN: "invalid" });
+        await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
+            code: "CONFIGURATION_INVALID"
+        });
+    });
+
+    it.each(["LOG_LEVEL", "LOG_DIRECTORY", "LOG_RETENTION_WEEKS"])("should require %s", async (key) => {
+        setEnvironment(validEnvironment);
+        vi.stubEnv(key, undefined);
+        await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
+            code: "CONFIGURATION_INVALID"
+        });
+    });
+
+    it("should reject an invalid logging level", async () => {
+        setEnvironment({ ...validEnvironment, LOG_LEVEL: "verbose" });
         await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
             code: "CONFIGURATION_INVALID"
         });
