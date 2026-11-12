@@ -44,6 +44,8 @@ vi.mock("node:fs/promises", () => ({ mkdtemp: mocks.mkdtemp, rm: mocks.rm }));
 vi.mock("node:net", () => ({ createConnection: mocks.createConnection }));
 vi.mock("node:child_process", () => ({ spawn: mocks.spawn }));
 vi.mock("puppeteer-core", () => ({ default: { launch: mocks.launch } }));
+const logger = vi.hoisted(() => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+vi.mock("../../src/utils/logger/logger.js", () => ({ default: { getLogger: () => logger } }));
 
 import DefaultRouterSessionService from "../../src/services/impl/default-router-session-service.js";
 import type TokenProvider from "../../src/utils/token-providers/token-provider.js";
@@ -201,18 +203,37 @@ describe("RouterSessionService", () => {
             code: "ROUTER_SESSION_NOT_FOUND",
             status: 404
         });
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: "authorization.denied",
+                context: `User: other-user-id, session: ${session.id}`
+            })
+        );
+        await expect(service.close({ sessionId: session.id, ownerId: "other-user-id" })).rejects.toMatchObject({
+            code: "ROUTER_SESSION_NOT_FOUND"
+        });
+        expect(logger.warn).toHaveBeenCalledTimes(2);
         await service.close({ sessionId: session.id });
     });
 
     it("should translate profile creation errors", async () => {
-        mocks.mkdtemp.mockRejectedValue(new Error("No space left on device"));
+        const cause = new Error("No space left on device");
+        mocks.mkdtemp.mockRejectedValue(cause);
         const service = createService({ tokenProvider });
         await expect(
             service.create({ ownerId: "user-id", routerName: "Router", routerIp: "router.local" })
         ).rejects.toMatchObject({
             code: "ROUTER_SESSION_FAILED",
-            status: 500
+            status: 500,
+            cause
         });
+        expect(logger.error).toHaveBeenCalledOnce();
+        expect(logger.error).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: "router.session.operation_failed",
+                error: cause
+            })
+        );
     });
 
     it("should replace an owner's active session", async () => {
@@ -249,6 +270,12 @@ describe("RouterSessionService", () => {
             code: "ROUTER_SESSION_CAPACITY_REACHED",
             status: 429
         });
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: "router.session.capacity_reached",
+                context: "User: other-user-id, limit: 1"
+            })
+        );
         await service.close({ sessionId: session.id });
     });
 
@@ -261,6 +288,17 @@ describe("RouterSessionService", () => {
             code: "ROUTER_SESSION_INVALID",
             status: 401
         });
+    });
+
+    it("records a failed expiration once at the transformation", async () => {
+        vi.useFakeTimers();
+        const service = createService({ tokenProvider });
+        await service.create({ ownerId: "user-id", routerName: "Router", routerIp: "router.local" });
+        const cause = new Error("cleanup failed");
+        mocks.rm.mockRejectedValue(cause);
+        await vi.advanceTimersByTimeAsync(600_000);
+        expect(logger.error).toHaveBeenCalledOnce();
+        expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ error: cause }));
     });
 
     it("should renew the inactivity timeout when the session is used", async () => {
@@ -290,6 +328,12 @@ describe("RouterSessionService", () => {
             code: "ROUTER_SESSION_CONNECTION_CAPACITY_REACHED",
             status: 429
         });
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: "router.vnc.capacity_reached",
+                context: `User: user-id, session: ${session.id}, router: Router, limit: 1`
+            })
+        );
         firstSocket.destroy();
         await expect(service.openVncSocket({ sessionId: session.id, token })).resolves.toBeInstanceOf(EventEmitter);
         await service.close({ sessionId: session.id });

@@ -3,6 +3,7 @@ import { API_ERROR } from "./errors.js";
 import ApiError from "../utils/error/api-error.js";
 import type { Environment } from "../types/config/environment.js";
 import type { JwtExpiresIn } from "../types/utils/jwt-provider.js";
+import type { LogLevel } from "../types/logger/logger.js";
 
 const {
     PORT,
@@ -14,7 +15,10 @@ const {
     MAX_SESSIONS_PER_USER,
     MAX_VNC_CONNECTIONS_PER_SESSION,
     SESSION_INACTIVITY_TIMEOUT,
-    JWT_ACCESS_TOKEN_EXPIRES_IN
+    JWT_ACCESS_TOKEN_EXPIRES_IN,
+    LOG_LEVEL,
+    LOG_DIRECTORY,
+    LOG_RETENTION_WEEKS
 } = process.env;
 const ENV: Environment = Object.freeze(
     validateConfiguration({
@@ -27,7 +31,10 @@ const ENV: Environment = Object.freeze(
         maxSessionsPerUser: Number(MAX_SESSIONS_PER_USER),
         maxVncConnectionsPerSession: Number(MAX_VNC_CONNECTIONS_PER_SESSION),
         sessionInactivityTimeout: Number(SESSION_INACTIVITY_TIMEOUT),
-        jwtAccessTokenExpiresIn: toJwtExpiresIn(JWT_ACCESS_TOKEN_EXPIRES_IN)
+        jwtAccessTokenExpiresIn: toJwtExpiresIn(JWT_ACCESS_TOKEN_EXPIRES_IN),
+        logLevel: toLogLevel(LOG_LEVEL),
+        logDirectory: LOG_DIRECTORY,
+        logRetentionWeeks: Number(LOG_RETENTION_WEEKS)
     })
 );
 
@@ -42,7 +49,10 @@ function validateConfiguration(environment: Partial<Environment>): Environment {
         maxSessionsPerUser,
         maxVncConnectionsPerSession,
         sessionInactivityTimeout,
-        jwtAccessTokenExpiresIn
+        jwtAccessTokenExpiresIn,
+        logLevel,
+        logDirectory,
+        logRetentionWeeks
     } = environment;
     const VALID_NUMBERS = [
         port,
@@ -51,7 +61,8 @@ function validateConfiguration(environment: Partial<Environment>): Environment {
         maxActiveUsers,
         maxSessionsPerUser,
         maxVncConnectionsPerSession,
-        sessionInactivityTimeout
+        sessionInactivityTimeout,
+        logRetentionWeeks
     ].every((value) => typeof value === "number" && Number.isInteger(value) && value > 0);
     const VALID_STRINGS = [chromePath, jwtAccessTokenExpiresIn].every(
         (value) => typeof value === "string" && value.length > 0
@@ -60,12 +71,20 @@ function validateConfiguration(environment: Partial<Environment>): Environment {
 
     ApiError.handle([
         {
-            condition: !VALID_NUMBERS || !VALID_STRINGS || !VALID_PUBLIC_URL,
+            condition: !VALID_NUMBERS || !VALID_STRINGS || !VALID_PUBLIC_URL || !logLevel || !logDirectory?.trim(),
             message: "La configuración del servicio de paneles de router no es válida",
             apiError: API_ERROR.configurationInvalid
         }
     ]);
     return environment as Environment;
+}
+
+function toLogLevel(level: string | undefined): LogLevel | undefined {
+    if (level === "debug" || level === "info" || level === "warn" || level === "error") {
+        return level;
+    }
+
+    return undefined;
 }
 
 function toJwtExpiresIn(value: string | undefined): JwtExpiresIn | undefined {

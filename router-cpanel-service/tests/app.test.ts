@@ -1,9 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
 
 import createApp from "../src/app.js";
 import type RouterSessionController from "../src/controllers/router-session-controller.js";
+
+vi.mock("../src/utils/logger/logger.js", () => {
+    return {
+        default: { getLogger: () => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }) }
+    };
+});
 
 describe("router control panel application", () => {
     let server: Server;

@@ -11,6 +11,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import puppeteer from "puppeteer-core";
 import { ENV } from "../../config/environment.js";
 import { API_ERROR } from "../../config/errors.js";
+import { LOG_EVENT } from "../../config/log-events.js";
 import type RouterSessionService from "../router-session-service.js";
 import type {
     CloseRouterSessionParams,
@@ -40,6 +41,17 @@ import type {
     WatchRouterPageLoadingParams
 } from "../../types/router-session/default-router-session-service.js";
 import ApiError from "../../utils/error/api-error.js";
+import Logger from "../../utils/logger/logger.js";
+
+const {
+    sessionClosed,
+    sessionNavigated,
+    sessionCleanupFailed,
+    sessionAutofillFailed,
+    sessionCreated,
+    sessionOperationFailed,
+    vncConnectionFailed
+} = LOG_EVENT;
 
 const {
     chromePath,
@@ -65,6 +77,7 @@ const {
  * @author HattoriHanzo-Ronin
  */
 export default class DefaultRouterSessionService implements RouterSessionService<Socket> {
+    private static readonly LOGGER = Logger.getLogger(DefaultRouterSessionService);
     private static readonly PASSWORD_SELECTOR =
         'input[type="password"], input[name="password"], input[name="Password"]';
     private static readonly SUBMIT_SELECTOR =
@@ -113,6 +126,13 @@ export default class DefaultRouterSessionService implements RouterSessionService
         ApiError.handle([
             {
                 condition: ownerId !== undefined && session.ownerId !== ownerId,
+                execute: () => {
+                    DefaultRouterSessionService.LOGGER.warn({
+                        event: LOG_EVENT.authorizationDenied,
+                        message: "Authenticated user attempted to close another user's router session",
+                        context: `User: ${ownerId}, session: ${sessionId}`
+                    });
+                },
                 message: "La sesión de panel de router no existe",
                 status: 404,
                 apiError: routerSessionNotFound
@@ -128,46 +148,87 @@ export default class DefaultRouterSessionService implements RouterSessionService
 
         try {
             await this.cleanupSession({ session });
-        } catch {
+            DefaultRouterSessionService.LOGGER.info({
+                event: sessionClosed,
+                message: "Router panel session closed",
+                context: `User: ${session.ownerId}, session: ${session.id}, router: ${session.routerName}`
+            });
+        } catch (error) {
+            DefaultRouterSessionService.LOGGER.error({
+                event: sessionOperationFailed,
+                message: "Router panel session close failed",
+                context: `User: ${session.ownerId}, session: ${session.id}, router: ${session.routerName}`,
+                error
+            });
             throw new ApiError({
                 message: "No se ha podido cerrar la sesión del panel de router",
-                apiError: routerSessionFailed
+                apiError: routerSessionFailed,
+                cause: error
             });
         }
     }
 
     async navigate({ sessionId, ownerId, action }: NavigateRouterSessionParams) {
+        const started = performance.now();
         const session = this.sessions.get(sessionId);
-        if (!session || session.ownerId !== ownerId) {
-            throw new ApiError({
+        ApiError.handle([
+            {
+                condition: !session || session.ownerId !== ownerId,
+                execute: () => {
+                    if (session && session.ownerId !== ownerId) {
+                        DefaultRouterSessionService.LOGGER.warn({
+                            event: LOG_EVENT.authorizationDenied,
+                            message: "Authenticated user attempted to navigate another user's router session",
+                            context: `User: ${ownerId}, session: ${sessionId}`
+                        });
+                    }
+                },
                 message: "La sesión de panel de router no existe",
                 status: 404,
                 apiError: routerSessionNotFound
-            });
-        }
+            }
+        ]);
 
+        const activeSession = session!;
         try {
-            const { page } = session;
+            const { page } = activeSession;
             if (!page) {
                 throw new Error("La página de la sesión no está disponible");
             }
 
             switch (action) {
                 case "back":
-                    if (!session.initialUrl || page.url() === session.initialUrl) {
+                    if (!activeSession.initialUrl || page.url() === activeSession.initialUrl) {
                         return;
                     }
 
                     await page.goBack({ waitUntil: "domcontentloaded", timeout: 30_000 });
+                    DefaultRouterSessionService.LOGGER.info({
+                        event: sessionNavigated,
+                        message: "Router panel navigation completed",
+                        context: `User: ${ownerId}, session: ${activeSession.id}, router: ${activeSession.routerName}, action: ${action}, duration: ${performance.now() - started} ms`
+                    });
                     return;
                 case "reload":
-                    this.markLoadingInteraction({ session });
+                    this.markLoadingInteraction({ session: activeSession });
                     await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 });
+                    DefaultRouterSessionService.LOGGER.info({
+                        event: sessionNavigated,
+                        message: "Router panel navigation completed",
+                        context: `User: ${ownerId}, session: ${activeSession.id}, router: ${activeSession.routerName}, action: ${action}, duration: ${performance.now() - started} ms`
+                    });
             }
-        } catch {
+        } catch (error) {
+            DefaultRouterSessionService.LOGGER.error({
+                event: sessionOperationFailed,
+                message: "Router panel navigation failed",
+                context: `User: ${ownerId}, session: ${activeSession.id}, router: ${activeSession.routerName}`,
+                error
+            });
             throw new ApiError({
                 message: "No se ha podido navegar en el panel de router",
-                apiError: routerSessionFailed
+                apiError: routerSessionFailed,
+                cause: error
             });
         }
     }
@@ -186,6 +247,13 @@ export default class DefaultRouterSessionService implements RouterSessionService
         ApiError.handle([
             {
                 condition: session.vncConnectionCount >= maxVncConnectionsPerSession,
+                execute: () => {
+                    DefaultRouterSessionService.LOGGER.info({
+                        event: LOG_EVENT.vncCapacityReached,
+                        message: "Router panel VNC connection limit reached",
+                        context: `User: ${session.ownerId}, session: ${session.id}, router: ${session.routerName}, limit: ${maxVncConnectionsPerSession}`
+                    });
+                },
                 message: "La sesión de panel de router ya tiene el máximo de conexiones VNC",
                 status: 429,
                 apiError: routerSessionConnectionCapacityReached
@@ -204,11 +272,18 @@ export default class DefaultRouterSessionService implements RouterSessionService
                 session.vncConnectionCount -= 1;
             });
             return vncSocket;
-        } catch {
+        } catch (error) {
             session.vncConnectionCount -= 1;
+            DefaultRouterSessionService.LOGGER.error({
+                event: vncConnectionFailed,
+                message: "VNC connection failed",
+                context: `User: ${session.ownerId}, session: ${session.id}, router: ${session.routerName}`,
+                error
+            });
             throw new ApiError({
                 message: "No se ha podido abrir la conexión VNC",
-                apiError: routerSessionFailed
+                apiError: routerSessionFailed,
+                cause: error
             });
         }
     }
@@ -226,7 +301,18 @@ export default class DefaultRouterSessionService implements RouterSessionService
     }
 
     async closeAll() {
-        await Promise.allSettled([...this.sessions.keys()].map((sessionId) => this.close({ sessionId })));
+        const results = await Promise.allSettled(
+            [...this.sessions.keys()].map((sessionId) => this.close({ sessionId }))
+        );
+        for (const result of results) {
+            if (result.status === "rejected" && !(result.reason instanceof ApiError)) {
+                DefaultRouterSessionService.LOGGER.error({
+                    event: sessionCleanupFailed,
+                    message: "Router panel session shutdown failed",
+                    error: result.reason
+                });
+            }
+        }
     }
 
     private async createForOwner({
@@ -251,6 +337,13 @@ export default class DefaultRouterSessionService implements RouterSessionService
             ApiError.handle([
                 {
                     condition: ownerSessions.size === 0 && activeOwners.size >= maxActiveUsers,
+                    execute: () => {
+                        DefaultRouterSessionService.LOGGER.info({
+                            event: LOG_EVENT.sessionCapacityReached,
+                            message: "Router panel active user capacity reached",
+                            context: `User: ${ownerId}, limit: ${maxActiveUsers}`
+                        });
+                    },
                     message: "Se ha alcanzado el número máximo de sesiones activas",
                     status: 429,
                     apiError: routerSessionCapacityReached
@@ -288,6 +381,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
         clientType,
         theme
     }: CreateRouterSessionInternalParams): Promise<RouterSessionResponse> {
+        const started = performance.now();
         const id = randomUUID();
         const token = this.tokenProvider.create({ payload: { sid: id } });
         const display = this.nextDisplay;
@@ -366,29 +460,66 @@ export default class DefaultRouterSessionService implements RouterSessionService
                     routerIp,
                     session,
                     signal: session.autoLoginAbort.signal
-                }).catch(() => {});
+                }).catch((error: unknown) => {
+                    if (!session.autoLoginAbort?.signal.aborted) {
+                        DefaultRouterSessionService.LOGGER.error({
+                            event: sessionAutofillFailed,
+                            message: "Router panel autofill failed",
+                            context: `User: ${ownerId}, session: ${id}, router: ${routerName}`,
+                            error,
+                            redact: [routerPassword]
+                        });
+                    }
+                });
             }
 
+            DefaultRouterSessionService.LOGGER.info({
+                event: sessionCreated,
+                message: "Router panel session created",
+                context: `User: ${ownerId}, session: ${id}, router: ${routerName}, duration: ${performance.now() - started} ms`
+            });
             return {
                 id,
                 url: DefaultRouterSessionService.getViewerUrl({ id, token, routerName, language, clientType, theme }),
                 expiresAt: new Date(Date.now() + sessionInactivityTimeout).toISOString()
             };
-        } catch {
-            await this.cleanupSession({ session }).catch(() => {});
+        } catch (error) {
+            await this.cleanupSession({ session }).catch((cleanupError: unknown) => {
+                DefaultRouterSessionService.LOGGER.warn({
+                    event: sessionCleanupFailed,
+                    message: "Router panel cleanup failed",
+                    context: `User: ${ownerId}, session: ${id}, router: ${routerName}`,
+                    error: cleanupError
+                });
+            });
+            DefaultRouterSessionService.LOGGER.error({
+                event: sessionOperationFailed,
+                message: "Router panel session creation failed",
+                context: `User: ${ownerId}, session: ${id}, router: ${routerName}`,
+                error,
+                redact: [routerIp, routerPassword ?? ""]
+            });
             throw new ApiError({
                 message: "No se ha podido crear la sesión del panel de router",
-                apiError: routerSessionFailed
+                apiError: routerSessionFailed,
+                cause: error
             });
         }
     }
 
     private scheduleClose({ session }: ScheduleRouterSessionCloseParams): void {
         clearTimeout(session.timeout);
-        const timeout = setTimeout(
-            () => void this.close({ sessionId: session.id }).catch(() => {}),
-            sessionInactivityTimeout
-        );
+        const timeout = setTimeout(() => {
+            void this.close({ sessionId: session.id }).catch((error: unknown) => {
+                if (!(error instanceof ApiError)) {
+                    DefaultRouterSessionService.LOGGER.error({
+                        event: sessionCleanupFailed,
+                        message: "Router panel session expiration failed",
+                        error
+                    });
+                }
+            });
+        }, sessionInactivityTimeout);
         timeout.unref();
         session.timeout = timeout;
     }
@@ -567,7 +698,14 @@ export default class DefaultRouterSessionService implements RouterSessionService
         clearTimeout(session.timeout);
         clearTimeout(session.loadingTimeout);
         session.autoLoginAbort?.abort();
-        await session.browser?.close().catch(() => {});
+        await session.browser?.close().catch((error: unknown) => {
+            DefaultRouterSessionService.LOGGER.warn({
+                event: sessionCleanupFailed,
+                message: "Router panel browser cleanup failed",
+                context: `User: ${session.ownerId}, session: ${session.id}, router: ${session.routerName}`,
+                error
+            });
+        });
         session.vnc?.kill("SIGKILL");
         session.xvfb?.kill("SIGKILL");
         if (session.profileDir) {
