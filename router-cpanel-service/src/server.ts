@@ -8,15 +8,28 @@ import type { RouterSessionTokenPayload } from "./types/router-session/default-r
 import JwtProvider from "./utils/token-providers/impl/jwt-provider.js";
 import NoVncGateway from "./utils/gateways/impl/no-vnc-gateway.js";
 import Logger from "./utils/logger/logger.js";
+import ResourceMonitor from "./utils/monitor/resource-monitor.js";
 import { LOG_EVENT } from "./config/log-events.js";
 
-const { jwtAccessTokenExpiresIn, port } = ENV;
+const { jwtAccessTokenExpiresIn, port, resourceReportHour } = ENV;
 const logger = Logger.getLogger({ name: "server" });
 const tokenProvider = new JwtProvider<RouterSessionTokenPayload>({
     secret: SECRETS.jwtSecret,
     expiresIn: jwtAccessTokenExpiresIn
 });
-const routerSessionService = new DefaultRouterSessionService({ tokenProvider });
+const routerSessionService = new DefaultRouterSessionService({
+    tokenProvider,
+    onSessionCreated: () => resourceMonitor.start(),
+    onSessionClosed: () => {
+        if (!routerSessionService.activeSessionCount) {
+            resourceMonitor.pause();
+        }
+    }
+});
+const resourceMonitor = new ResourceMonitor({
+    reportHour: resourceReportHour,
+    activeSessions: () => routerSessionService.activeSessionCount
+});
 const routerSessionController = new RouterSessionController({ routerSessionService });
 const vncGateway = new NoVncGateway({ routerSessionService });
 const app = createApp({ routerSessionController });
@@ -31,6 +44,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 
 async function shutdown(): Promise<void> {
     vncGateway.close();
+    await resourceMonitor.stop();
     await routerSessionService.closeAll();
     server.close();
 }

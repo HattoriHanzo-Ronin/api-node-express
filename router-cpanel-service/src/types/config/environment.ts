@@ -11,6 +11,7 @@ export type Environment = Readonly<{
     maxSessionsPerUser: number;
     maxVncConnectionsPerSession: number;
     sessionInactivityTimeout: number;
+    resourceReportHour: number;
     jwtAccessTokenExpiresIn: JwtExpiresIn;
     logLevel: LogLevel;
     logDirectory: string;

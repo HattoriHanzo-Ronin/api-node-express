@@ -1,4 +1,4 @@
-import { once } from "node:events";
+import { EventEmitter, once } from "node:events";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocket } from "ws";
@@ -53,6 +53,33 @@ describe("NoVncGateway", () => {
             expect(logger.error).toHaveBeenCalledWith(
                 expect.objectContaining({ event: "router.vnc.connection_failed", error })
             );
+        } finally {
+            gateway.close();
+            await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+        }
+    });
+
+    it("does not report the resulting WebSocket close as another failure", async () => {
+        const vncSocket = Object.assign(new EventEmitter(), { destroy: vi.fn(), write: vi.fn() });
+        const routerSessionService = { openVncSocket: vi.fn().mockResolvedValue(vncSocket) };
+        const gateway = new NoVncGateway({
+            routerSessionService: routerSessionService as unknown as RouterSessionService<Socket>
+        });
+        const server = createServer();
+        gateway.attach({ server });
+        await new Promise<void>((resolve) => server.listen(0, resolve));
+        vi.clearAllMocks();
+        try {
+            const { port } = server.address() as AddressInfo;
+            const socket = new WebSocket(`ws://127.0.0.1:${port}/vnc/session/socket?token=private-token`);
+            await once(socket, "open");
+            await vi.waitFor(() => expect(routerSessionService.openVncSocket).toHaveBeenCalledOnce());
+            const closed = once(socket, "close");
+            vncSocket.emit("error", new Error("VNC failed"));
+            await closed;
+            await vi.waitFor(() => expect(vncSocket.destroy).toHaveBeenCalledOnce());
+            expect(logger.error).toHaveBeenCalledOnce();
+            expect(logger.warn).not.toHaveBeenCalled();
         } finally {
             gateway.close();
             await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));

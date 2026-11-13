@@ -14,6 +14,7 @@ export type RouterSessionTokenPayload = {
 export type RouterSession = {
     id: string;
     ownerId: string;
+    startedAt: number;
     routerName: string;
     language?: string;
     display: number;
@@ -36,6 +37,8 @@ export type RouterSession = {
 
 export type RouterSessionServiceDependencies = {
     tokenProvider: TokenProvider<RouterSessionTokenPayload>;
+    onSessionCreated: () => void;
+    onSessionClosed: () => void;
 };
 
 export type CreateRouterSessionInternalParams = CreateRouterSessionParams & {
