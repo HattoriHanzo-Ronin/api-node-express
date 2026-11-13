@@ -127,33 +127,86 @@ export default class DefaultFtpService implements FtpService<
             throw DefaultFtpService.ftpError({
                 message: "Error al listar la carpeta",
                 apiError: ftpDirFailed,
-                cause: err
+                cause: err,
+                context: `User: ${authUser.id}, pool: ${watcher ? "watcher" : "interactive"}`
             });
         }
     }
 
     async getThumbnails({ dir, names, authUser, callback }: FtpThumbnailsParams<Buffer>) {
+        const batchId = randomUUID();
         try {
-            return await this.ftpConnectionManager.execute({
+            await this.ftpConnectionManager.execute({
                 authUser,
                 pool: "transfer",
                 readOnly: true,
                 transfer: true,
                 paths: names.map((name) => path.posix.join(dir, name)),
                 callback: async ({ client }) => {
-                    await Promise.all(
+                    const entries = await Promise.all(
                         names.map(async (name) => {
+                            const remotePath = path.posix.join(dir, name);
+                            try {
+                                const { size } = await client.stat(remotePath);
+                                return { id: randomUUID(), name, remotePath, size };
+                            } catch (error) {
+                                if (!(error instanceof ApiError)) {
+                                    DefaultFtpService.LOGGER.warn({
+                                        event: backgroundFailed,
+                                        message: "Thumbnail file inspection failed",
+                                        context: `User: ${authUser.id}, batch: ${batchId}, file: ${name}`,
+                                        error
+                                    });
+                                }
+                                return { id: randomUUID(), name, remotePath, size: 0 };
+                            }
+                        })
+                    );
+                    const files = entries.filter(({ size }) => size > 0).map(({ id, size }) => ({ id, size }));
+                    let registered = false;
+                    if (files.length) {
+                        try {
+                            const response = await fetch(`${thumbnailGeneratorUrl}/thumbnail/batches`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ id: batchId, userId: authUser.id, files }),
+                                signal: AbortSignal.timeout(ftpMediaSessionTimeout)
+                            });
+                            registered = response.ok;
+                            if (!registered) {
+                                DefaultFtpService.LOGGER.warn({
+                                    event: backgroundFailed,
+                                    message: "Thumbnail batch registration failed",
+                                    context: `User: ${authUser.id}, batch: ${batchId}, HTTP status: ${response.status}`
+                                });
+                            }
+                        } catch (error) {
+                            DefaultFtpService.LOGGER.warn({
+                                event: backgroundFailed,
+                                message: "Thumbnail batch registration failed",
+                                context: `User: ${authUser.id}, batch: ${batchId}`,
+                                error
+                            });
+                        }
+                    }
+
+                    const results = await Promise.allSettled(
+                        entries.map(async ({ id, name, remotePath, size }) => {
                             let thumbnail;
                             try {
-                                const remotePath = path.posix.join(dir, name);
-                                const { size } = await client.stat(remotePath);
-                                thumbnail = await this.createThumbnail({ client, remotePath, size });
+                                thumbnail = await this.createThumbnail({
+                                    client,
+                                    remotePath,
+                                    size,
+                                    id,
+                                    batchId: registered ? batchId : undefined
+                                });
                             } catch (error) {
                                 if (!(error instanceof ApiError)) {
                                     DefaultFtpService.LOGGER.warn({
                                         event: backgroundFailed,
                                         message: "Thumbnail generation failed",
-                                        context: `User: ${authUser.id}`,
+                                        context: `User: ${authUser.id}, batch: ${batchId}, file: ${name}`,
                                         error
                                     });
                                 }
@@ -164,13 +217,18 @@ export default class DefaultFtpService implements FtpService<
                             await callback({ name, thumbnail });
                         })
                     );
+                    const failed = results.find((result) => result.status === "rejected");
+                    if (failed?.status === "rejected") {
+                        throw failed.reason;
+                    }
                 }
             });
         } catch (err) {
             throw DefaultFtpService.ftpError({
                 message: "Error al generar las miniaturas",
                 cause: err,
-                apiError: ftpThumbnailFailed
+                apiError: ftpThumbnailFailed,
+                context: `User: ${authUser.id}, batch: ${batchId}`
             });
         }
     }
@@ -389,6 +447,7 @@ export default class DefaultFtpService implements FtpService<
             type: FTP_TRANSFER_TYPE.upload,
             dir,
             ownerId: authUser.id,
+            startedAt: performance.now(),
             entries: new Map(),
             createdDirs: new Set(),
             protectedDirs: [],
@@ -476,7 +535,8 @@ export default class DefaultFtpService implements FtpService<
             throw DefaultFtpService.ftpError({
                 message: "Error al preparar la subida",
                 apiError: ftpUploadFailed,
-                cause: err
+                cause: err,
+                context: `User: ${authUser.id}, transfer: ${id}, operation: upload`
             });
         }
     }
@@ -589,13 +649,17 @@ export default class DefaultFtpService implements FtpService<
                 });
             }
         } catch (err) {
+            const alreadyCancelled = session.cancelled;
+            session.cancelled = true;
             clearTimeout(session.timeout);
             this.transferSessions.delete(id);
             await this.cleanupTransfer({ session });
             throw DefaultFtpService.ftpError({
                 message: "Error al subir los datos",
                 apiError: ftpUploadFailed,
-                cause: err
+                cause: err,
+                context: `User: ${authUser.id}, transfer: ${id}, path: ${entryPath}`,
+                cancelled: alreadyCancelled
             });
         } finally {
             entry.uploading = false;
@@ -627,7 +691,16 @@ export default class DefaultFtpService implements FtpService<
         clearTimeout(session.timeout);
         this.transferSessions.delete(id);
         try {
-            return await onComplete({ dir: session.dir });
+            const result = await onComplete({ dir: session.dir });
+            const size = [...session.entries.values()].reduce((total, entry) => {
+                return total + (entry.type === fileType ? entry.receivedBytes : 0);
+            }, 0);
+            DefaultFtpService.LOGGER.info({
+                event: LOG_EVENT.sftpOperationCompleted,
+                message: "SFTP transfer completed",
+                context: `User: ${authUser.id}, transfer: ${id}, operation: upload, size: ${size} bytes, duration: ${performance.now() - session.startedAt} ms`
+            });
+            return result;
         } finally {
             session.fileLocks.forEach((release) => release());
             session.releaseEntryLocks?.();
@@ -637,13 +710,22 @@ export default class DefaultFtpService implements FtpService<
 
     async cancelTransfer({ id, authUser }: FtpTransferParams) {
         const session = this.getTransferSession({ id, ownerId: authUser.id });
+        session.cancelled = true;
         clearTimeout(session.timeout);
         this.transferSessions.delete(id);
         await this.cleanupTransfer({ session });
+        if (session.type === FTP_TRANSFER_TYPE.upload || !session.completionLogged) {
+            DefaultFtpService.LOGGER.info({
+                event: LOG_EVENT.sftpOperationCancelled,
+                message: "SFTP operation cancelled",
+                context: `User: ${authUser.id}, transfer: ${id}, operation: ${session.type.toLowerCase()}`
+            });
+        }
     }
 
     async createDownload({ dir, entries, authUser }: FtpEntriesParams) {
         const id = randomUUID();
+        const startedAt = performance.now();
         let releaseLocks: Release | undefined;
         try {
             releaseLocks = await this.ftpConnectionManager.lockTransfer({
@@ -695,6 +777,7 @@ export default class DefaultFtpService implements FtpService<
                         type: FTP_TRANSFER_TYPE.download,
                         dir,
                         ownerId: authUser.id,
+                        startedAt,
                         timeout,
                         releaseLocks,
                         entries: resolvedEntries,
@@ -717,7 +800,8 @@ export default class DefaultFtpService implements FtpService<
             throw DefaultFtpService.ftpError({
                 message: "Error al preparar la descarga",
                 apiError: ftpDownloadFailed,
-                cause: err
+                cause: err,
+                context: `User: ${authUser.id}, transfer: ${id}, operation: download`
             });
         }
     }
@@ -742,7 +826,23 @@ export default class DefaultFtpService implements FtpService<
             }
         ]);
         const entry = sourceEntry!;
-        let source;
+        let source: ReturnType<SftpClient["createReadStream"]> | undefined;
+        let responseClosed = false;
+        let sourceFailed = false;
+        const onClose = () => {
+            responseClosed = !stream.writableFinished;
+        };
+        const onSourceError = () => {
+            if (!responseClosed) {
+                sourceFailed = true;
+            }
+        };
+        const onSourceClose = () => {
+            if (!responseClosed && source && !source.readableEnded) {
+                sourceFailed = true;
+            }
+        };
+        stream.once("close", onClose);
         session.activeDownloads += 1;
         try {
             await this.ftpConnectionManager.execute({
@@ -757,7 +857,10 @@ export default class DefaultFtpService implements FtpService<
                     try {
                         ({ size } = await client.stat(remotePath));
                     } catch (error) {
-                        throw DefaultFtpService.createStaleDownloadError(error);
+                        throw DefaultFtpService.createStaleDownloadError(
+                            error,
+                            `User: ${authUser.id}, transfer: ${id}, file: ${entryPath}`
+                        );
                     }
 
                     if (size !== entry.size) {
@@ -773,6 +876,8 @@ export default class DefaultFtpService implements FtpService<
                     }
 
                     source = client.createReadStream(remotePath, { start: offset });
+                    source.once("error", onSourceError);
+                    source.once("close", onSourceClose);
                     session.activeStreams.add(source);
                     session.activeStreams.add(stream);
                     await pipeline(
@@ -784,6 +889,14 @@ export default class DefaultFtpService implements FtpService<
             });
             session.completedEntries.add(entryPath);
         } catch (err) {
+            const alreadyCancelled = session.cancelled;
+            const clientCancelled =
+                responseClosed &&
+                !sourceFailed &&
+                err instanceof Error &&
+                "code" in err &&
+                err.code === "ERR_STREAM_PREMATURE_CLOSE";
+            session.cancelled = true;
             clearTimeout(session.timeout);
             this.transferSessions.delete(id);
             await this.cleanupTransfer({ session });
@@ -791,25 +904,49 @@ export default class DefaultFtpService implements FtpService<
                 throw err;
             }
 
+            if (clientCancelled && !alreadyCancelled) {
+                DefaultFtpService.LOGGER.info({
+                    event: LOG_EVENT.sftpOperationCancelled,
+                    message: "SFTP operation cancelled by client",
+                    context: `User: ${authUser.id}, transfer: ${id}, operation: download`
+                });
+            }
+
             throw DefaultFtpService.ftpError({
                 message: "Error al descargar",
                 apiError: ftpDownloadFailed,
-                cause: err
+                cause: err,
+                context: `User: ${authUser.id}, transfer: ${id}, path: ${entryPath}`,
+                cancelled: alreadyCancelled || clientCancelled
             });
         } finally {
             if (source) {
+                source.off("error", onSourceError);
+                source.off("close", onSourceClose);
                 session.activeStreams.delete(source);
             }
 
+            stream.off("close", onClose);
             session.activeStreams.delete(stream);
             session.activeDownloads -= 1;
+            const files = session.entries.filter((item) => item.type === fileType);
+            const completed = files.every((item) => session.completedEntries.has(item.path));
             if (
                 !session.activeDownloads &&
-                session.releaseLocks &&
-                session.entries
-                    .filter((item) => item.type === fileType)
-                    .every((item) => session.completedEntries.has(item.path))
+                !session.completionLogged &&
+                this.transferSessions.get(id) === session &&
+                completed
             ) {
+                session.completionLogged = true;
+                const size = files.reduce((total, item) => total + item.size, 0);
+                DefaultFtpService.LOGGER.info({
+                    event: LOG_EVENT.sftpOperationCompleted,
+                    message: "SFTP transfer completed",
+                    context: `User: ${authUser.id}, transfer: ${id}, operation: download, size: ${size} bytes, duration: ${performance.now() - session.startedAt} ms`
+                });
+            }
+
+            if (!session.activeDownloads && session.releaseLocks && completed) {
                 session.releaseLocks();
                 session.releaseLocks = undefined;
             }
@@ -847,12 +984,17 @@ export default class DefaultFtpService implements FtpService<
         }
     }
 
-    private async createThumbnail({ client, remotePath, size }: FtpThumbnailParams): Promise<Buffer | null> {
+    private async createThumbnail({
+        client,
+        remotePath,
+        size,
+        id,
+        batchId
+    }: FtpThumbnailParams): Promise<Buffer | null> {
         if (!size) {
             return null;
         }
 
-        const id = randomUUID();
         const timeout = setTimeout(() => this.mediaSessions.delete(id), ftpMediaSessionTimeout);
         this.mediaSessions.set(id, {
             size,
@@ -861,6 +1003,7 @@ export default class DefaultFtpService implements FtpService<
         try {
             const response = await fetch(`${thumbnailGeneratorUrl}/thumbnail/${id}`, {
                 method: "POST",
+                headers: batchId ? { "X-Thumbnail-Batch-Id": batchId } : undefined,
                 signal: AbortSignal.timeout(ftpMediaSessionTimeout)
             });
             if (!response.ok) {
@@ -868,7 +1011,7 @@ export default class DefaultFtpService implements FtpService<
                     DefaultFtpService.LOGGER.warn({
                         event: backgroundFailed,
                         message: "Thumbnail service request failed",
-                        context: `Request: ${id}, HTTP status: ${response.status}`
+                        context: `Request: ${id}, batch: ${batchId}, HTTP status: ${response.status}`
                     });
                 }
 
@@ -1032,11 +1175,12 @@ export default class DefaultFtpService implements FtpService<
         });
     }
 
-    private static createStaleDownloadError(cause?: unknown): ApiError {
+    private static createStaleDownloadError(cause?: unknown, context?: string): ApiError {
         if (cause !== undefined && !(cause instanceof ApiError)) {
             DefaultFtpService.LOGGER.error({
                 event: LOG_EVENT.sftpOperationFailed,
                 message: "Failed to check download file",
+                context,
                 error: cause
             });
         }
@@ -1071,8 +1215,19 @@ export default class DefaultFtpService implements FtpService<
 
     private async expireTransfer({ id }: Pick<FtpTransferParams, "id">): Promise<void> {
         const session = this.transferSessions.get(id);
+        if (session) {
+            session.cancelled = true;
+        }
+
         this.transferSessions.delete(id);
         await this.cleanupTransfer({ session });
+        if (session && (session.type === FTP_TRANSFER_TYPE.upload || !session.completionLogged)) {
+            DefaultFtpService.LOGGER.info({
+                event: LOG_EVENT.sftpOperationCancelled,
+                message: "SFTP transfer expired",
+                context: `User: ${session.ownerId}, transfer: ${id}, operation: ${session.type.toLowerCase()}`
+            });
+        }
     }
 
     private static logBackgroundFailure(error: unknown): void {
@@ -1220,13 +1375,17 @@ export default class DefaultFtpService implements FtpService<
     private static ftpError({
         message,
         apiError,
-        cause
-    }: Pick<ApiErrorOptions, "message" | "apiError" | "cause">): ApiError {
-        if (!(cause instanceof ApiError)) {
+        cause,
+        context,
+        cancelled
+    }: Pick<ApiErrorOptions, "message" | "apiError" | "cause"> & { context?: string; cancelled?: boolean }): ApiError {
+        const cancelledStream =
+            cancelled && cause instanceof Error && "code" in cause && cause.code === "ERR_STREAM_PREMATURE_CLOSE";
+        if (!(cause instanceof ApiError) && !cancelledStream) {
             DefaultFtpService.LOGGER.error({
                 event: LOG_EVENT.sftpOperationFailed,
                 message: "SFTP operation failed",
-                context: `Error code: ${apiError}`,
+                context: `Error code: ${apiError}${context ? `, ${context}` : ""}`,
                 error: cause
             });
         }

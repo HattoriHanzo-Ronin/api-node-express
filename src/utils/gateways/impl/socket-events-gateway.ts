@@ -59,19 +59,22 @@ export default class SocketEventsGateway implements SocketGateway<Server> {
 
     private watchMessages({ sessionId, webSocket }: SocketEventsMessagesParams): void {
         const { socketConnectionFailed, socketDisconnected } = LOG_EVENT;
+        let failureLogged = false;
         webSocket.on("error", (error) => {
+            failureLogged = true;
             SocketEventsGateway.LOGGER.error({
                 event: socketConnectionFailed,
                 message: "Socket connection failed",
+                context: `Session: ${sessionId}`,
                 error
             });
         });
         webSocket.once("close", (code) => {
-            if (code === 1006 || code === 1011) {
+            if (!failureLogged && (code === 1006 || code === 1011)) {
                 SocketEventsGateway.LOGGER.warn({
                     event: socketDisconnected,
                     message: "Socket disconnected unexpectedly",
-                    context: `Code: ${code}`
+                    context: `Session: ${sessionId}, code: ${code}`
                 });
             }
 
@@ -88,6 +91,7 @@ export default class SocketEventsGateway implements SocketGateway<Server> {
                     SocketEventsGateway.LOGGER.error({
                         event: socketConnectionFailed,
                         message: "Socket subscription failed",
+                        context: `Session: ${sessionId}`,
                         error: err
                     });
                 }

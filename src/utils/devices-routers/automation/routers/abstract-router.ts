@@ -3,6 +3,8 @@ import { CookieJar } from "tough-cookie";
 import axios, { AxiosInstance } from "axios";
 import puppeteer, { Browser } from "puppeteer-core";
 import { ENV } from "../../../../config/environment.js";
+import { LOG_EVENT } from "../../../../config/log-events.js";
+import Logger from "../../../logger/logger.js";
 import {
     AddAllowParams,
     DeleteAllowParams,
@@ -17,6 +19,7 @@ import {
  * @author HattoriHanzo-Ronin
  */
 export default abstract class AbstractRouter {
+    private static readonly BROWSER_LOGGER = Logger.getLogger(AbstractRouter);
     private readonly router: RouterAutomationPayload;
 
     constructor({ router }: { router: RouterAutomationPayload }) {
@@ -98,10 +101,22 @@ export default abstract class AbstractRouter {
      * Closes a Puppeteer browser
      *
      * @param browser Puppeteer browser
+     * @returns Whether the browser was closed
      */
-    protected async closePuppeteerBrowser(browser: Browser | undefined): Promise<void> {
-        if (browser) {
-            await browser.close();
+    protected async closePuppeteerBrowser(browser: Browser | undefined): Promise<boolean> {
+        try {
+            await browser?.close();
+            return true;
+        } catch (error) {
+            const { id, admin_pass, ip } = this.router;
+            AbstractRouter.BROWSER_LOGGER.warn({
+                event: LOG_EVENT.routerAutomationError,
+                message: "Router browser cleanup failed",
+                context: `Router: ${id}`,
+                error,
+                redact: [admin_pass, ip]
+            });
+            return false;
         }
     }
 

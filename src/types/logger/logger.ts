@@ -6,6 +6,7 @@ export type LogEvent = {
     context?: string;
     error?: unknown;
     redact?: string[];
+    completeResult?: boolean;
 };
 
 export type LoggerOptions = { level: LogLevel; directory: string; retentionWeeks: number };

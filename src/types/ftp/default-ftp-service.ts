@@ -21,10 +21,12 @@ export type FtpUploadState = {
     type: (typeof FTP_TRANSFER_TYPE)["upload"];
     dir: string;
     ownerId: string;
+    startedAt: number;
     entries: Map<string, FtpUploadEntry>;
     createdDirs: Set<string>;
     fileLocks: Release[];
     activeStreams: Set<Readable | Writable>;
+    cancelled?: boolean;
     protectedDirs: string[];
     timeout?: NodeJS.Timeout;
     releaseLocks?: Release;
@@ -34,22 +36,34 @@ export type FtpDownloadState = {
     type: (typeof FTP_TRANSFER_TYPE)["download"];
     dir: string;
     ownerId: string;
+    startedAt: number;
     timeout: NodeJS.Timeout;
     releaseLocks?: Release;
     entries: FtpDownloadManifestEntry[];
     completedEntries: Set<string>;
     activeDownloads: number;
+    completionLogged?: boolean;
     activeStreams: Set<Readable | Writable>;
+    cancelled?: boolean;
 };
 export type FtpCompleteUploadInput = Omit<FtpCompleteUploadParams<unknown>, "onComplete"> &
     Partial<Pick<FtpCompleteUploadParams<unknown>, "onComplete">>;
 export type FtpTransferCleanupParams = { session?: FtpTransferState };
 export type FtpSizeValidatorParams = { expectedSize: number };
 export type FtpTransferState = FtpUploadState | FtpDownloadState;
-export type FtpMediaState = { size: number; createReadStream: (params: { start: number; end: number }) => Readable };
+export type FtpMediaState = {
+    size: number;
+    createReadStream: (params: { start: number; end: number }) => Readable;
+};
 export type FtpChunkCounter = Transform & { size: number };
 
-export type FtpThumbnailParams = { client: SftpClient; remotePath: string; size: number };
+export type FtpThumbnailParams = {
+    client: SftpClient;
+    remotePath: string;
+    size: number;
+    id: string;
+    batchId?: string;
+};
 export type FtpDownloadEntriesParams = {
     client: SftpClient;
     remoteDir: string;

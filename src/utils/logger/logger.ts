@@ -73,7 +73,10 @@ export default class Logger {
         this.write("error", data);
     }
 
-    private write(level: LogLevel, { event, message, context, error, redact = [] }: LogEvent): void {
+    private write(
+        level: LogLevel,
+        { event, message, context, error, redact = [], completeResult = false }: LogEvent
+    ): void {
         if (Logger.LEVELS.indexOf(level) < Logger.LEVELS.indexOf(this.options.level)) {
             return;
         }
@@ -99,7 +102,10 @@ export default class Logger {
                 Logger.file = { date, descriptor: openSync(path.join(directory, `${date}.log`), "a") };
             }
 
-            writeFileSync(Logger.file.descriptor, `${JSON.stringify(Logger.sanitize(record, seen, 0, redact))}\n`);
+            writeFileSync(
+                Logger.file.descriptor,
+                `${JSON.stringify(Logger.sanitize(record, seen, 0, redact, false, completeResult))}\n`
+            );
         } catch {
             Logger.closeFile();
         }
@@ -115,8 +121,15 @@ export default class Logger {
         }
     }
 
-    private static sanitize(value: unknown, seen: WeakSet<object>, depth: number, redact: string[]): unknown {
-        if (depth > 8) {
+    private static sanitize(
+        value: unknown,
+        seen: WeakSet<object>,
+        depth: number,
+        redact: string[],
+        complete: boolean,
+        completeResult: boolean
+    ): unknown {
+        if (!complete && depth > 8) {
             return "[truncated]";
         }
 
@@ -131,10 +144,9 @@ export default class Logger {
             }
 
             return text
-                .slice(0, 2048)
+                .slice(0, complete ? undefined : 2048)
                 .replace(/https?:\/\/[^\s)]+/gi, "[url]")
                 .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, "[ip]")
-                .replace(/\b(?:[\da-f]{2}[:-]){5}[\da-f]{2}\b/gi, "[mac]")
                 .replace(/\bBearer\s+[^\s,;"']+/gi, "Bearer [redacted]")
                 .replace(
                     /(["']?(?:password|admin[_-]?pass|secret|token|authorization|cookie|credential|private.?key|sftp.?key|api.?key)["']?\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;]+)/gi,
@@ -153,7 +165,9 @@ export default class Logger {
 
         seen.add(value);
         if (Array.isArray(value)) {
-            const items = value.slice(0, 50).map((item) => Logger.sanitize(item, seen, depth + 1, redact));
+            const items = value
+                .slice(0, complete ? undefined : 50)
+                .map((item) => Logger.sanitize(item, seen, depth + 1, redact, complete, completeResult));
             seen.delete(value);
             return items;
         }
@@ -168,14 +182,22 @@ export default class Logger {
                   )
                 : Object.entries(value);
         const result = Object.fromEntries(
-            entries.slice(0, 50).map(([key, item]) => {
+            entries.slice(0, complete ? undefined : 50).map(([key, item]) => {
                 return [
                     key,
-                    /password|admin[_-]?pass|secret|token|cookie|authorization|credential|private.?key|sftp.?key|api.?key|path|url|query|parameters|detail|headers|body|data|config|request|response/i.test(
-                        key
-                    )
+                    (complete
+                        ? /password|admin[_-]?pass|secret|token|cookie|authorization|credential|private.?key|sftp.?key|api.?key/i
+                        : /password|admin[_-]?pass|secret|token|cookie|authorization|credential|private.?key|sftp.?key|api.?key|path|url|query|parameters|detail|headers|body|data|config|request|response/i
+                    ).test(key)
                         ? "[redacted]"
-                        : Logger.sanitize(item, seen, depth + 1, redact)
+                        : Logger.sanitize(
+                              item,
+                              seen,
+                              depth + 1,
+                              redact,
+                              complete || (completeResult && depth === 1 && key === "result"),
+                              completeResult
+                          )
                 ];
             })
         );

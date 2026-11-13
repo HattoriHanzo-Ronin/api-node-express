@@ -29,19 +29,24 @@ export default class RouterAutomationManager implements RouterAutomation {
     } as const);
 
     private readonly router: AbstractRouter;
-    private readonly routerId: RouterAutomationPayload["id"];
 
     constructor({ router }: { router: RouterAutomationPayload }) {
         const RouterImplementation = RouterAutomationManager.IMPLEMENTATIONS[router.model];
         ApiError.handle([
             {
                 condition: !RouterImplementation,
+                execute: () => {
+                    RouterAutomationManager.LOGGER.warn({
+                        event: LOG_EVENT.routerOperationFailed,
+                        message: "Router automation is unavailable",
+                        context: `Router: ${router.id}, model: ${router.model}`
+                    });
+                },
                 message: `${router.name} no tiene implementación disponible`,
                 apiError: routerImplementationNotFound,
                 status: 400
             }
         ]);
-        this.routerId = router.id;
         this.router = new RouterImplementation({ router });
     }
 
@@ -58,26 +63,11 @@ export default class RouterAutomationManager implements RouterAutomation {
             return;
         }
 
-        const started = performance.now();
         const added = await this.router.addAllow({ key, mac, name });
-        if (added) {
-            RouterAutomationManager.LOGGER.info({
-                event: LOG_EVENT.routerOperationCompleted,
-                message: "Router automation completed",
-                context: `Router: ${this.routerId}, operation: add, duration: ${performance.now() - started} ms`
-            });
-        }
 
         ApiError.handle([
             {
                 condition: !added,
-                execute: () => {
-                    RouterAutomationManager.LOGGER.warn({
-                        event: LOG_EVENT.routerOperationFailed,
-                        message: "Router automation operation failed",
-                        context: `Router: ${this.routerId}, operation: add`
-                    });
-                },
                 message: `Error al insertar el dispositivo en el router`,
                 status: 400,
                 apiError: routerAddFailed
@@ -90,26 +80,11 @@ export default class RouterAutomationManager implements RouterAutomation {
             return;
         }
 
-        const started = performance.now();
         const deleted = await this.router.deleteAllow({ key, mac });
-        if (deleted) {
-            RouterAutomationManager.LOGGER.info({
-                event: LOG_EVENT.routerOperationCompleted,
-                message: "Router automation completed",
-                context: `Router: ${this.routerId}, operation: delete, duration: ${performance.now() - started} ms`
-            });
-        }
 
         ApiError.handle([
             {
                 condition: !deleted,
-                execute: () => {
-                    RouterAutomationManager.LOGGER.warn({
-                        event: LOG_EVENT.routerOperationFailed,
-                        message: "Router automation operation failed",
-                        context: `Router: ${this.routerId}, operation: delete`
-                    });
-                },
                 message: "Error al eliminar el dispositivo del router",
                 status: 400,
                 apiError: routerDeleteFailed

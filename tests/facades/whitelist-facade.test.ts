@@ -76,7 +76,9 @@ describe("WhitelistFacade", () => {
         expect(logger.info).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: "whitelist.operation.completed",
-                context: "Router: router-1, device: device-1, operation: add"
+                context: expect.stringMatching(
+                    /^Router: router-1, device: device-1, operation: add, duration: \d+(\.\d+)? ms$/
+                )
             })
         );
     });

@@ -54,7 +54,7 @@ export default class ArcherAX53Router extends AbstractRouter {
             await page.waitForSelector("input.su-input__content");
             const nameInput = await page.$("input.su-input__content");
             if (!nameInput) {
-                return false;
+                throw new Error("Router device name input was not found");
             }
 
             await nameInput.click({
@@ -86,13 +86,13 @@ export default class ArcherAX53Router extends AbstractRouter {
                     return true;
                 }
             }
-            return false;
+            throw new Error("Router add confirmation was not found");
         } catch (error) {
             const { id, admin_pass, ip } = this.getRouter();
             ArcherAX53Router.LOGGER.warn({
                 event: LOG_EVENT.routerAutomationError,
                 message: "Router automation failed",
-                context: `Router: ${id}`,
+                context: `Router: ${id}, device MAC: ${mac}, operation: add`,
                 error,
                 redact: [admin_pass, ip]
             });
@@ -123,7 +123,7 @@ export default class ArcherAX53Router extends AbstractRouter {
                     }
                 }
                 if (!deleteButton) {
-                    return false;
+                    throw new Error("Router delete button was not found");
                 }
 
                 await page.evaluate((el) => el.click(), deleteButton);
@@ -137,13 +137,13 @@ export default class ArcherAX53Router extends AbstractRouter {
                     }
                 }
             }
-            return false;
+            throw new Error("Router device or delete confirmation was not found");
         } catch (error) {
             const { id, admin_pass, ip } = this.getRouter();
             ArcherAX53Router.LOGGER.warn({
                 event: LOG_EVENT.routerAutomationError,
                 message: "Router automation failed",
-                context: `Router: ${id}`,
+                context: `Router: ${id}, device MAC: ${mac}, operation: delete`,
                 error,
                 redact: [admin_pass, ip]
             });

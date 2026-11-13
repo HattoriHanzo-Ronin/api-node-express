@@ -25,7 +25,7 @@ import { API_ERROR } from "../../config/errors.js";
 import { LOG_EVENT } from "../../config/log-events.js";
 import Logger from "../../utils/logger/logger.js";
 
-const { deviceOperationCompleted, routerOperationFailed } = LOG_EVENT;
+const { deviceOperationCompleted } = LOG_EVENT;
 
 const { routerCpanelNotRouter, routerAddFailed, routerDeleteFailed, routerRollbackFailed } = API_ERROR;
 
@@ -134,6 +134,7 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
     }
 
     async update({ data }: UpdateDeviceFacadeParams) {
+        const started = performance.now();
         const { id, connections, ...newData } = data;
         const { name: newDataName } = newData;
         const { connections: currentConnections, ...oldDevice } = await this.getById({
@@ -195,15 +196,17 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
         await this.dependencies.socketSessionsFacade.notify({
             entities: [SOCKET_ENTITY.devices, SOCKET_ENTITY.whitelist]
         });
+        const device = await this.mapResult({ id, result });
         DefaultDevicesFacade.LOGGER.info({
             event: deviceOperationCompleted,
             message: "Device operation completed",
-            context: `Device: ${id}, operation: update`
+            context: `Device: ${id}, operation: update, duration: ${performance.now() - started} ms`
         });
-        return this.mapResult({ id, result });
+        return device;
     }
 
     async delete({ id }: DeviceId) {
+        const started = performance.now();
         const device = await this.getById({ id });
         await this.deleteRouterWhitelist(device);
         const result = await this.dependencies.devicesService.delete({ id });
@@ -213,7 +216,7 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
         DefaultDevicesFacade.LOGGER.info({
             event: deviceOperationCompleted,
             message: "Device operation completed",
-            context: `Device: ${id}, operation: delete`
+            context: `Device: ${id}, operation: delete, duration: ${performance.now() - started} ms`
         });
         return result;
     }
@@ -252,11 +255,6 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
                     }
                 }
             } catch (err) {
-                DefaultDevicesFacade.LOGGER.warn({
-                    event: routerOperationFailed,
-                    message: "Router whitelist update failed during device operation",
-                    context: `Router: ${routerId}, device: ${id}`
-                });
                 const restoredRouters: string[] = [];
                 const addFailed = err instanceof ApiError && err.code === routerAddFailed;
                 const apiError = err instanceof ApiError ? err.code : undefined;
@@ -279,11 +277,6 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
                         }
                         restoredRouters.push(updatedRouterName);
                     } catch (err) {
-                        DefaultDevicesFacade.LOGGER.warn({
-                            event: LOG_EVENT.routerRollbackFailed,
-                            message: "Router whitelist rollback failed",
-                            context: `Router: ${updatedRouterId}, device: ${id}`
-                        });
                         updatedRouters.forEach((_, key) => {
                             if (!restoredRouters.includes(key) && key !== updatedRouterName) {
                                 affectedRouters.push(key);
@@ -292,6 +285,11 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
                         message =
                             `Error al tratar de recuperar la mac ${currentUpdatedMac} en el router ${updatedRouterName}\n` +
                             `Routers afectados: ${affectedRouters.join(", ")}`;
+                        DefaultDevicesFacade.LOGGER.warn({
+                            event: LOG_EVENT.routerRollbackFailed,
+                            message: "Router whitelist rollback failed",
+                            context: `Router: ${updatedRouterId}, device: ${id}, other affected routers: ${affectedRouters.join(", ") || "none"}`
+                        });
                         ApiError.handle([
                             {
                                 condition:
@@ -308,7 +306,21 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
                 message =
                     `Error al actualizar la mac ${currentMac}, ha quedado eliminada de la lista en el router ${routerName}` +
                     ` debe restaurarla de forma manual`;
-                ApiError.handle([{ condition: addFailed, message, apiError, cause: err }]);
+                ApiError.handle([
+                    {
+                        condition: addFailed,
+                        execute: () => {
+                            DefaultDevicesFacade.LOGGER.warn({
+                                event: LOG_EVENT.routerRollbackFailed,
+                                message: "Router whitelist entry could not be restored",
+                                context: `Router: ${routerId}, device: ${id}, other affected routers: none`
+                            });
+                        },
+                        message,
+                        apiError,
+                        cause: err
+                    }
+                ]);
                 throw err;
             }
         }
