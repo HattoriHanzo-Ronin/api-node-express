@@ -6,6 +6,21 @@ export type ThumbnailJob = CreateThumbnailParams & {
     reject: (reason?: unknown) => void;
 };
 
+export type ThumbnailBatch = {
+    startedAt: number;
+    pending: number;
+    userId: string;
+    files: Map<string, NodeJS.Timeout>;
+    totalFiles: number;
+    totalSize: number;
+    generated: number;
+    failed: number;
+    expired: number;
+    peakCpu?: number;
+    peakMemory?: number;
+    peakActive: number;
+};
+
 export type ResourceUsage = {
     cpu: number;
     memory: number;

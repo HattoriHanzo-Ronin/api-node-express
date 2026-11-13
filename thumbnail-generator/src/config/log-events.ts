@@ -3,8 +3,10 @@ const LOG_EVENT = Object.freeze({
     httpRequestFailed: "http.request.failed",
     thumbnailGenerationFailed: "thumbnail.generation.failed",
     thumbnailGenerationTimeout: "thumbnail.generation.timeout",
-    thumbnailSchedulerStarted: "thumbnail.scheduler.started",
-    thumbnailSchedulerStopped: "thumbnail.scheduler.stopped",
+    thumbnailBatchStarted: "thumbnail.batch.started",
+    thumbnailBatchCompleted: "thumbnail.batch.completed",
+    thumbnailBatchFailed: "thumbnail.batch.failed",
+    thumbnailBatchExpired: "thumbnail.batch.expired",
     thumbnailSchedulerFailed: "thumbnail.scheduler.failed",
     thumbnailSchedulerResourcesUnavailable: "thumbnail.scheduler.resources_unavailable"
 } as const);
