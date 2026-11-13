@@ -3,24 +3,23 @@ import { resolve4 } from "node:dns/promises";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { isIP } from "node:net";
-import { availableParallelism } from "node:os";
+import { availableParallelism, totalmem } from "node:os";
 import { ENV } from "../../config/environment.js";
 import { API_ERROR } from "../../config/errors.js";
 import { LOG_EVENT } from "../../config/log-events.js";
 import ApiError from "../../utils/error/api-error.js";
 import Logger from "../../utils/logger/logger.js";
 import type ThumbnailService from "../thumbnail-service.js";
-import type { CreateThumbnailParams } from "../../types/thumbnail/thumbnail-service.js";
+import type { CreateThumbnailParams, RegisterThumbnailBatchParams } from "../../types/thumbnail/thumbnail-service.js";
 import type {
     CpuSample,
     ResourceUsage,
     ResourceUsageParams,
+    ThumbnailBatch,
     ThumbnailJob
 } from "../../types/thumbnail/default-thumbnail-service.js";
 
 const {
-    thumbnailSchedulerStarted,
-    thumbnailSchedulerStopped,
     thumbnailSchedulerFailed,
     thumbnailSchedulerResourcesUnavailable,
     thumbnailGenerationFailed: thumbnailGenerationFailedEvent,
@@ -63,8 +62,11 @@ export default class DefaultThumbnailService implements ThumbnailService {
     private scheduler?: NodeJS.Timeout;
     private lastCpuSample?: CpuSample;
     private resourceWarningLogged = false;
+    private readonly batches = new Map<string, ThumbnailBatch>();
+    private schedulerVersion = 0;
+    private schedulerSampling = false;
 
-    create({ id, signal }: CreateThumbnailParams) {
+    create({ id, batchId, signal }: CreateThumbnailParams) {
         if (signal?.aborted) {
             return Promise.reject(DefaultThumbnailService.createCancelledError());
         }
@@ -72,6 +74,7 @@ export default class DefaultThumbnailService implements ThumbnailService {
         return new Promise<Buffer>((resolve, reject) => {
             const job: ThumbnailJob = {
                 id,
+                batchId: batchId && this.addToBatch(batchId, id) ? batchId : undefined,
                 signal,
                 resolve,
                 reject,
@@ -83,6 +86,7 @@ export default class DefaultThumbnailService implements ThumbnailService {
 
                     this.queue.splice(index, 1);
                     reject(DefaultThumbnailService.createCancelledError());
+                    this.releaseBatch(job.batchId);
                     this.stopScheduler();
                 }
             };
@@ -91,6 +95,38 @@ export default class DefaultThumbnailService implements ThumbnailService {
             this.startScheduler();
             this.drainQueue();
         });
+    }
+
+    registerBatch({ id, userId, files }: RegisterThumbnailBatchParams) {
+        const batch: ThumbnailBatch = {
+            startedAt: performance.now(),
+            pending: 0,
+            userId,
+            files: new Map(),
+            totalFiles: files.length,
+            totalSize: files.reduce((total, file) => total + file.size, 0),
+            generated: 0,
+            failed: 0,
+            expired: 0,
+            peakActive: 0
+        };
+        this.batches.set(id, batch);
+        for (const file of files) {
+            const timeout = setTimeout(() => {
+                batch.files.delete(file.id);
+                batch.expired += 1;
+                this.finishBatch(id, batch);
+            }, thumbnailTimeout);
+            timeout.unref();
+            batch.files.set(file.id, timeout);
+        }
+
+        DefaultThumbnailService.LOGGER.info({
+            event: LOG_EVENT.thumbnailBatchStarted,
+            message: "Thumbnail batch started",
+            context: `User: ${userId}, batch: ${id}, files: ${files.length}, source size: ${batch.totalSize} bytes`
+        });
+        this.finishBatch(id, batch);
     }
 
     /**
@@ -106,17 +142,26 @@ export default class DefaultThumbnailService implements ThumbnailService {
             if (job.signal?.aborted) {
                 job.signal.removeEventListener("abort", job.cancel);
                 job.reject(DefaultThumbnailService.createCancelledError());
+                this.releaseBatch(job.batchId);
                 continue;
             }
 
             this.active += 1;
+            for (const batch of this.batches.values()) {
+                if (batch.pending) {
+                    batch.peakActive = Math.max(batch.peakActive, this.active);
+                }
+            }
             void this.runJob(job);
         }
     }
 
     private async runJob(job: ThumbnailJob): Promise<void> {
+        let generated = false;
         try {
-            job.resolve(await this.generate({ id: job.id, signal: job.signal }));
+            const thumbnail = await this.generate({ id: job.id, batchId: job.batchId, signal: job.signal });
+            generated = true;
+            job.resolve(thumbnail);
         } catch (error) {
             if (error instanceof ApiError) {
                 job.reject(error);
@@ -126,7 +171,7 @@ export default class DefaultThumbnailService implements ThumbnailService {
             DefaultThumbnailService.LOGGER.error({
                 event: thumbnailGenerationFailedEvent,
                 message: "Thumbnail generation failed",
-                context: `Request: ${job.id}`,
+                context: `Request: ${job.id}, batch: ${job.batchId ?? "unknown"}`,
                 error
             });
             job.reject(
@@ -139,6 +184,7 @@ export default class DefaultThumbnailService implements ThumbnailService {
         } finally {
             job.signal?.removeEventListener("abort", job.cancel);
             this.active -= 1;
+            this.releaseBatch(job.batchId, generated);
             this.drainQueue();
             this.stopScheduler();
         }
@@ -148,16 +194,17 @@ export default class DefaultThumbnailService implements ThumbnailService {
      * Generates a JPEG thumbnail from a temporary media session
      *
      * @param params.id Media session identifier
+     * @param [params.batchId] Batch identifier
      * @param [params.signal] Request cancellation signal
      * @returns JPEG thumbnail
      */
-    private async generate({ id, signal }: CreateThumbnailParams): Promise<Buffer> {
+    private async generate({ id, batchId, signal }: CreateThumbnailParams): Promise<Buffer> {
         const mediaUrl = await DefaultThumbnailService.getMediaUrl(id);
         if (!FFMPEG_PATH) {
             DefaultThumbnailService.LOGGER.error({
                 event: thumbnailGenerationFailedEvent,
                 message: "FFmpeg is unavailable",
-                context: `Request: ${id}`
+                context: `Request: ${id}, batch: ${batchId ?? "unknown"}`
             });
             throw new ApiError({
                 message: "No se pudo generar la miniatura",
@@ -232,7 +279,7 @@ export default class DefaultThumbnailService implements ThumbnailService {
                     DefaultThumbnailService.LOGGER.warn({
                         event: thumbnailGenerationTimeoutEvent,
                         message: "Thumbnail generation timed out",
-                        context: `Request: ${id}`
+                        context: `Request: ${id}, batch: ${batchId ?? "unknown"}`
                     });
                     reject(
                         new ApiError({
@@ -282,17 +329,66 @@ export default class DefaultThumbnailService implements ThumbnailService {
         }
     }
 
+    private addToBatch(id: string, fileId: string): boolean {
+        const batch = this.batches.get(id);
+        const timeout = batch?.files.get(fileId);
+        if (!batch || !timeout) {
+            return false;
+        }
+
+        clearTimeout(timeout);
+        batch.files.delete(fileId);
+        batch.pending += 1;
+        return true;
+    }
+
+    private releaseBatch(id?: string, generated = false): void {
+        const batch = id ? this.batches.get(id) : undefined;
+        if (!id || !batch) {
+            return;
+        }
+
+        batch.pending -= 1;
+        if (generated) {
+            batch.generated += 1;
+        } else {
+            batch.failed += 1;
+        }
+
+        this.finishBatch(id, batch);
+    }
+
+    private finishBatch(id: string, batch: ThumbnailBatch): void {
+        if (!batch.pending && !batch.files.size) {
+            this.logBatch(id, batch, batch.expired > 0);
+        }
+    }
+
+    private logBatch(id: string, batch: ThumbnailBatch, expired: boolean): void {
+        this.batches.delete(id);
+        DefaultThumbnailService.LOGGER.info({
+            event: expired
+                ? LOG_EVENT.thumbnailBatchExpired
+                : batch.failed
+                  ? LOG_EVENT.thumbnailBatchFailed
+                  : LOG_EVENT.thumbnailBatchCompleted,
+            message: expired
+                ? "Thumbnail batch expired"
+                : batch.failed
+                  ? "Thumbnail batch finished with failures"
+                  : "Thumbnail batch completed",
+            context: `User: ${batch.userId}, batch: ${id}, files: ${batch.totalFiles}, generated: ${batch.generated}, failed: ${batch.failed}, expired: ${batch.expired}, source size: ${batch.totalSize} bytes, duration: ${performance.now() - batch.startedAt} ms, peak active jobs: ${batch.peakActive}, container peak CPU: ${batch.peakCpu === undefined ? "unavailable" : `${batch.peakCpu * 100}%`}, CPU target: ${thumbnailCpuTarget}%, CPU target reached: ${batch.peakCpu === undefined ? "unknown" : batch.peakCpu * 100 >= thumbnailCpuTarget}, container peak memory: ${batch.peakMemory === undefined ? "unavailable" : `${batch.peakMemory * 100}%`}, memory target: ${thumbnailMemoryTarget}%, memory target reached: ${batch.peakMemory === undefined ? "unknown" : batch.peakMemory * 100 >= thumbnailMemoryTarget}, sampling interval: ${thumbnailSchedulerInterval} ms`
+        });
+    }
+
     private startScheduler(): void {
         if (this.scheduler) {
             return;
         }
 
         this.scheduler = setInterval(() => this.updateScheduler(), thumbnailSchedulerInterval);
+        this.schedulerVersion += 1;
         this.scheduler.unref();
-        DefaultThumbnailService.LOGGER.info({
-            event: thumbnailSchedulerStarted,
-            message: "Thumbnail scheduler started"
-        });
         this.updateScheduler();
     }
 
@@ -303,31 +399,52 @@ export default class DefaultThumbnailService implements ThumbnailService {
 
         clearInterval(this.scheduler);
         this.scheduler = undefined;
+        this.schedulerVersion += 1;
         this.lastCpuSample = undefined;
         this.targetConcurrency = thumbnailInitialConcurrency;
-        DefaultThumbnailService.LOGGER.info({
-            event: thumbnailSchedulerStopped,
-            message: "Thumbnail scheduler stopped"
-        });
     }
 
     private updateScheduler(): void {
-        void this.adjustConcurrency().catch((error: unknown) => {
-            DefaultThumbnailService.LOGGER.error({
-                event: thumbnailSchedulerFailed,
-                message: "Thumbnail scheduler failed",
-                error
+        if (this.schedulerSampling) {
+            return;
+        }
+
+        this.schedulerSampling = true;
+        const version = this.schedulerVersion;
+        void this.adjustConcurrency(version)
+            .catch((error: unknown) => {
+                DefaultThumbnailService.LOGGER.error({
+                    event: thumbnailSchedulerFailed,
+                    message: "Thumbnail scheduler failed",
+                    error
+                });
+            })
+            .finally(() => {
+                this.schedulerSampling = false;
+                if (this.scheduler && version !== this.schedulerVersion) {
+                    this.updateScheduler();
+                }
             });
-        });
     }
 
     /**
      * Adjusts queued work admission from the container resource usage
      */
-    private async adjustConcurrency(): Promise<void> {
-        const usage = await this.getResourceUsage();
+    private async adjustConcurrency(version: number): Promise<void> {
+        const usage = await this.getResourceUsage(version);
         if (!usage) {
             return;
+        }
+
+        if (!this.scheduler || version !== this.schedulerVersion) {
+            return;
+        }
+
+        for (const batch of this.batches.values()) {
+            if (batch.pending) {
+                batch.peakCpu = Math.max(batch.peakCpu ?? 0, usage.cpu);
+                batch.peakMemory = Math.max(batch.peakMemory ?? 0, usage.memory);
+            }
         }
 
         const hasCapacity = usage.cpu < thumbnailCpuTarget / 100 && usage.memory < thumbnailMemoryTarget / 100;
@@ -343,9 +460,10 @@ export default class DefaultThumbnailService implements ThumbnailService {
     /**
      * Returns current CPU and memory usage from the container cgroup
      *
+     * @param version Scheduler version
      * @returns CPU and memory usage ratios, or null when unavailable
      */
-    private async getResourceUsage(): Promise<ResourceUsage | null> {
+    private async getResourceUsage(version: number): Promise<ResourceUsage | null> {
         try {
             const [cpuStat, cpuMax, memoryCurrent, memoryMax] = await Promise.all([
                 readFile("/sys/fs/cgroup/cpu.stat", "utf8"),
@@ -356,23 +474,28 @@ export default class DefaultThumbnailService implements ThumbnailService {
             const cpuUsage = Number(cpuStat.match(/^usage_usec\s+(\d+)$/m)?.[1]);
             const [quota, period] = cpuMax.trim().split(" ");
             const cpuLimit = quota === "max" ? availableParallelism() : Number(quota) / Number(period);
+            if (version !== this.schedulerVersion) {
+                return null;
+            }
+
             return this.calculateUsage({
                 cpuUsage,
                 cpuLimit,
                 memoryCurrent: Number(memoryCurrent.trim()),
-                memoryLimit: Number(memoryMax.trim())
+                memoryLimit: memoryMax.trim() === "max" ? totalmem() : Number(memoryMax.trim())
             });
         } catch {
-            return this.getLegacyResourceUsage();
+            return this.getLegacyResourceUsage(version);
         }
     }
 
     /**
      * Returns container usage from cgroup v1 when cgroup v2 is unavailable
      *
+     * @param version Scheduler version
      * @returns CPU and memory usage ratios, or null when unavailable
      */
-    private async getLegacyResourceUsage(): Promise<ResourceUsage | null> {
+    private async getLegacyResourceUsage(version: number): Promise<ResourceUsage | null> {
         try {
             const [cpuUsage, cpuQuota, cpuPeriod, memoryCurrent, memoryLimit] = await Promise.all([
                 readFile("/sys/fs/cgroup/cpuacct/cpuacct.usage", "utf8"),
@@ -383,13 +506,21 @@ export default class DefaultThumbnailService implements ThumbnailService {
             ]);
             const quota = Number(cpuQuota.trim());
             const period = Number(cpuPeriod.trim());
+            if (version !== this.schedulerVersion) {
+                return null;
+            }
+
             return this.calculateUsage({
                 cpuUsage: Number(cpuUsage.trim()) / 1000,
                 cpuLimit: quota < 0 ? availableParallelism() : quota / period,
                 memoryCurrent: Number(memoryCurrent.trim()),
-                memoryLimit: Number(memoryLimit.trim())
+                memoryLimit: Math.min(Number(memoryLimit.trim()), totalmem())
             });
         } catch (error) {
+            if (version !== this.schedulerVersion) {
+                return null;
+            }
+
             if (!this.resourceWarningLogged) {
                 DefaultThumbnailService.LOGGER.warn({
                     event: thumbnailSchedulerResourcesUnavailable,
@@ -419,14 +550,27 @@ export default class DefaultThumbnailService implements ThumbnailService {
         memoryLimit
     }: ResourceUsageParams): ResourceUsage | null {
         const memory = memoryCurrent / memoryLimit;
-        const now = performance.now();
-        const previous = this.lastCpuSample;
-        this.lastCpuSample = { usage: cpuUsage, time: now };
-        if (!previous || !Number.isFinite(cpuUsage) || !Number.isFinite(cpuLimit) || !Number.isFinite(memory)) {
+        if (this.scheduler && Number.isFinite(memory)) {
+            for (const batch of this.batches.values()) {
+                if (batch.pending) {
+                    batch.peakMemory = Math.max(batch.peakMemory ?? 0, memory);
+                }
+            }
+        }
+
+        if (!Number.isFinite(cpuUsage) || !Number.isFinite(cpuLimit) || cpuLimit <= 0 || !Number.isFinite(memory)) {
             return null;
         }
 
-        return { cpu: (cpuUsage - previous.usage) / ((now - previous.time) * 1000 * cpuLimit), memory };
+        const now = performance.now();
+        const previous = this.lastCpuSample;
+        this.lastCpuSample = { usage: cpuUsage, time: now };
+        if (!previous || now <= previous.time) {
+            return null;
+        }
+
+        const cpu = (cpuUsage - previous.usage) / ((now - previous.time) * 1000 * cpuLimit);
+        return Number.isFinite(cpu) && cpu >= 0 ? { cpu, memory } : null;
     }
 
     /**

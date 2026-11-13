@@ -84,6 +84,123 @@ describe("ThumbnailService queue", () => {
         ]);
     });
 
+    it("reports the batch once all registered files finish", async () => {
+        service.registerBatch({
+            id: "batch-1",
+            userId: "user-1",
+            files: [
+                { id: "first", size: 100 },
+                { id: "second", size: 200 }
+            ]
+        });
+        const first = service.create({ id: "first", batchId: "batch-1" });
+        const second = service.create({ id: "second", batchId: "batch-1" });
+        await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalledTimes(2));
+        resourceUsage.memory = 700;
+        await vi.advanceTimersByTimeAsync(1000);
+        complete(childProcesses[0]);
+        await first;
+        expect(logger.info).not.toHaveBeenCalledWith(expect.objectContaining({ event: "thumbnail.batch.completed" }));
+        complete(childProcesses[1]);
+        await second;
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: "thumbnail.batch.completed",
+                context: expect.stringMatching(
+                    /User: user-1, batch: batch-1, files: 2, generated: 2, failed: 0, expired: 0, source size: 300 bytes, duration: .*container peak memory: 70%/
+                )
+            })
+        );
+    });
+
+    it("expires missing files without closing a batch with active work", async () => {
+        service.registerBatch({
+            id: "batch-1",
+            userId: "user-1",
+            files: [
+                { id: "first", size: 1 },
+                { id: "missing", size: 1 }
+            ]
+        });
+        const pending = service.create({ id: "first", batchId: "batch-1" });
+        await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalledOnce());
+        await vi.advanceTimersByTimeAsync(30000);
+        childProcesses[0].emit("close", 1);
+        await expect(pending).rejects.toBeDefined();
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: "thumbnail.batch.expired",
+                context: expect.stringContaining("files: 2, generated: 0, failed: 1, expired: 1")
+            })
+        );
+    });
+
+    it.each(["v1", "v2"])("samples resources with unlimited memory on cgroup %s", async (version) => {
+        mockReadFile.mockImplementation(async (file: string) => {
+            const files: Record<string, string> =
+                version === "v2"
+                    ? {
+                          "/sys/fs/cgroup/cpu.stat": `usage_usec ${resourceUsage.cpu}`,
+                          "/sys/fs/cgroup/cpu.max": "100000 100000",
+                          "/sys/fs/cgroup/memory.current": "100",
+                          "/sys/fs/cgroup/memory.max": "max"
+                      }
+                    : {
+                          "/sys/fs/cgroup/cpuacct/cpuacct.usage": String(resourceUsage.cpu * 1000),
+                          "/sys/fs/cgroup/cpu/cpu.cfs_quota_us": "100000",
+                          "/sys/fs/cgroup/cpu/cpu.cfs_period_us": "100000",
+                          "/sys/fs/cgroup/memory/memory.usage_in_bytes": "100",
+                          "/sys/fs/cgroup/memory/memory.limit_in_bytes": "9223372036854771712"
+                      };
+            if (files[file] !== undefined) {
+                return files[file];
+            }
+
+            throw new Error("Missing cgroup file");
+        });
+        service.registerBatch({ id: "batch-1", userId: "user-1", files: [{ id: "first", size: 1 }] });
+        const pending = service.create({ id: "first", batchId: "batch-1" });
+        await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalledOnce());
+        resourceUsage.cpu = 500_000;
+        await vi.advanceTimersByTimeAsync(1000);
+        complete(childProcesses[0]);
+        await pending;
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: "thumbnail.batch.completed",
+                context: expect.not.stringContaining("container peak memory: unavailable")
+            })
+        );
+    });
+
+    it("does not overlap resource samples when reading cgroup files is slow", async () => {
+        let release = () => {};
+        const blocked = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        mockReadFile.mockImplementation(async (file: string) => {
+            await blocked;
+            if (file.endsWith("cpu.stat")) {
+                return "usage_usec 100";
+            }
+
+            if (file.endsWith("cpu.max")) {
+                return "100000 100000";
+            }
+
+            return "1000";
+        });
+        service.registerBatch({ id: "batch-1", userId: "user-1", files: [{ id: "first", size: 1 }] });
+        const pending = service.create({ id: "first", batchId: "batch-1" });
+        await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalledOnce());
+        await vi.advanceTimersByTimeAsync(3000);
+        expect(mockReadFile).toHaveBeenCalledTimes(4);
+        release();
+        await vi.advanceTimersByTimeAsync(1);
+        complete(childProcesses[0]);
+        await pending;
+    });
+
     it("records an unexpected processing failure where it is transformed", async () => {
         const error = new Error("FFmpeg spawn failed");
         mockSpawn.mockImplementation(() => {
@@ -95,7 +212,11 @@ describe("ThumbnailService queue", () => {
         });
         expect(logger.error).toHaveBeenCalledOnce();
         expect(logger.error).toHaveBeenCalledWith(
-            expect.objectContaining({ event: "thumbnail.generation.failed", context: "Request: test", error })
+            expect.objectContaining({
+                event: "thumbnail.generation.failed",
+                context: "Request: test, batch: unknown",
+                error
+            })
         );
     });
 

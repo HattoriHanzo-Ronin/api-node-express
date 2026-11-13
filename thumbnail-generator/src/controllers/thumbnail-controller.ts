@@ -1,5 +1,6 @@
 import type {
     CreateThumbnailHandler,
+    RegisterThumbnailBatchHandler,
     ThumbnailControllerDependencies
 } from "../types/thumbnail/thumbnail-controller.js";
 
@@ -22,11 +23,18 @@ export default class ThumbnailController {
                 controller.abort();
             }
         });
-        const thumbnail = await this.thumbnailService.create({ id: req.params.id, signal: controller.signal });
+        const header = req.get("X-Thumbnail-Batch-Id");
+        const batchId = header && /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(header) ? header : undefined;
+        const thumbnail = await this.thumbnailService.create({ id: req.params.id, batchId, signal: controller.signal });
         if (res.writableEnded) {
             return;
         }
 
         res.type("jpeg").send(thumbnail);
+    };
+
+    registerBatch: RegisterThumbnailBatchHandler = (req, res) => {
+        this.thumbnailService.registerBatch(req.body);
+        res.sendStatus(204);
     };
 }
