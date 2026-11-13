@@ -46,8 +46,15 @@ export default class NoVncGateway implements VncGateway<Server> {
 
     private async bridge({ webSocket, sessionId, token }: BridgeVncConnectionParams): Promise<void> {
         const { vncSocketFailed, vncConnectionFailed, vncDisconnected } = LOG_EVENT;
+        let failureLogged = false;
         webSocket.on("error", (error) => {
-            NoVncGateway.LOGGER.error({ event: vncSocketFailed, message: "VNC WebSocket failed", error });
+            failureLogged = true;
+            NoVncGateway.LOGGER.error({
+                event: vncSocketFailed,
+                message: "VNC WebSocket failed",
+                context: `Session: ${sessionId}`,
+                error
+            });
         });
         let vncSocket: Awaited<ReturnType<RouterSessionService<Socket>["openVncSocket"]>>;
         try {
@@ -57,6 +64,7 @@ export default class NoVncGateway implements VncGateway<Server> {
                 NoVncGateway.LOGGER.error({
                     event: vncConnectionFailed,
                     message: "VNC connection failed",
+                    context: `Session: ${sessionId}`,
                     error
                 });
             }
@@ -70,7 +78,7 @@ export default class NoVncGateway implements VncGateway<Server> {
             vncSocket.write(NoVncGateway.toBuffer(data));
         });
         webSocket.once("close", (code) => {
-            if (code === 1006 || code === 1011) {
+            if (!failureLogged && (code === 1006 || code === 1011)) {
                 NoVncGateway.LOGGER.warn({
                     event: vncDisconnected,
                     message: "VNC WebSocket disconnected unexpectedly",
@@ -86,6 +94,7 @@ export default class NoVncGateway implements VncGateway<Server> {
         });
         vncSocket.once("close", () => webSocket.close());
         vncSocket.once("error", (error) => {
+            failureLogged = true;
             NoVncGateway.LOGGER.error({
                 event: vncSocketFailed,
                 message: "VNC socket failed",

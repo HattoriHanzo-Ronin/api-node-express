@@ -117,6 +117,16 @@ describe("RouterSessionService", () => {
         });
     });
 
+    it("starts resource monitoring after the first session becomes active", async () => {
+        const onSessionCreated = vi.fn();
+        const service = new DefaultRouterSessionService({ tokenProvider, onSessionCreated, onSessionClosed: () => {} });
+        expect(onSessionCreated).not.toHaveBeenCalled();
+        const session = await service.create({ ownerId: "user-id", routerName: "Router", routerIp: "router.local" });
+        expect(onSessionCreated).toHaveBeenCalledOnce();
+        expect(service.activeSessionCount).toBe(1);
+        await service.close({ sessionId: session.id });
+    });
+
     it("should autofill the router password through a browser frame", async () => {
         const frame = { evaluate: vi.fn().mockResolvedValue(true) };
         mocks.page.frames.mockReturnValue([frame]);
@@ -248,6 +258,12 @@ describe("RouterSessionService", () => {
             routerName: "Router",
             routerIp: "router.local"
         });
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: "router.session.closed",
+                context: expect.stringContaining("reason: replaced, lifetime:")
+            })
+        );
         expect(secondSession.id).not.toBe(firstSession.id);
         expect(mocks.launch).toHaveBeenCalledTimes(2);
         await expect(service.openVncSocket({ sessionId: firstSession.id, token: "token" })).rejects.toMatchObject({
@@ -284,6 +300,12 @@ describe("RouterSessionService", () => {
         const service = createService({ tokenProvider });
         const session = await service.create({ ownerId: "user-id", routerName: "Router", routerIp: "router.local" });
         await vi.advanceTimersByTimeAsync(600_000);
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: "router.session.closed",
+                context: expect.stringContaining("reason: expired, lifetime:")
+            })
+        );
         await expect(service.openVncSocket({ sessionId: session.id, token: "token" })).rejects.toMatchObject({
             code: "ROUTER_SESSION_INVALID",
             status: 401
@@ -345,7 +367,7 @@ function createService({
 }: {
     tokenProvider: TokenProvider<RouterSessionTokenPayload>;
 }): DefaultRouterSessionService {
-    return new DefaultRouterSessionService({ tokenProvider });
+    return new DefaultRouterSessionService({ tokenProvider, onSessionCreated: () => {}, onSessionClosed: () => {} });
 }
 
 function getViewerToken(url: string): string {

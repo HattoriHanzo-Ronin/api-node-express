@@ -12,7 +12,9 @@ const LOG_EVENT = Object.freeze({
     sessionOperationFailed: "router.session.operation_failed",
     vncConnectionFailed: "router.vnc.connection_failed",
     vncDisconnected: "router.vnc.disconnected",
-    vncSocketFailed: "router.vnc.socket_failed"
+    vncSocketFailed: "router.vnc.socket_failed",
+    resourcePeak: "router.resources.peak",
+    resourceMonitorFailed: "router.resources.unavailable"
 } as const);
 
 export { LOG_EVENT };

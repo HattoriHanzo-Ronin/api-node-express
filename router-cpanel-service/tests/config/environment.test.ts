@@ -13,6 +13,7 @@ const validEnvironment = {
     MAX_SESSIONS_PER_USER: "1",
     MAX_VNC_CONNECTIONS_PER_SESSION: "1",
     SESSION_INACTIVITY_TIMEOUT: "600000",
+    RESOURCE_REPORT_HOUR: "23",
     JWT_ACCESS_TOKEN_EXPIRES_IN: "30min"
 };
 
@@ -50,19 +51,35 @@ describe("environment", () => {
         });
     });
 
-    it.each(["LOG_LEVEL", "LOG_DIRECTORY", "LOG_RETENTION_WEEKS"])("should require %s", async (key) => {
-        setEnvironment(validEnvironment);
-        vi.stubEnv(key, undefined);
-        await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
-            code: "CONFIGURATION_INVALID"
-        });
-    });
+    it.each(["LOG_LEVEL", "LOG_DIRECTORY", "LOG_RETENTION_WEEKS", "RESOURCE_REPORT_HOUR"])(
+        "should require %s",
+        async (key) => {
+            setEnvironment(validEnvironment);
+            vi.stubEnv(key, undefined);
+            await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
+                code: "CONFIGURATION_INVALID"
+            });
+        }
+    );
 
     it("should reject an invalid logging level", async () => {
         setEnvironment({ ...validEnvironment, LOG_LEVEL: "verbose" });
         await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
             code: "CONFIGURATION_INVALID"
         });
+    });
+
+    it.each(["", "24", "-1", "1.5", "invalid"])("should reject an invalid resource report hour %s", async (hour) => {
+        setEnvironment({ ...validEnvironment, RESOURCE_REPORT_HOUR: hour });
+        await expect(import("../../src/config/environment.js")).rejects.toMatchObject({
+            code: "CONFIGURATION_INVALID"
+        });
+    });
+
+    it("should accept midnight as the resource report hour", async () => {
+        setEnvironment({ ...validEnvironment, RESOURCE_REPORT_HOUR: "0" });
+        const { ENV } = await import("../../src/config/environment.js");
+        expect(ENV.resourceReportHour).toBe(0);
     });
 
     it("should reject a missing per-user session limit", async () => {

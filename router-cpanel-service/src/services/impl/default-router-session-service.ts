@@ -94,15 +94,15 @@ export default class DefaultRouterSessionService implements RouterSessionService
         mobile: { width: 900, height: 1600 }
     } as const;
 
-    private readonly tokenProvider: RouterSessionServiceDependencies["tokenProvider"];
+    private readonly dependencies: RouterSessionServiceDependencies;
     private readonly sessions = new Map<string, RouterSession>();
     private readonly ownerSessions = new Map<string, Set<string>>();
     private readonly ownerLocks = new Map<string, Promise<void>>();
     private readonly pendingOwners = new Set<string>();
     private nextDisplay = displayBase;
 
-    constructor({ tokenProvider }: RouterSessionServiceDependencies) {
-        this.tokenProvider = tokenProvider;
+    constructor(dependencies: RouterSessionServiceDependencies) {
+        this.dependencies = dependencies;
     }
 
     async create({
@@ -118,54 +118,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
     }
 
     async close({ sessionId, ownerId }: CloseRouterSessionParams) {
-        const session = this.sessions.get(sessionId);
-        if (!session) {
-            return;
-        }
-
-        ApiError.handle([
-            {
-                condition: ownerId !== undefined && session.ownerId !== ownerId,
-                execute: () => {
-                    DefaultRouterSessionService.LOGGER.warn({
-                        event: LOG_EVENT.authorizationDenied,
-                        message: "Authenticated user attempted to close another user's router session",
-                        context: `User: ${ownerId}, session: ${sessionId}`
-                    });
-                },
-                message: "La sesión de panel de router no existe",
-                status: 404,
-                apiError: routerSessionNotFound
-            }
-        ]);
-
-        this.sessions.delete(sessionId);
-        const ownerSessions = this.ownerSessions.get(session.ownerId);
-        ownerSessions?.delete(sessionId);
-        if (ownerSessions?.size === 0) {
-            this.ownerSessions.delete(session.ownerId);
-        }
-
-        try {
-            await this.cleanupSession({ session });
-            DefaultRouterSessionService.LOGGER.info({
-                event: sessionClosed,
-                message: "Router panel session closed",
-                context: `User: ${session.ownerId}, session: ${session.id}, router: ${session.routerName}`
-            });
-        } catch (error) {
-            DefaultRouterSessionService.LOGGER.error({
-                event: sessionOperationFailed,
-                message: "Router panel session close failed",
-                context: `User: ${session.ownerId}, session: ${session.id}, router: ${session.routerName}`,
-                error
-            });
-            throw new ApiError({
-                message: "No se ha podido cerrar la sesión del panel de router",
-                apiError: routerSessionFailed,
-                cause: error
-            });
-        }
+        await this.closeSession({ sessionId, ownerId, reason: "requested" });
     }
 
     async navigate({ sessionId, ownerId, action }: NavigateRouterSessionParams) {
@@ -302,7 +255,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
 
     async closeAll() {
         const results = await Promise.allSettled(
-            [...this.sessions.keys()].map((sessionId) => this.close({ sessionId }))
+            [...this.sessions.keys()].map((sessionId) => this.closeSession({ sessionId, reason: "shutdown" }))
         );
         for (const result of results) {
             if (result.status === "rejected" && !(result.reason instanceof ApiError)) {
@@ -312,6 +265,67 @@ export default class DefaultRouterSessionService implements RouterSessionService
                     error: result.reason
                 });
             }
+        }
+    }
+
+    get activeSessionCount(): number {
+        return this.sessions.size;
+    }
+
+    private async closeSession({
+        sessionId,
+        ownerId,
+        reason
+    }: CloseRouterSessionParams & { reason: "requested" | "expired" | "replaced" | "shutdown" }): Promise<void> {
+        const started = performance.now();
+        const session = this.sessions.get(sessionId);
+        if (!session) {
+            return;
+        }
+
+        ApiError.handle([
+            {
+                condition: ownerId !== undefined && session.ownerId !== ownerId,
+                execute: () => {
+                    DefaultRouterSessionService.LOGGER.warn({
+                        event: LOG_EVENT.authorizationDenied,
+                        message: "Authenticated user attempted to close another user's router session",
+                        context: `User: ${ownerId}, session: ${sessionId}`
+                    });
+                },
+                message: "La sesión de panel de router no existe",
+                status: 404,
+                apiError: routerSessionNotFound
+            }
+        ]);
+
+        this.sessions.delete(sessionId);
+        this.dependencies.onSessionClosed();
+        const ownerSessions = this.ownerSessions.get(session.ownerId);
+        ownerSessions?.delete(sessionId);
+        if (ownerSessions?.size === 0) {
+            this.ownerSessions.delete(session.ownerId);
+        }
+
+        try {
+            await this.cleanupSession({ session });
+            DefaultRouterSessionService.LOGGER.info({
+                event: sessionClosed,
+                message: "Router panel session closed",
+                context: `User: ${session.ownerId}, session: ${session.id}, router: ${session.routerName}, reason: ${reason}, lifetime: ${performance.now() - session.startedAt} ms, cleanup duration: ${performance.now() - started} ms`
+            });
+        } catch (error) {
+            DefaultRouterSessionService.LOGGER.error({
+                event: sessionOperationFailed,
+                message: "Router panel session close failed",
+                context: `User: ${session.ownerId}, session: ${session.id}, router: ${session.routerName}`,
+                error
+            });
+            throw new ApiError({
+                message: "No se ha podido cerrar la sesión del panel de router",
+                apiError: routerSessionFailed,
+                cause: error
+            });
         }
     }
 
@@ -351,7 +365,14 @@ export default class DefaultRouterSessionService implements RouterSessionService
             ]);
             this.pendingOwners.add(ownerId);
             if (ownerSessions.size >= maxSessionsPerUser) {
-                await Promise.all([...ownerSessions].map((sessionId) => this.close({ sessionId })));
+                DefaultRouterSessionService.LOGGER.info({
+                    event: LOG_EVENT.sessionCapacityReached,
+                    message: "Router panel per-user session limit reached",
+                    context: `User: ${ownerId}, active sessions: ${ownerSessions.size}, limit: ${maxSessionsPerUser}`
+                });
+                await Promise.all(
+                    [...ownerSessions].map((sessionId) => this.closeSession({ sessionId, reason: "replaced" }))
+                );
             }
 
             return await this.createSession({
@@ -383,7 +404,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
     }: CreateRouterSessionInternalParams): Promise<RouterSessionResponse> {
         const started = performance.now();
         const id = randomUUID();
-        const token = this.tokenProvider.create({ payload: { sid: id } });
+        const token = this.dependencies.tokenProvider.create({ payload: { sid: id } });
         const display = this.nextDisplay;
         this.nextDisplay += 1;
         const vncPort = vncPortBase + display - displayBase;
@@ -391,6 +412,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
         const session: RouterSession = {
             id,
             ownerId,
+            startedAt: started,
             routerName,
             language,
             display,
@@ -448,6 +470,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
                 args: ["-display", `:${display}`, "-localhost", "-forever", "-shared", "-rfbport", String(vncPort)]
             });
             this.sessions.set(id, session);
+            this.dependencies.onSessionCreated();
             const ownerSessions = this.ownerSessions.get(ownerId) ?? new Set();
             ownerSessions.add(id);
             this.ownerSessions.set(ownerId, ownerSessions);
@@ -510,7 +533,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
     private scheduleClose({ session }: ScheduleRouterSessionCloseParams): void {
         clearTimeout(session.timeout);
         const timeout = setTimeout(() => {
-            void this.close({ sessionId: session.id }).catch((error: unknown) => {
+            void this.closeSession({ sessionId: session.id, reason: "expired" }).catch((error: unknown) => {
                 if (!(error instanceof ApiError)) {
                     DefaultRouterSessionService.LOGGER.error({
                         event: sessionCleanupFailed,
@@ -612,7 +635,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
     }
 
     private getSession({ sessionId, token }: GetRouterSessionParams): RouterSession {
-        const { sid } = this.tokenProvider.verify({ token });
+        const { sid } = this.dependencies.tokenProvider.verify({ token });
         const session = this.sessions.get(sid);
         if (!session || sid !== sessionId) {
             throw new ApiError({

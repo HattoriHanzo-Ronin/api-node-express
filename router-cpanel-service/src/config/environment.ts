@@ -15,6 +15,7 @@ const {
     MAX_SESSIONS_PER_USER,
     MAX_VNC_CONNECTIONS_PER_SESSION,
     SESSION_INACTIVITY_TIMEOUT,
+    RESOURCE_REPORT_HOUR,
     JWT_ACCESS_TOKEN_EXPIRES_IN,
     LOG_LEVEL,
     LOG_DIRECTORY,
@@ -31,6 +32,10 @@ const ENV: Environment = Object.freeze(
         maxSessionsPerUser: Number(MAX_SESSIONS_PER_USER),
         maxVncConnectionsPerSession: Number(MAX_VNC_CONNECTIONS_PER_SESSION),
         sessionInactivityTimeout: Number(SESSION_INACTIVITY_TIMEOUT),
+        resourceReportHour:
+            RESOURCE_REPORT_HOUR === undefined || RESOURCE_REPORT_HOUR.trim() === ""
+                ? NaN
+                : Number(RESOURCE_REPORT_HOUR),
         jwtAccessTokenExpiresIn: toJwtExpiresIn(JWT_ACCESS_TOKEN_EXPIRES_IN),
         logLevel: toLogLevel(LOG_LEVEL),
         logDirectory: LOG_DIRECTORY,
@@ -49,6 +54,7 @@ function validateConfiguration(environment: Partial<Environment>): Environment {
         maxSessionsPerUser,
         maxVncConnectionsPerSession,
         sessionInactivityTimeout,
+        resourceReportHour,
         jwtAccessTokenExpiresIn,
         logLevel,
         logDirectory,
@@ -71,7 +77,16 @@ function validateConfiguration(environment: Partial<Environment>): Environment {
 
     ApiError.handle([
         {
-            condition: !VALID_NUMBERS || !VALID_STRINGS || !VALID_PUBLIC_URL || !logLevel || !logDirectory?.trim(),
+            condition:
+                !VALID_NUMBERS ||
+                !VALID_STRINGS ||
+                !VALID_PUBLIC_URL ||
+                !logLevel ||
+                !logDirectory?.trim() ||
+                typeof resourceReportHour !== "number" ||
+                !Number.isInteger(resourceReportHour) ||
+                resourceReportHour < 0 ||
+                resourceReportHour > 23,
             message: "La configuración del servicio de paneles de router no es válida",
             apiError: API_ERROR.configurationInvalid
         }
