@@ -8,7 +8,7 @@ import { API_ERROR } from "../../config/errors.js";
 import { LOG_EVENT } from "../../config/log-events.js";
 import Logger from "../../utils/logger/logger.js";
 
-const { authLoginSucceeded, authRefreshSucceeded, authRefreshFailed, authLogoutSucceeded } = LOG_EVENT;
+const { authLoginSucceeded, authRefreshSucceeded, authLogoutSucceeded } = LOG_EVENT;
 
 /**
  * Default authentication facade
@@ -47,7 +47,6 @@ export default class DefaultAuthFacade implements AuthFacade {
                 return session;
             });
         } catch (err) {
-            DefaultAuthFacade.LOGGER.info({ event: authRefreshFailed, message: "Token refresh failed" });
             if (err instanceof ApiError && err.code === API_ERROR.invalidToken) {
                 await this.dependencies.refreshTokensService.delete({ token: refreshToken });
             }

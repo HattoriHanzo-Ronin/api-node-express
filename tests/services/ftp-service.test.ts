@@ -160,7 +160,7 @@ describe("FtpService", () => {
             expect(logger.error).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: "SFTP operation failed",
-                    context: "Error code: FTP_DIR_FAILED",
+                    context: "Error code: FTP_DIR_FAILED, User: user-id, pool: interactive",
                     error
                 })
             );
@@ -189,9 +189,16 @@ describe("FtpService", () => {
             expect(logger.warn).toHaveBeenCalledWith(
                 expect.objectContaining({
                     event: "background.failed",
-                    context: expect.stringMatching(/^Request: [a-f0-9-]+, HTTP status: 503$/)
+                    context: expect.stringMatching(/^User: user-id, batch: [a-f0-9-]+, HTTP status: 503$/)
                 })
             );
+        });
+
+        it("does not notify the generator when no thumbnail request was dispatched", async () => {
+            mockClient.stat.mockResolvedValue({ size: 0 });
+            vi.stubGlobal("fetch", vi.fn());
+            await ftpService.getThumbnails({ dir: "media", names: ["empty.png"], authUser, callback: vi.fn() });
+            expect(fetch).not.toHaveBeenCalled();
         });
 
         it("delegates thumbnail generation to the isolated service", async () => {
@@ -216,15 +223,27 @@ describe("FtpService", () => {
                     ["video.mp4", thumbnail]
                 ])
             );
-            expect(fetch).toHaveBeenCalledTimes(2);
-            for (const [url, options] of vi.mocked(fetch).mock.calls) {
+            expect(fetch).toHaveBeenCalledTimes(3);
+            const registration = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body));
+            const batchId = registration.id;
+            expect(registration).toEqual({
+                id: expect.any(String),
+                userId: "user-id",
+                files: [
+                    { id: expect.any(String), size: 100 },
+                    { id: expect.any(String), size: 100 }
+                ]
+            });
+            expect(vi.mocked(fetch).mock.calls[0][0]).toBe("http://thumbnail-generator:3000/thumbnail/batches");
+            for (const [url, options] of vi.mocked(fetch).mock.calls.slice(1)) {
                 expect(url).toMatch(/^http:\/\/thumbnail-generator:3000\/thumbnail\/[\da-f-]{36}$/);
                 expect(options).toEqual({
                     method: "POST",
+                    headers: { "X-Thumbnail-Batch-Id": batchId },
                     signal: expect.any(AbortSignal)
                 });
             }
-            const id = String(vi.mocked(fetch).mock.calls[0][0]).split("/").at(-1)!;
+            const id = registration.files[0].id;
             const expiredStream = new PassThrough() as PassThrough & import("node:http").ServerResponse;
             await ftpService.streamMedia({ id, method: "GET", stream: expiredStream });
             expect(expiredStream.statusCode).toBe(204);
@@ -237,6 +256,10 @@ describe("FtpService", () => {
             vi.stubGlobal(
                 "fetch",
                 vi.fn(async (url) => {
+                    if (url.endsWith("/batches")) {
+                        return new Response(null, { status: 204 });
+                    }
+
                     const id = url.split("/").at(-1);
                     const output = new PassThrough() as PassThrough & import("node:http").ServerResponse;
                     const chunks: Buffer[] = [];
@@ -258,12 +281,55 @@ describe("FtpService", () => {
             expect(mockClient.createReadStream).toHaveBeenCalledWith("media/photo.PNG", { start: 0, end: 9 });
         });
 
+        it("waits for all thumbnail requests when a callback fails", async () => {
+            let releaseSecond = () => {};
+            const secondPending = new Promise<void>((resolve) => {
+                releaseSecond = resolve;
+            });
+            let requests = 0;
+            vi.stubGlobal(
+                "fetch",
+                vi.fn(async (url: string) => {
+                    if (url.endsWith("/batches")) {
+                        return new Response(null, { status: 204 });
+                    }
+
+                    requests += 1;
+                    if (requests === 2) {
+                        await secondPending;
+                    }
+
+                    return new Response(Buffer.from([0xff, 0xd8]));
+                })
+            );
+            const operation = ftpService.getThumbnails({
+                dir: "media",
+                names: ["first.png", "second.png"],
+                authUser,
+                callback: async ({ name }) => {
+                    if (name === "first.png") {
+                        throw new Error("Callback failed");
+                    }
+                }
+            });
+            const rejected = expect(operation).rejects.toThrow("Error al generar las miniaturas");
+            await vi.waitFor(() => expect(requests).toBe(2));
+            expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith("/batches"))).toBe(true);
+            releaseSecond();
+            await rejected;
+            expect(fetch).toHaveBeenCalledTimes(3);
+        });
+
         it("accepts an early consumer close without hiding source errors", async () => {
             const source = new PassThrough();
             mockClient.createReadStream.mockReturnValue(source);
             vi.stubGlobal(
                 "fetch",
                 vi.fn(async (url) => {
+                    if (url.endsWith("/batches")) {
+                        return new Response(null, { status: 204 });
+                    }
+
                     const id = url.split("/").at(-1);
                     const output = new PassThrough() as PassThrough & import("node:http").ServerResponse;
                     output.writeHead = vi.fn();
@@ -284,6 +350,10 @@ describe("FtpService", () => {
             vi.stubGlobal(
                 "fetch",
                 vi.fn(async (url) => {
+                    if (url.endsWith("/batches")) {
+                        return new Response(null, { status: 204 });
+                    }
+
                     const id = url.split("/").at(-1);
                     const output = new PassThrough() as PassThrough & import("node:http").ServerResponse;
                     output.writeHead = vi.fn();
@@ -302,6 +372,10 @@ describe("FtpService", () => {
             vi.stubGlobal(
                 "fetch",
                 vi.fn(async (url) => {
+                    if (url.endsWith("/batches")) {
+                        return new Response(null, { status: 204 });
+                    }
+
                     const id = url.split("/").at(-1);
                     const output = new PassThrough() as PassThrough & import("node:http").ServerResponse;
                     output.writeHead = vi.fn();
@@ -631,6 +705,14 @@ describe("FtpService", () => {
             await expect(ftpService.completeUpload({ id: session.id, authUser })).resolves.toEqual({
                 dir: "upload/new"
             });
+            expect(logger.info).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: "sftp.operation.completed",
+                    context: expect.stringMatching(
+                        new RegExp(`transfer: ${session.id}, operation: upload, size: 5 bytes, duration: .* ms`)
+                    )
+                })
+            );
             expect(mockClient.rename).not.toHaveBeenCalled();
             expect(execute).toHaveBeenCalledWith(expect.objectContaining({ pool: "transfer" }));
         });
@@ -1222,6 +1304,46 @@ describe("FtpService", () => {
             expect(execute).toHaveBeenCalledWith(expect.objectContaining({ pool: "transfer", readOnly: true }));
         });
 
+        it("records one completed download only after every file finishes", async () => {
+            mockClient.stat.mockResolvedValue({ size: 4 });
+            mockClient.createReadStream.mockImplementation(() => Readable.from(Buffer.from("data")));
+            const session = await ftpService.createDownload({
+                dir: "files",
+                entries: [
+                    { name: "first.txt", type: "FILE" },
+                    { name: "second.txt", type: "FILE" }
+                ],
+                authUser
+            });
+            const stream = () =>
+                new Writable({
+                    write(_chunk, _encoding, callback) {
+                        callback();
+                    }
+                });
+            await ftpService.download({ id: session.id, entryPath: "first.txt", authUser, stream: stream() });
+            expect(logger.info).not.toHaveBeenCalledWith(
+                expect.objectContaining({ message: "SFTP transfer completed" })
+            );
+            await ftpService.download({ id: session.id, entryPath: "second.txt", authUser, stream: stream() });
+            await ftpService.download({ id: session.id, entryPath: "second.txt", authUser, stream: stream() });
+            await ftpService.cancelTransfer({ id: session.id, authUser });
+            expect(
+                logger.info.mock.calls.filter(([event]) => event.message === "SFTP transfer completed")
+            ).toHaveLength(1);
+            expect(logger.info).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: "sftp.operation.completed",
+                    context: expect.stringMatching(
+                        new RegExp(`transfer: ${session.id}, operation: download, size: 8 bytes, duration: .* ms`)
+                    )
+                })
+            );
+            expect(logger.info).not.toHaveBeenCalledWith(
+                expect.objectContaining({ event: "sftp.operation.cancelled" })
+            );
+        });
+
         it("should include empty files without adding directory sizes", async () => {
             mockClient.list.mockResolvedValue([{ name: "empty.txt", type: "-" }]);
             mockClient.stat.mockResolvedValue({ size: 0 });
@@ -1335,6 +1457,130 @@ describe("FtpService", () => {
             await ftpService.cancelTransfer({ id: session.id, authUser });
             expect(source.destroyed).toBe(true);
             await expect(settled).resolves.toMatchObject({ message: "Error al descargar" });
+            expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ event: "sftp.operation.failed" }));
+            expect(logger.info).not.toHaveBeenCalledWith(
+                expect.objectContaining({ message: "SFTP transfer completed" })
+            );
+            expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ event: "sftp.operation.cancelled" }));
+        });
+
+        it("does not log a client-closed download as a server failure", async () => {
+            mockClient.stat.mockResolvedValue({ size: 4 });
+            mockClient.createReadStream.mockReturnValue(new PassThrough());
+            const session = await ftpService.createDownload({
+                dir: "files",
+                entries: [{ name: "file.txt", type: "FILE" }],
+                authUser
+            });
+            const stream = new PassThrough();
+            const download = ftpService.download({ id: session.id, entryPath: "file.txt", authUser, stream });
+            const rejected = expect(download).rejects.toThrow("Error al descargar");
+            await vi.waitFor(() => expect(mockClient.createReadStream).toHaveBeenCalledOnce());
+            stream.destroy();
+            await rejected;
+            expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ event: "sftp.operation.failed" }));
+        });
+
+        it("records the original SFTP error when a download source fails", async () => {
+            mockClient.stat.mockResolvedValue({ size: 4 });
+            const source = new PassThrough();
+            const error = new Error("SFTP source failed");
+            mockClient.createReadStream.mockReturnValue(source);
+            const session = await ftpService.createDownload({
+                dir: "files",
+                entries: [{ name: "file.txt", type: "FILE" }],
+                authUser
+            });
+            const download = ftpService.download({
+                id: session.id,
+                entryPath: "file.txt",
+                authUser,
+                stream: new PassThrough()
+            });
+            const rejected = expect(download).rejects.toThrow("Error al descargar");
+            await vi.waitFor(() => expect(mockClient.createReadStream).toHaveBeenCalledOnce());
+            source.destroy(error);
+            await rejected;
+            expect(logger.error).toHaveBeenCalledWith(
+                expect.objectContaining({ event: "sftp.operation.failed", error })
+            );
+        });
+
+        it("records transfer expiry without logging the stream cleanup as a failure", async () => {
+            vi.useFakeTimers();
+            try {
+                mockClient.stat.mockResolvedValue({ size: 4 });
+                const source = new PassThrough();
+                let markStarted = () => {};
+                const started = new Promise<void>((resolve) => {
+                    markStarted = resolve;
+                });
+                mockClient.createReadStream.mockImplementation(() => {
+                    markStarted();
+                    return source;
+                });
+                const session = await ftpService.createDownload({
+                    dir: "files",
+                    entries: [{ name: "file.txt", type: "FILE" }],
+                    authUser
+                });
+                const download = ftpService.download({
+                    id: session.id,
+                    entryPath: "file.txt",
+                    authUser,
+                    stream: new PassThrough()
+                });
+                const settled = Promise.allSettled([download]);
+                await started;
+                await vi.advanceTimersByTimeAsync(15 * 60_000);
+                await settled;
+                expect(logger.info).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: "sftp.operation.cancelled",
+                        message: "SFTP transfer expired",
+                        context: expect.stringContaining(`transfer: ${session.id}`)
+                    })
+                );
+                expect(logger.error).not.toHaveBeenCalledWith(
+                    expect.objectContaining({ event: "sftp.operation.failed" })
+                );
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it("logs one cancellation when closing a download interrupts other active files", async () => {
+            mockClient.stat.mockResolvedValue({ size: 4 });
+            mockClient.createReadStream.mockImplementation(() => new PassThrough());
+            const session = await ftpService.createDownload({
+                dir: "files",
+                entries: [
+                    { name: "first.txt", type: "FILE" },
+                    { name: "second.txt", type: "FILE" }
+                ],
+                authUser
+            });
+            const firstStream = new PassThrough();
+            const first = ftpService.download({
+                id: session.id,
+                entryPath: "first.txt",
+                authUser,
+                stream: firstStream
+            });
+            const second = ftpService.download({
+                id: session.id,
+                entryPath: "second.txt",
+                authUser,
+                stream: new PassThrough()
+            });
+            const settled = Promise.allSettled([first, second]);
+            await vi.waitFor(() => expect(mockClient.createReadStream).toHaveBeenCalledTimes(2));
+            firstStream.destroy();
+            await settled;
+            expect(logger.info.mock.calls.filter(([event]) => event.event === "sftp.operation.cancelled")).toHaveLength(
+                1
+            );
+            expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ event: "sftp.operation.failed" }));
         });
 
         it("should reject unsafe download totals", async () => {

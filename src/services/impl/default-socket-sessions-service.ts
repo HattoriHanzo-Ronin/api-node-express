@@ -171,7 +171,7 @@ export default class DefaultSocketSessionsService implements SocketSessionsServi
                 DefaultSocketSessionsService.LOGGER.warn({
                     event: socketConnectionFailed,
                     message: "Socket notification failed",
-                    context: `User: ${session.ownerId}`,
+                    context: `User: ${session.ownerId}, session: ${session.id}, entity: ${entity}`,
                     error
                 });
                 this.delete({ session });

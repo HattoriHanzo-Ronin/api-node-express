@@ -6,6 +6,7 @@ import {
 import AbstractRouter from "../abstract-router.js";
 import { LOG_EVENT } from "../../../../../config/log-events.js";
 import Logger from "../../../../logger/logger.js";
+import axios from "axios";
 
 /**
  * TP-Link TL-WDR5620 Gigabit Edition router implementation
@@ -41,49 +42,79 @@ export default class TLWDR5620GigabitEditionRouter extends AbstractRouter {
 
     async addAllow({ key, mac, name }: AddAllowParams) {
         return this.postOnRouter({
-            method: "add",
-            wlan_access: {
-                name: key,
-                para: { mac: mac.replaceAll(":", "-"), name },
-                table: "white_list"
-            }
+            data: {
+                method: "add",
+                wlan_access: {
+                    name: key,
+                    para: { mac: mac.replaceAll(":", "-"), name },
+                    table: "white_list"
+                }
+            },
+            key,
+            mac,
+            operation: "add"
         });
     }
 
-    async deleteAllow({ key }: DeleteAllowParams) {
-        return this.postOnRouter({ method: "delete", wlan_access: { name: [key] } });
+    async deleteAllow({ key, mac }: DeleteAllowParams) {
+        return this.postOnRouter({
+            data: { method: "delete", wlan_access: { name: [key] } },
+            key,
+            mac,
+            operation: "delete"
+        });
     }
 
     /**
      * Executes a router operation request
      *
-     * @param {Object} data Router request payload
+     * @param params.data Router request payload
+     * @param params.key Router whitelist key
+     * @param params.mac Device MAC address
+     * @param params.operation Router operation
      * @returns {Promise<boolean>} Returns true when the operation succeeds, otherwise false
      */
-    async postOnRouter(data: object): Promise<boolean> {
+    async postOnRouter({
+        data,
+        key,
+        mac,
+        operation
+    }: {
+        data: object;
+        key: AddAllowParams["key"];
+        mac: string;
+        operation: string;
+    }): Promise<boolean> {
+        let resultData: unknown;
         try {
             const stok = await this.loginOnRouter();
             const result = await this.client.post(this.getUrl() + `/stok=${stok}/ds`, data, {
                 headers: { "Content-Type": "application/json" }
             });
+            resultData = result.data;
             const code: unknown = result.data?.error_code;
             if (typeof code === "number" && code !== 0) {
-                TLWDR5620GigabitEditionRouter.LOGGER.warn({
-                    event: LOG_EVENT.routerAutomationError,
-                    message: "Router rejected an automation operation",
-                    context: `Router: ${this.getRouter().id}, code: ${code}`
-                });
+                throw new Error(`Router rejected automation operation with code ${code}`);
             }
 
-            return code === 0;
+            if (code !== 0) {
+                throw new Error("Router returned an invalid automation response");
+            }
+
+            return true;
         } catch (error) {
             const { id, admin_pass, ip } = this.getRouter();
+            if (axios.isAxiosError(error)) {
+                resultData ??= error.response?.data;
+            }
+
             TLWDR5620GigabitEditionRouter.LOGGER.warn({
                 event: LOG_EVENT.routerAutomationError,
                 message: "Router automation failed",
-                context: `Router: ${id}`,
-                error,
-                redact: [admin_pass, ip]
+                context: `Router: ${id}, device MAC: ${mac}, key: ${key}, operation: ${operation}`,
+                error: { cause: error, result: resultData },
+                redact: [admin_pass, ip],
+                completeResult: true
             });
             return false;
         }

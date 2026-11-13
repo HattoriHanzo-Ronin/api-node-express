@@ -36,7 +36,7 @@ import ApiError from "../../utils/error/api-error.js";
 import Logger from "../../utils/logger/logger.js";
 import { ENV } from "../../config/environment.js";
 
-const { sftpOperationCompleted, sftpOperationCancelled, backgroundFailed } = LOG_EVENT;
+const { sftpOperationCompleted, backgroundFailed } = LOG_EVENT;
 
 const { dir: directoryType } = FILE_TYPE;
 const { ftpDirectoryCheckTimeout } = ENV;
@@ -197,21 +197,11 @@ export default class DefaultFtpFacade implements FtpFacade<
                 return result;
             }
         });
-        DefaultFtpFacade.LOGGER.info({
-            event: sftpOperationCompleted,
-            message: "SFTP operation completed",
-            context: `User: ${authUser.id}, operation: upload`
-        });
         return result;
     }
 
     async cancelTransfer({ id, authUser }: FtpFacadeTransferParams) {
         await this.dependencies.ftpService.cancelTransfer({ id, authUser });
-        DefaultFtpFacade.LOGGER.info({
-            event: sftpOperationCancelled,
-            message: "SFTP operation cancelled",
-            context: `User: ${authUser.id}`
-        });
     }
 
     async createDownload({ dir, entries, authUser }: FtpFacadeEntriesParams) {
@@ -219,13 +209,7 @@ export default class DefaultFtpFacade implements FtpFacade<
     }
 
     async downloadEntry({ id, entryPath, offset, authUser, stream }: FtpFacadeDownloadParams<FtpDownloadStream>) {
-        const started = performance.now();
         await this.dependencies.ftpService.download({ id, entryPath, offset, authUser, stream });
-        DefaultFtpFacade.LOGGER.info({
-            event: sftpOperationCompleted,
-            message: "SFTP operation completed",
-            context: `User: ${authUser.id}, operation: download, duration: ${performance.now() - started} ms`
-        });
     }
 
     async delete({ dir, entries, authUser, stream }: FtpFacadeDeleteParams<FtpProgressStream>) {

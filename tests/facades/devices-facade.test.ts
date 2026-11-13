@@ -310,6 +310,11 @@ describe("DevicesFacade", () => {
         await expect(devicesFacade.update({ data: { id: "device-1", name: "New Name" } })).rejects.toMatchObject({
             code: API_ERROR.routerAddFailed
         });
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.objectContaining({
+                context: "Router: router-1, device: device-1, other affected routers: none"
+            })
+        );
     });
 
     it.each([
@@ -317,7 +322,8 @@ describe("DevicesFacade", () => {
             error: new ApiError({ message: "Rollback failed", apiError: API_ERROR.routerAddFailed }),
             code: API_ERROR.routerRollbackFailed
         },
-        { error: { code: API_ERROR.routerAddFailed }, code: API_ERROR.routerAddFailed }
+        { error: { code: API_ERROR.routerAddFailed }, code: API_ERROR.routerAddFailed },
+        { error: Object.assign(new Error("Unexpected failure"), { code: "UNEXPECTED" }), code: "UNEXPECTED" }
     ])("should distinguish API errors while rolling back routers", async ({ error, code }) => {
         vi.spyOn(devicesFacade, "getById").mockResolvedValue({
             id: "device-1",
@@ -339,20 +345,66 @@ describe("DevicesFacade", () => {
             return secondRouter;
         });
 
-        await expect(devicesFacade.delete({ id: "device-1" })).rejects.toMatchObject({ code });
+        const operation = devicesFacade.delete({ id: "device-1" });
+        await expect(operation).rejects.toMatchObject({ code });
+        if (!(error instanceof ApiError)) {
+            await expect(operation).rejects.toBe(error);
+        }
         expect(firstRouter.create).toHaveBeenCalled();
         expect(logger.warn).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: "Router whitelist update failed during device operation",
-                context: "Router: router-2, device: device-1"
-            })
-        );
-        expect(logger.warn).toHaveBeenCalledWith(
-            expect.objectContaining({
                 message: "Router whitelist rollback failed",
-                context: "Router: router-1, device: device-1"
+                context: "Router: router-1, device: device-1, other affected routers: none"
             })
         );
         expect(devicesService.delete).not.toHaveBeenCalled();
+    });
+
+    it("logs routers still awaiting recovery after a rollback fails", async () => {
+        vi.spyOn(devicesFacade, "getById").mockResolvedValue({
+            id: "device-1",
+            name: "Desktop",
+            type: "CLIENT",
+            connections: [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN" }]
+        });
+        const connections = [{ mac: "AA:BB:CC:DD:EE:01", ctype: "LAN", key: "key-1" }];
+        devicesService.getRoutersByAllowedDevice.mockResolvedValue([
+            { id: "router-1", name: "Router 1", connections },
+            { id: "router-2", name: "Router 2", connections },
+            { id: "router-3", name: "Router 3", connections }
+        ]);
+        const firstRouter = {
+            delete: vi.fn().mockResolvedValue(undefined),
+            create: vi
+                .fn()
+                .mockRejectedValue(new ApiError({ message: "Rollback failed", apiError: API_ERROR.routerAddFailed }))
+        };
+        const secondRouter = { delete: vi.fn().mockResolvedValue(undefined), create: vi.fn() };
+        const thirdRouter = {
+            delete: vi
+                .fn()
+                .mockRejectedValue(new ApiError({ message: "Delete failed", apiError: API_ERROR.routerDeleteFailed })),
+            create: vi.fn()
+        };
+        routerAutomation.mockImplementationOnce(function RouterAutomation() {
+            return firstRouter;
+        });
+        routerAutomation.mockImplementationOnce(function RouterAutomation() {
+            return secondRouter;
+        });
+        routerAutomation.mockImplementationOnce(function RouterAutomation() {
+            return thirdRouter;
+        });
+
+        await expect(devicesFacade.delete({ id: "device-1" })).rejects.toMatchObject({
+            code: API_ERROR.routerRollbackFailed
+        });
+        expect(secondRouter.create).not.toHaveBeenCalled();
+        expect(logger.warn).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: "Router whitelist rollback failed",
+                context: "Router: router-1, device: device-1, other affected routers: Router 2"
+            })
+        );
     });
 });

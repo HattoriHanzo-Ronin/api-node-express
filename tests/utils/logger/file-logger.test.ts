@@ -140,11 +140,27 @@ describe("Logger", () => {
         logger.error({ event: "failure", message: "Failure", error, redact: [secret] });
         const output = readFileSync(path.join(directory, "2026-01", "2026-01-04.log"), "utf8");
         const record = JSON.parse(output);
-        expect(record.error.message).toBe("Router failed: [redacted] [mac]");
-        expect(record.error.stack).toContain("Router failed: [redacted] [mac]");
+        expect(record.error.message).toBe("Router failed: [redacted] AA:BB:CC:DD:EE:FF");
+        expect(record.error.stack).toContain("Router failed: [redacted] AA:BB:CC:DD:EE:FF");
         expect(record.error.query).toBe("[redacted]");
         expect(record.error.detail).toBe("[redacted]");
         expect(record.error.admin_pass).toBe("[redacted]");
         expect(output).not.toContain(JSON.stringify(secret).slice(1, -1));
+    });
+
+    it("writes complete router results and identifiers while redacting credentials", () => {
+        const logger = Logger.getLogger({ name: "router" });
+        const entries = Array.from({ length: 60 }, (_, index) => ({ index }));
+        const result = { error_code: 42, data: { entries }, password: "private", token: "secret" };
+        logger.warn({
+            event: "router.automation.error",
+            message: "Router automation failed",
+            context: "Router: router-1, device MAC: AA:BB:CC:DD:EE:FF, key: white_list_1",
+            error: { result },
+            completeResult: true
+        });
+        const record = JSON.parse(readFileSync(path.join(directory, "2026-01", "2026-01-04.log"), "utf8"));
+        expect(record.context).toContain("AA:BB:CC:DD:EE:FF, key: white_list_1");
+        expect(record.error.result).toEqual({ ...result, password: "[redacted]", token: "[redacted]" });
     });
 });

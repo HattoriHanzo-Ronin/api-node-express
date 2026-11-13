@@ -451,11 +451,6 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
             });
             return connection;
         } catch (error) {
-            FtpPooledConnectionManager.LOGGER.info({
-                event: sftpConnectionFailed,
-                message: "SFTP connection failed",
-                context: `User: ${session.ownerId}, pool: ${type}`
-            });
             await this.removeConnection(session, type, connection);
             throw error;
         }
