@@ -26,12 +26,14 @@
 * Concrete facade, service, model, and mapper classes in `impl/` use the `Default` prefix: `DefaultUsersFacade`, `DefaultUsersService`, `DefaultUsersModel`, and `DefaultUsersMapper`.
 * Outside MVC, name implementations for their concrete responsibility; do not apply an `Impl` suffix by default.
 * Reserve the `Utils` suffix for pure utility classes.
+* Place pure utility classes directly in `src/utils/`, with their tests directly in the corresponding `tests/utils/` directory.
 * The `impl/` directory identifies concrete implementations, but does not require an `Impl` suffix.
 * When a module has a single export, use `export default`; for a type alias, use a named `export type` on its declaration because TypeScript does not support `export default type`.
 * Declare exports at the end of a file when exporting constants; other exports do not need to be placed at the end.
 * Avoid unnecessary abstractions
 * Maintain the project's compact style
 * If it fits on one line and remains readable, keep it inline
+* When an arrow function spans more than one line, use a block body with braces; use an explicit return when it must return a value
 * Do not write inline `if` statements; always use a block with braces
 * Preserve intentional `value == null` and `value != null` comparisons: they deliberately match both `null` and `undefined`; do not replace them solely to satisfy `eqeqeq`
 * Allow simple `if/else` statements when they clearly express two paths
@@ -134,6 +136,8 @@ Encapsulation must also apply to DTOs defined as classes, without imposing unnec
 Prioritize architectural consistency, maintainability, and compatibility over the mechanical generation of getters and setters.
 
 ## Typing and JSDoc
+
+* Represent fixed sets of values with `Object.freeze({ ... } as const)` instead of TypeScript `enum`, following the existing configuration constants
 
 * Define each data type under the entity that owns its data, even when another entity needs it before the owning entity is migrated; add only the types needed at that stage and complete the rest when that entity is migrated
 
