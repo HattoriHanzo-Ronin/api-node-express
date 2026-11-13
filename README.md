@@ -122,6 +122,10 @@ Runtime limits, cache lifetimes, SFTP pool sizes, WebSocket sessions and JWT exp
 
 The API, thumbnail generator and router cPanel service each write JSON logs to their own directory. Configure `LOG_LEVEL` (`debug`, `info`, `warn` or `error`), `LOG_DIRECTORY` and `LOG_RETENTION_WEEKS` in each service's environment. These settings are required.
 
+The router cPanel service also requires `RESOURCE_REPORT_HOUR` (0–23), the local server hour at which it reports the sampled daily container CPU and memory peaks. Sampling runs every second while sessions are active and pauses when the last session closes. The report includes the number of sessions at each peak, and remaining peaks are reported during a graceful shutdown.
+
+The thumbnail generator records a summary for each registered batch, including the total source size, duration, results and sampled container resource peaks. The duration starts when the generator registers the batch and includes queueing; requests that do not arrive before the configured thumbnail timeout are counted as expired. Completed FTP uploads and downloads record their total size and duration.
+
 Logs are appended to daily UTC files at `<LOG_DIRECTORY>/YYYY-MM/YYYY-MM-DD.log`. Retention removes files older than the configured number of completed UTC calendar weeks; cleanup runs at startup and each Monday at 00:00 UTC.
 
 Each record includes a timestamp, level, service, source, event and message. An optional text context provides diagnostic details, and unexpected failures may include the original error and its cause. Events cover relevant activity, capacity limits, authorization denials and failures. Expected client errors and ordinary stream cancellations do not produce unnecessary error logs. The loggers redact credentials and other sensitive data before writing.

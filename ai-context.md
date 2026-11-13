@@ -63,8 +63,9 @@
 * Static properties and methods that can be destructured must reference other static properties or methods through the class name, never through `this`, to preserve their context when extracted
 * Module helpers remain in the module unless they need to be exported; convert external helpers that are used only by a class into private methods of that class, unless doing so breaks a contract or creates a technical conflict
 * Preserve typed arrays and structures in mappings when other components need to filter them; convert them to text only in the final presentation layer
-* Service and facade methods must always receive an object as a parameter to allow their contract to be extended
-* Methods in other layers that may grow must also receive an object as a parameter
+* Service and facade methods that receive parameters must group them in an object to allow their contract to be extended
+* Methods in other layers that receive parameters and may grow should also group them in an object
+* Methods that do not need any parameters must not declare or receive an empty object, and must not introduce an empty parameter type solely to satisfy the object-parameter convention
 * In routers and apps, group registrations by HTTP method and separate each group with a blank line; `use` forms its own middleware group
 
 ## Encapsulation and property access
@@ -216,6 +217,19 @@ Example:
   * Their operation is not obvious at a glance
 
 * Do not document obvious private helpers
+
+## Logging
+
+* Follow the complete operation and error flow before choosing where to log; record each failure once at the layer that knows its original cause and has the information needed to diagnose it
+* Do not log the same failure again when another layer transforms or propagates it; log a separate event only when it describes a distinct outcome, such as a failed rollback, and include all resources that could not be restored
+* Log relevant identifiers and operation context available at the responsible layer, such as the user, session, transfer, router, device MAC, whitelist key, and affected routers when applicable; do not introduce dependencies or catch blocks solely to obtain unnecessary context
+* Use error, warning, and information levels according to the outcome and its operational value; do not treat expected cancellations or ordinary validation failures as unexpected errors or generate noise from routine activity
+* Keep log messages and text context in English, keep context as readable text, and preserve diagnostic details needed to identify the original failure without exposing credentials or tokens
+* Do not hide identifiers such as MAC addresses or whitelist keys; verify the actual output written by the logger, including sanitization and truncation, rather than assuming that the supplied context is preserved
+* When log events are intended for metrics, ensure their meaning and placement do not count the same operation failure more than once
+* Measure duration for completed operations when it helps assess performance, especially long-running work; include the total size for completed transfers when available, and make clear whether duration includes preparation, waiting, or pauses
+* Record completion and its measurements only when the complete operation has actually succeeded, not for individual internal steps, cancelled work, failed work, or operations without a completion signal; account for retries, resumed transfers, and concurrent work to avoid duplicate or misleading metrics
+* For sampled resource peaks, state whether consumption belongs to a process, session, or shared container, record the sampling period and relevant concurrent workload, and report unavailable data as unavailable rather than zero
 
 ## Testing
 
