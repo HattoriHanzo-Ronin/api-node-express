@@ -60,8 +60,8 @@ export default class DefaultFtpFacade implements FtpFacade<
 
     constructor(private readonly dependencies: FtpFacadeDependencies) {}
 
-    async dir({ dir, authUser }: FtpFacadeDirectoryParams) {
-        const source = await this.dependencies.ftpService.dir({ dir, authUser });
+    async dir({ dir, authUser, thumbnail }: FtpFacadeDirectoryParams) {
+        const source = await this.dependencies.ftpService.dir({ dir, authUser, thumbnail });
         const result = this.dependencies.ftpMapper.entriesFromSource(source);
         this.syncThumbnails({ dir, entries: result, authUser });
         const hash = await this.watchDirectory({ dir, authUser, entries: result });
@@ -75,7 +75,7 @@ export default class DefaultFtpFacade implements FtpFacade<
     async getThumbnail({ dir, name, authUser }: FtpThumbnailParams) {
         let bufferMap = this.dependencies.memoryCache.get(authUser.id, dir);
         if (!bufferMap) {
-            await this.dir({ dir, authUser });
+            await this.dir({ dir, authUser, thumbnail: true });
             bufferMap = this.dependencies.memoryCache.get(authUser.id, dir);
         }
 

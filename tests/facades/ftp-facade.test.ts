@@ -287,6 +287,7 @@ describe("FtpFacade", () => {
                 ftpFacade.getThumbnail({ dir: data.dir, name: "photo.jpg", authUser: data.authUser })
             ).resolves.toEqual(Buffer.from("thumbnail"));
             memoryCache.delete("user-id", "files");
+            ftpService.dir.mockClear();
             let resolveThumbnails;
             ftpService.getThumbnails.mockImplementationOnce(
                 ({ callback }) =>
@@ -302,6 +303,7 @@ describe("FtpFacade", () => {
             ).rejects.toMatchObject({
                 code: "FTP_THUMBNAIL_PENDING"
             });
+            expect(ftpService.dir).toHaveBeenCalledWith({ dir: data.dir, authUser: data.authUser, thumbnail: true });
             await resolveThumbnails!(Buffer.from("thumbnail"));
             await Promise.resolve();
             await Promise.resolve();
@@ -391,7 +393,7 @@ describe("FtpFacade", () => {
                     : ftpFacade.rename({ ...methodData, authUser });
             await expect(operation).resolves.toEqual({ hash: expect.any(String), data: [] });
             expect(ftpService[method]).toHaveBeenCalledWith(data);
-            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "files", authUser });
+            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "files", authUser, thumbnail: undefined });
             expect(socketSessionsFacade.notify).toHaveBeenCalledWith({
                 entity: "ftp",
                 data: { dir: "files", version: expect.any(String) },
@@ -417,7 +419,7 @@ describe("FtpFacade", () => {
                 hash: expect.any(String),
                 data: []
             });
-            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "files", authUser });
+            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "files", authUser, thumbnail: undefined });
             expect(socketSessionsFacade.notify).toHaveBeenCalledWith({
                 entity: "ftp",
                 data: { dir: "files", version: expect.any(String) },
@@ -464,8 +466,8 @@ describe("FtpFacade", () => {
                     destination: { dir: "destination", version: expect.any(String) }
                 }
             ]);
-            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "source", authUser });
-            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "destination", authUser });
+            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "source", authUser, thumbnail: undefined });
+            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "destination", authUser, thumbnail: undefined });
             expect(socketSessionsFacade.notify).toHaveBeenCalledWith({
                 entity: "ftp",
                 data: { dir: "source", version: expect.any(String) },
@@ -500,7 +502,7 @@ describe("FtpFacade", () => {
             expect(memoryCache.get("user-id", "files/renamed")).toBe(bufferMap);
             expect(directoryCache.has("user-id", "files/photos")).toBe(false);
             expect(directoryCache.get("user-id", "files/renamed")).toEqual(directory);
-            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "files", authUser });
+            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "files", authUser, thumbnail: undefined });
         });
 
         it("should stream deleted entries and clear folder caches", async () => {
@@ -525,7 +527,7 @@ describe("FtpFacade", () => {
                 },
                 { event: "complete", version: expect.any(String) }
             ]);
-            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "files", authUser });
+            expect(ftpService.dir).toHaveBeenCalledWith({ dir: "files", authUser, thumbnail: undefined });
             expect(memoryCache.has("user-id", "files/photos")).toBe(false);
             expect(directoryCache.has("user-id", "files/photos")).toBe(false);
         });

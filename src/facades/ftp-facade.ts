@@ -20,6 +20,7 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      *
      * @param params.dir Directory path
      * @param params.authUser Authenticated user
+     * @param [params.thumbnail] Whether the listing prepares thumbnail generation
      * @returns Directory entries and hash
      */
     dir(params: FtpFacadeDirectoryParams): Promise<FtpDirectoryResponse>;

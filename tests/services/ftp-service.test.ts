@@ -172,16 +172,61 @@ describe("FtpService", () => {
             const execute = vi.spyOn(ftpConnectionManager, "execute");
             await ftpService.dir({ dir: "files", authUser });
             await ftpService.dir({ dir: "files", authUser, watcher: true });
+            await ftpService.dir({ dir: "files", authUser, thumbnail: true });
             expect(execute).toHaveBeenNthCalledWith(
                 1,
                 expect.objectContaining({ pool: "interactive", readOnly: true })
             );
             expect(execute).toHaveBeenNthCalledWith(2, expect.objectContaining({ pool: "watcher", skipLocked: true }));
+            expect(execute).toHaveBeenNthCalledWith(
+                3,
+                expect.objectContaining({ pool: "transfer", transfer: true, readOnly: true })
+            );
+        });
+
+        it("lists for a thumbnail while the interactive connection is occupied", async () => {
+            let release = () => {};
+            const hold = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const started = vi.fn();
+            const interactive = ftpConnectionManager.execute({
+                authUser,
+                pool: "interactive",
+                callback: async () => {
+                    started();
+                    await hold;
+                }
+            });
+            await vi.waitFor(() => expect(started).toHaveBeenCalledOnce());
+            const completed = vi.fn();
+            const listing = ftpService.dir({ dir: "files", authUser, thumbnail: true }).then((result) => {
+                completed();
+                return result;
+            });
+            try {
+                await vi.waitFor(() => expect(completed).toHaveBeenCalledOnce());
+                await expect(listing).resolves.toEqual([]);
+            } finally {
+                release();
+                await Promise.all([interactive, listing]);
+            }
         });
 
         it("should use the directory normalized by the schema", async () => {
             await ftpService.dir({ dir: ".", authUser });
             expect(mockClient.list).toHaveBeenCalledWith(".");
+        });
+
+        it("reports the transfer pool when a thumbnail listing fails", async () => {
+            const error = new Error("ftp down");
+            mockClient.list.mockRejectedValue(error);
+            await expect(ftpService.dir({ dir: "files", authUser, thumbnail: true })).rejects.toThrow(
+                "Error al listar la carpeta"
+            );
+            expect(logger.error).toHaveBeenCalledWith(
+                expect.objectContaining({ context: "Error code: FTP_DIR_FAILED\nUser: user-id\nPool: transfer", error })
+            );
         });
 
         it("should translate list errors", async () => {

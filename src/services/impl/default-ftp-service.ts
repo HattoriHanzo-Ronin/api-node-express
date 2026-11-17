@@ -113,12 +113,19 @@ export default class DefaultFtpService implements FtpService<
 
     async dir(params: FtpDirectoryListParams & { watcher?: false }): Promise<FtpSourceEntry[]>;
     async dir(params: FtpDirectoryListParams): Promise<FtpSourceEntry[] | undefined>;
-    async dir({ dir, authUser, watcher = false }: FtpDirectoryListParams): Promise<FtpSourceEntry[] | undefined> {
+    async dir({
+        dir,
+        authUser,
+        watcher = false,
+        thumbnail = false
+    }: FtpDirectoryListParams): Promise<FtpSourceEntry[] | undefined> {
+        const pool = thumbnail ? "transfer" : "interactive";
         try {
             return await this.ftpConnectionManager.execute({
                 authUser,
-                pool: watcher ? "watcher" : "interactive",
+                pool: watcher ? "watcher" : pool,
                 readOnly: true,
+                transfer: thumbnail && !watcher,
                 paths: [dir],
                 skipLocked: watcher,
                 callback: ({ client }) => client.list(dir)
@@ -128,7 +135,7 @@ export default class DefaultFtpService implements FtpService<
                 message: "Error al listar la carpeta",
                 apiError: ftpDirFailed,
                 cause: err,
-                context: `User: ${authUser.id}\nPool: ${watcher ? "watcher" : "interactive"}`
+                context: `User: ${authUser.id}\nPool: ${watcher ? "watcher" : pool}`
             });
         }
     }
