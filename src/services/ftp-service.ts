@@ -33,6 +33,7 @@ export default interface FtpService<MediaStream, DownloadStream, UploadFile, Thu
      * @param params.dir Directory path
      * @param params.authUser Authenticated user
      * @param params.watcher Whether the request is a background watch
+     * @param [params.thumbnail] Whether the listing prepares thumbnail generation
      * @returns Directory entries or undefined if skipped
      */
     dir(params: FtpDirectoryListParams & { watcher?: false }): Promise<SourceEntry[]>;

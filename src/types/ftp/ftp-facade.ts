@@ -3,6 +3,7 @@ import type { FtpDomainEntry } from "./ftp-mapper.js";
 import type {
     FtpCreateUploadParams,
     FtpDirectoryParams,
+    FtpDirectoryListParams,
     FtpDownloadParams,
     FtpEntriesParams,
     FtpMakeDirParams,
@@ -12,7 +13,9 @@ import type {
     FtpUploadParams
 } from "./ftp-service.js";
 
-export type FtpFacadeDirectoryParams = Omit<FtpDirectoryParams, "authUser"> & AuthUserParams;
+export type FtpFacadeDirectoryParams = Omit<FtpDirectoryParams, "authUser"> &
+    AuthUserParams &
+    Pick<FtpDirectoryListParams, "thumbnail">;
 export type FtpDirectoryResponse = { hash: string; data: FtpDomainEntry[] };
 export type FtpThumbnailParams = FtpFacadeDirectoryParams & { name: string };
 export type FtpFacadeMakeDirParams = Omit<FtpMakeDirParams, "authUser"> & AuthUserParams;
