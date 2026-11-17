@@ -225,6 +225,7 @@ Example:
 * Log relevant identifiers and operation context available at the responsible layer, such as the user, session, transfer, router, device MAC, whitelist key, and affected routers when applicable; do not introduce dependencies or catch blocks solely to obtain unnecessary context
 * Use error, warning, and information levels according to the outcome and its operational value; do not treat expected cancellations or ordinary validation failures as unexpected errors or generate noise from routine activity
 * Keep log messages and text context in English, keep context as readable text, and preserve diagnostic details needed to identify the original failure without exposing credentials or tokens
+* Separate context fields with newline characters when constructing the text so each field can be displayed on its own line; preserve commas within field values
 * Do not hide identifiers such as MAC addresses or whitelist keys; verify the actual output written by the logger, including sanitization and truncation, rather than assuming that the supplied context is preserved
 * When log events are intended for metrics, ensure their meaning and placement do not count the same operation failure more than once
 * Measure duration for completed operations when it helps assess performance, especially long-running work; include the total size for completed transfers when available, and make clear whether duration includes preparation, waiting, or pauses
@@ -255,6 +256,7 @@ Example:
 ## Expected way of working
 
 * Do not create commits unless the user explicitly requests them
+* Commit changes to `ai-context.md` and `README.md` together in a documentation commit separate from code changes
 * When commits are requested, separate dependency updates, implementation, tests, and documentation according to their responsibility
 * Strictly limit changes to the requested scope; do not modify, fix, or refactor files or code that the user has not asked to touch
 * If refactoring is requested, generate the refactored code directly
