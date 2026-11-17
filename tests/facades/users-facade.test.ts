@@ -102,7 +102,7 @@ describe("UsersFacade", () => {
             expect(logger.warn).toHaveBeenCalledWith(
                 expect.objectContaining({
                     event: "authorization.denied",
-                    context: "User: 1, operation: view user"
+                    context: "User: 1\nOperation: view user"
                 })
             );
         });
@@ -136,7 +136,7 @@ describe("UsersFacade", () => {
             expect(logger.info).toHaveBeenCalledWith(
                 expect.objectContaining({
                     event: "user.operation.completed",
-                    context: "User: 1, affected user: 1, operation: create"
+                    context: "User: 1\nAffected user: 1\nOperation: create"
                 })
             );
         });
@@ -151,7 +151,7 @@ describe("UsersFacade", () => {
             expect(logger.warn).toHaveBeenCalledWith(
                 expect.objectContaining({
                     event: "authorization.denied",
-                    context: "User: 1, operation: user management"
+                    context: "User: 1\nOperation: user management"
                 })
             );
         });
@@ -354,7 +354,7 @@ describe("UsersFacade", () => {
             expect(logger.info).toHaveBeenCalledWith(
                 expect.objectContaining({
                     event: "user.operation.completed",
-                    context: "User: 1, affected user: 1, operation: delete"
+                    context: "User: 1\nAffected user: 1\nOperation: delete"
                 })
             );
         });

@@ -70,7 +70,7 @@ describe("SocketSessionsService", () => {
             expect.objectContaining({ code: "SOCKET_SESSION_INVALID" })
         );
         expect(logger.warn).toHaveBeenCalledWith(
-            expect.objectContaining({ event: "authorization.denied", context: `User: other-user, session: ${id}` })
+            expect.objectContaining({ event: "authorization.denied", context: `User: other-user\nSession: ${id}` })
         );
     });
 
@@ -102,7 +102,7 @@ describe("SocketSessionsService", () => {
         expect(logger.info).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: "socket.connection.limit_reached",
-                context: "User: user-id, limit: 3"
+                context: "User: user-id\nLimit: 3"
             })
         );
     });

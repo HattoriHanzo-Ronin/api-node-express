@@ -92,7 +92,7 @@ export default class ArcherAX53Router extends AbstractRouter {
             ArcherAX53Router.LOGGER.warn({
                 event: LOG_EVENT.routerAutomationError,
                 message: "Router automation failed",
-                context: `Router: ${id}, device MAC: ${mac}, operation: add`,
+                context: `Router: ${id}\nDevice MAC: ${mac}\nOperation: add`,
                 error,
                 redact: [admin_pass, ip]
             });
@@ -143,7 +143,7 @@ export default class ArcherAX53Router extends AbstractRouter {
             ArcherAX53Router.LOGGER.warn({
                 event: LOG_EVENT.routerAutomationError,
                 message: "Router automation failed",
-                context: `Router: ${id}, device MAC: ${mac}, operation: delete`,
+                context: `Router: ${id}\nDevice MAC: ${mac}\nOperation: delete`,
                 error,
                 redact: [admin_pass, ip]
             });

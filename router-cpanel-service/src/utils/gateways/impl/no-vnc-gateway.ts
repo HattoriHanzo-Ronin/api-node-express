@@ -82,7 +82,7 @@ export default class NoVncGateway implements VncGateway<Server> {
                 NoVncGateway.LOGGER.warn({
                     event: vncDisconnected,
                     message: "VNC WebSocket disconnected unexpectedly",
-                    context: `Session: ${sessionId}, code: ${code}`
+                    context: `Session: ${sessionId}\nCode: ${code}`
                 });
             }
 

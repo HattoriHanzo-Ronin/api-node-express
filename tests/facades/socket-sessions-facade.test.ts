@@ -58,7 +58,7 @@ describe("SocketSessionsFacade", () => {
         ).rejects.toMatchObject({ code: "ACL_PERMISSION_DENIED" });
         expect(socketSessionsService.connect).not.toHaveBeenCalled();
         expect(logger.warn).toHaveBeenCalledWith(
-            expect.objectContaining({ event: "authorization.denied", context: "User: user-id, entities: users" })
+            expect.objectContaining({ event: "authorization.denied", context: "User: user-id\nEntities: users" })
         );
     });
 

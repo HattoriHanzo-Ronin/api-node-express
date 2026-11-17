@@ -74,7 +74,7 @@ export default class SocketEventsGateway implements SocketGateway<Server> {
                 SocketEventsGateway.LOGGER.warn({
                     event: socketDisconnected,
                     message: "Socket disconnected unexpectedly",
-                    context: `Session: ${sessionId}, code: ${code}`
+                    context: `Session: ${sessionId}\nCode: ${code}`
                 });
             }
 

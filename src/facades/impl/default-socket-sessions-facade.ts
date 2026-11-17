@@ -55,7 +55,7 @@ export default class DefaultSocketSessionsFacade implements SocketSessionsFacade
                     DefaultSocketSessionsFacade.LOGGER.warn({
                         event: LOG_EVENT.authorizationDenied,
                         message: "Authenticated user attempted a restricted socket subscription",
-                        context: `User: ${authUser.id}, entities: ${entities.join(", ")}`
+                        context: `User: ${authUser.id}\nEntities: ${entities.join(", ")}`
                     });
                 },
                 message: "No tiene permisos para suscribirse a una de las entidades solicitadas",

@@ -171,7 +171,7 @@ export default class DefaultSocketSessionsService implements SocketSessionsServi
                 DefaultSocketSessionsService.LOGGER.warn({
                     event: socketConnectionFailed,
                     message: "Socket notification failed",
-                    context: `User: ${session.ownerId}, session: ${session.id}, entity: ${entity}`,
+                    context: `User: ${session.ownerId}\nSession: ${session.id}\nEntity: ${entity}`,
                     error
                 });
                 this.delete({ session });
@@ -214,7 +214,7 @@ export default class DefaultSocketSessionsService implements SocketSessionsServi
                     DefaultSocketSessionsService.LOGGER.warn({
                         event: LOG_EVENT.authorizationDenied,
                         message: "Authenticated user attempted to access another user's socket session",
-                        context: `User: ${authUser.id}, session: ${id}`
+                        context: `User: ${authUser.id}\nSession: ${id}`
                     });
                 },
                 message: "La sesión de notificaciones no es válida",
@@ -243,7 +243,7 @@ export default class DefaultSocketSessionsService implements SocketSessionsServi
                         DefaultSocketSessionsService.LOGGER.info({
                             event: LOG_EVENT.socketConnectionLimitReached,
                             message: "Socket connection limit reached",
-                            context: `User: ${ownerId}, limit: ${socketMaxConnectionsPerUser}`
+                            context: `User: ${ownerId}\nLimit: ${socketMaxConnectionsPerUser}`
                         });
                     },
                     message: `Has alcanzado el límite de ${socketMaxConnectionsPerUser} conexiones simultáneas. Cierra una conexión en otro dispositivo para continuar.`,
@@ -261,7 +261,7 @@ export default class DefaultSocketSessionsService implements SocketSessionsServi
                         DefaultSocketSessionsService.LOGGER.info({
                             event: LOG_EVENT.socketConnectionLimitReached,
                             message: "Global socket connection capacity reached",
-                            context: `User: ${ownerId}, global limit: ${socketMaxConnections}`
+                            context: `User: ${ownerId}\nGlobal limit: ${socketMaxConnections}`
                         });
                     },
                     message: "Se alcanzó el máximo global de conexiones de notificaciones",

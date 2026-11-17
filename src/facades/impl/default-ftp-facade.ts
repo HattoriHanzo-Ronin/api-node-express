@@ -154,7 +154,7 @@ export default class DefaultFtpFacade implements FtpFacade<
             DefaultFtpFacade.LOGGER.info({
                 event: sftpOperationCompleted,
                 message: "SFTP operation completed",
-                context: `User: ${authUser.id}, operation: move, duration: ${performance.now() - started} ms`
+                context: `User: ${authUser.id}\nOperation: move\nDuration: ${performance.now() - started} ms`
             });
         } finally {
             if (!cacheCleared) {
@@ -250,7 +250,7 @@ export default class DefaultFtpFacade implements FtpFacade<
             DefaultFtpFacade.LOGGER.info({
                 event: sftpOperationCompleted,
                 message: "SFTP operation completed",
-                context: `User: ${authUser.id}, operation: delete, duration: ${performance.now() - started} ms`
+                context: `User: ${authUser.id}\nOperation: delete\nDuration: ${performance.now() - started} ms`
             });
         } finally {
             if (!cacheCleared) {

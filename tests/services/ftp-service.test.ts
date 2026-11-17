@@ -108,7 +108,7 @@ describe("FtpService", () => {
             return expect(logger.info).toHaveBeenCalledWith(
                 expect.objectContaining({
                     event: "sftp.pool.saturated",
-                    context: "User: user-id, pool: interactive, limit: 1, waiting operations: 1"
+                    context: "User: user-id\nPool: interactive\nLimit: 1\nWaiting operations: 1"
                 })
             );
         });
@@ -160,7 +160,7 @@ describe("FtpService", () => {
             expect(logger.error).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: "SFTP operation failed",
-                    context: "Error code: FTP_DIR_FAILED, User: user-id, pool: interactive",
+                    context: "Error code: FTP_DIR_FAILED\nUser: user-id\nPool: interactive",
                     error
                 })
             );
@@ -189,7 +189,7 @@ describe("FtpService", () => {
             expect(logger.warn).toHaveBeenCalledWith(
                 expect.objectContaining({
                     event: "background.failed",
-                    context: expect.stringMatching(/^User: user-id, batch: [a-f0-9-]+, HTTP status: 503$/)
+                    context: expect.stringMatching(/^User: user-id\nBatch: [a-f0-9-]+\nHTTP status: 503$/s)
                 })
             );
         });
@@ -709,7 +709,7 @@ describe("FtpService", () => {
                 expect.objectContaining({
                     event: "sftp.operation.completed",
                     context: expect.stringMatching(
-                        new RegExp(`transfer: ${session.id}, operation: upload, size: 5 bytes, duration: .* ms`)
+                        new RegExp(`Transfer: ${session.id}\nOperation: upload\nSize: 5 bytes\nDuration: .* ms`)
                     )
                 })
             );
@@ -1335,7 +1335,7 @@ describe("FtpService", () => {
                 expect.objectContaining({
                     event: "sftp.operation.completed",
                     context: expect.stringMatching(
-                        new RegExp(`transfer: ${session.id}, operation: download, size: 8 bytes, duration: .* ms`)
+                        new RegExp(`Transfer: ${session.id}\nOperation: download\nSize: 8 bytes\nDuration: .* ms`)
                     )
                 })
             );
@@ -1538,7 +1538,7 @@ describe("FtpService", () => {
                     expect.objectContaining({
                         event: "sftp.operation.cancelled",
                         message: "SFTP transfer expired",
-                        context: expect.stringContaining(`transfer: ${session.id}`)
+                        context: expect.stringContaining(`Transfer: ${session.id}`)
                     })
                 );
                 expect(logger.error).not.toHaveBeenCalledWith(
