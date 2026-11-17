@@ -333,7 +333,11 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
             const pending: FtpConnectionPending = { resolve, reject };
             const wasEmpty = pool.queue.length === 0;
             pool.queue.push(pending);
-            if (wasEmpty && pool.connections.length >= FtpPooledConnectionManager.POOL_CONFIG[type].max) {
+            if (
+                type !== "watcher" &&
+                wasEmpty &&
+                pool.connections.length >= FtpPooledConnectionManager.POOL_CONFIG[type].max
+            ) {
                 FtpPooledConnectionManager.logSaturatedPool(session, type);
             }
 

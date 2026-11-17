@@ -56,6 +56,7 @@ export default class DefaultFtpFacade implements FtpFacade<
     private static readonly LOGGER = Logger.getLogger(DefaultFtpFacade);
     private static readonly HASH_ALGORITHM = "sha256";
     private readonly thumbnailJobs = new Map<string, Set<string>>();
+    private readonly watchedDirectories = new Set<string>();
 
     constructor(private readonly dependencies: FtpFacadeDependencies) {}
 
@@ -79,7 +80,7 @@ export default class DefaultFtpFacade implements FtpFacade<
         }
 
         const thumbnail = bufferMap?.get(name);
-        const thumbnailJobs = this.thumbnailJobs.get(DefaultFtpFacade.getThumbnailJobKey(authUser.id, dir));
+        const thumbnailJobs = this.thumbnailJobs.get(DefaultFtpFacade.getDirectoryKey(authUser.id, dir));
         ApiError.handle([
             {
                 condition: thumbnail === undefined && Boolean(thumbnailJobs?.has(name)),
@@ -262,7 +263,7 @@ export default class DefaultFtpFacade implements FtpFacade<
     private clearDirectoryCache(ownerId: string, dir: string): void {
         this.dependencies.memoryCache.delete(ownerId, dir);
         this.dependencies.directoryCache.delete(ownerId, dir);
-        this.thumbnailJobs.delete(DefaultFtpFacade.getThumbnailJobKey(ownerId, dir));
+        this.thumbnailJobs.delete(DefaultFtpFacade.getDirectoryKey(ownerId, dir));
     }
 
     private notify({ authUser, dir, version }: FtpNotificationParams): void {
@@ -288,7 +289,7 @@ export default class DefaultFtpFacade implements FtpFacade<
             this.dependencies.memoryCache.set(authUser.id, dir, bufferMap);
         }
 
-        const jobKey = DefaultFtpFacade.getThumbnailJobKey(authUser.id, dir);
+        const jobKey = DefaultFtpFacade.getDirectoryKey(authUser.id, dir);
         const thumbnailJobs = this.thumbnailJobs.get(jobKey) ?? new Set();
         const nameSet = new Set(names);
         for (const name of thumbnailJobs) {
@@ -310,7 +311,7 @@ export default class DefaultFtpFacade implements FtpFacade<
             return;
         }
 
-        const jobKey = DefaultFtpFacade.getThumbnailJobKey(authUser.id, dir);
+        const jobKey = DefaultFtpFacade.getDirectoryKey(authUser.id, dir);
         pendingNames.forEach((name) => thumbnailJobs.add(name));
         this.thumbnailJobs.set(jobKey, thumbnailJobs);
         void this.getThumbnails({ dir, names: pendingNames, authUser, jobKey });
@@ -359,10 +360,11 @@ export default class DefaultFtpFacade implements FtpFacade<
 
     private async watchDirectory({ dir, authUser, entries, hash }: FtpWatchDirectoryParams): Promise<string> {
         const ownerId = authUser.id;
-        const watching = this.dependencies.directoryCache.has(ownerId, dir);
+        const watcherKey = DefaultFtpFacade.getDirectoryKey(ownerId, dir);
         const directoryHash = hash ?? DefaultFtpFacade.hashDirectory(entries!);
         this.dependencies.directoryCache.set(ownerId, dir, { hash: directoryHash });
-        if (!watching) {
+        if (!this.watchedDirectories.has(watcherKey)) {
+            this.watchedDirectories.add(watcherKey);
             setTimeout(() => this.checkDirectory(ownerId, dir), ftpDirectoryCheckTimeout);
         }
 
@@ -372,6 +374,7 @@ export default class DefaultFtpFacade implements FtpFacade<
     private async checkDirectory(ownerId: string, dir: string): Promise<void> {
         const cachedDirectory = this.dependencies.directoryCache.get(ownerId, dir);
         if (!cachedDirectory) {
+            this.watchedDirectories.delete(DefaultFtpFacade.getDirectoryKey(ownerId, dir));
             return;
         }
 
@@ -383,20 +386,17 @@ export default class DefaultFtpFacade implements FtpFacade<
             });
             if (!source) {
                 const sessionActive = this.dependencies.ftpService.isSessionActive({ ownerId });
-                if (sessionActive) {
-                    setTimeout(() => this.checkDirectory(ownerId, dir), ftpDirectoryCheckTimeout);
-                } else {
+                if (!sessionActive && this.dependencies.directoryCache.get(ownerId, dir) === cachedDirectory) {
                     this.dependencies.directoryCache.delete(ownerId, dir);
                 }
-
-                return;
             }
-
-            const entries = this.dependencies.ftpMapper.entriesFromSource(source);
-            const hash = DefaultFtpFacade.hashDirectory(entries);
-            if (hash !== cachedDirectory.hash) {
-                this.dependencies.directoryCache.set(ownerId, dir, { ...cachedDirectory, hash });
-                this.notify({ authUser: { id: ownerId }, dir, version: hash });
+            if (source && this.dependencies.directoryCache.get(ownerId, dir) === cachedDirectory) {
+                const entries = this.dependencies.ftpMapper.entriesFromSource(source);
+                const hash = DefaultFtpFacade.hashDirectory(entries);
+                if (hash !== cachedDirectory.hash) {
+                    this.dependencies.directoryCache.set(ownerId, dir, { ...cachedDirectory, hash });
+                    this.notify({ authUser: { id: ownerId }, dir, version: hash });
+                }
             }
         } catch (error) {
             if (!(error instanceof ApiError)) {
@@ -411,13 +411,16 @@ export default class DefaultFtpFacade implements FtpFacade<
 
         if (this.dependencies.directoryCache.has(ownerId, dir)) {
             setTimeout(() => this.checkDirectory(ownerId, dir), ftpDirectoryCheckTimeout);
+            return;
         }
+
+        this.watchedDirectories.delete(DefaultFtpFacade.getDirectoryKey(ownerId, dir));
     }
 
     private async moveCachedDirectory(ownerId: string, sourceKey: string, destinationKey: string): Promise<void> {
         const bufferMap = this.dependencies.memoryCache.get(ownerId, sourceKey);
         const directory = this.dependencies.directoryCache.get(ownerId, sourceKey);
-        const sourceJobKey = DefaultFtpFacade.getThumbnailJobKey(ownerId, sourceKey);
+        const sourceJobKey = DefaultFtpFacade.getDirectoryKey(ownerId, sourceKey);
         const names = [...(this.thumbnailJobs.get(sourceJobKey) ?? [])];
         this.dependencies.memoryCache.delete(ownerId, sourceKey);
         this.dependencies.directoryCache.delete(ownerId, sourceKey);
@@ -443,7 +446,7 @@ export default class DefaultFtpFacade implements FtpFacade<
         }
     }
 
-    private static getThumbnailJobKey(ownerId: string, dir: string): string {
+    private static getDirectoryKey(ownerId: string, dir: string): string {
         return JSON.stringify([ownerId, dir]);
     }
 
