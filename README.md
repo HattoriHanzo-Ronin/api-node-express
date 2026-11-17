@@ -247,6 +247,8 @@ SFTP clients are reused through isolated per-user pools for watching, interactiv
 
 The watcher pool supervises directory changes. The interactive pool handles listings, metadata, directory creation and renaming. The transfer pool handles uploads, downloads, moves, deletions and thumbnail access. Available connections are reused immediately; when the transfer pool is busy, it waits for `FTP_SCALE_WAIT` before opening another connection, subject to its configured maximum and the global limits.
 
+Each user and directory has at most one active watcher cycle. Clearing and recreating a directory's cached state reuses an existing cycle, and the cycle stops when the cached entry is absent. A directory listing requested to prepare thumbnails uses the transfer pool, leaving the interactive connection available for user operations.
+
 Directory listings mark compatible media with `supportsThumbnail`. Thumbnail generation runs lazily in the background and adds each result to the bounded cache as soon as it is available. The thumbnail endpoint reports generated, pending and unavailable states with HTTP `200`, `404` and `204` respectively.
 
 Media processing is delegated to the standalone thumbnail generator. The API submits thumbnail work while the generator owns a global adaptive FFmpeg queue: it starts from the configured initial concurrency and adjusts admission from its container CPU and memory usage. The API exposes short-lived, range-enabled media sessions so FFmpeg can seek through SFTP files without sharing FTP credentials or buffering complete media files. Internal media access restricts its accepted origin and is intended to remain unavailable through the external reverse proxy; generated JPEG responses are limited by environment configuration.
