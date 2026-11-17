@@ -119,6 +119,38 @@ describe("FtpService", () => {
         expect(secondStarted).toHaveBeenCalledOnce();
     });
 
+    it("serializes watcher requests without reporting ordinary pool saturation", async () => {
+        await ftpConnectionManager.execute({ authUser, pool: "interactive", callback: async () => {} });
+        let release = () => {};
+        const hold = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const firstStarted = vi.fn();
+        const first = ftpConnectionManager.execute({
+            authUser,
+            pool: "watcher",
+            callback: async () => {
+                firstStarted();
+                await hold;
+            }
+        });
+        await vi.waitFor(() => expect(firstStarted).toHaveBeenCalledOnce());
+        const secondStarted = vi.fn();
+        const second = ftpConnectionManager.execute({
+            authUser,
+            pool: "watcher",
+            callback: async () => {
+                secondStarted();
+            }
+        });
+        await new Promise((resolve) => setImmediate(resolve));
+        expect(secondStarted).not.toHaveBeenCalled();
+        expect(logger.info.mock.calls.filter(([event]) => event.event === "sftp.pool.saturated")).toHaveLength(0);
+        release();
+        await Promise.all([first, second]);
+        expect(secondStarted).toHaveBeenCalledOnce();
+    });
+
     describe("dir", () => {
         it("should list ftp resources", async () => {
             const modifyTime = new Date("2026-09-20T10:00:00.000Z");

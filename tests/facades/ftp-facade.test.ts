@@ -66,6 +66,63 @@ describe("FtpFacade", () => {
     });
 
     describe("read operations", () => {
+        it("reuses the existing watcher when a directory is removed and listed again before its timer fires", async () => {
+            const data = {
+                dir: "files",
+                authUser: { id: "user-id", iat: 1_800_000_000, exp: 1_900_000_000, roles: ["FTP"] as Role[] }
+            };
+            await ftpFacade.dir(data);
+            directoryCache.delete("user-id", "files");
+            await ftpFacade.dir(data);
+            ftpService.dir.mockClear();
+            await vi.advanceTimersByTimeAsync(5000);
+            expect(ftpService.dir).toHaveBeenCalledTimes(1);
+            await vi.advanceTimersByTimeAsync(5000);
+            expect(ftpService.dir).toHaveBeenCalledTimes(2);
+        });
+
+        it("reuses an in-flight watcher without restoring an obsolete directory hash", async () => {
+            const data = {
+                dir: "files",
+                authUser: { id: "user-id", iat: 1_800_000_000, exp: 1_900_000_000, roles: ["FTP"] as Role[] }
+            };
+            await ftpFacade.dir(data);
+            let resolveWatcher: (entries: FtpEntry[]) => void = () => {};
+            ftpService.dir.mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        resolveWatcher = resolve;
+                    })
+            );
+            await vi.advanceTimersByTimeAsync(5000);
+            directoryCache.delete("user-id", "files");
+            await ftpFacade.dir(data);
+            const current = directoryCache.get("user-id", "files");
+            ftpService.dir.mockClear();
+            resolveWatcher([{ name: "changed", type: "FILE" }]);
+            await vi.advanceTimersByTimeAsync(0);
+            expect(directoryCache.get("user-id", "files")).toBe(current);
+            expect(socketSessionsFacade.notify).not.toHaveBeenCalled();
+            await vi.advanceTimersByTimeAsync(5000);
+            expect(ftpService.dir).toHaveBeenCalledTimes(1);
+        });
+
+        it("stops watching a directory removed from the cache", async () => {
+            const data = {
+                dir: "files",
+                authUser: { id: "user-id", iat: 1_800_000_000, exp: 1_900_000_000, roles: ["FTP"] as Role[] }
+            };
+            await ftpFacade.dir(data);
+            directoryCache.delete("user-id", "files");
+            ftpService.dir.mockClear();
+            await vi.advanceTimersByTimeAsync(10000);
+            expect(ftpService.dir).not.toHaveBeenCalled();
+            await ftpFacade.dir(data);
+            ftpService.dir.mockClear();
+            await vi.advanceTimersByTimeAsync(5000);
+            expect(ftpService.dir).toHaveBeenCalledTimes(1);
+        });
+
         it("should delegate temporary media streams", async () => {
             const data = {
                 id: "media-id",
