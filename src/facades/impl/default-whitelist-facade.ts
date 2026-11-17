@@ -42,7 +42,7 @@ export default class DefaultWhitelistFacade<Transaction> implements WhitelistFac
         DefaultWhitelistFacade.LOGGER.info({
             event: LOG_EVENT.whitelistOperationCompleted,
             message: "Device added in router whitelist",
-            context: `Router: ${routerId}, device: ${id}, operation: add, duration: ${performance.now() - started} ms`
+            context: `Router: ${routerId}\nDevice: ${id}\nOperation: add\nDuration: ${performance.now() - started} ms`
         });
         return result;
     }
@@ -64,7 +64,7 @@ export default class DefaultWhitelistFacade<Transaction> implements WhitelistFac
         DefaultWhitelistFacade.LOGGER.info({
             event: LOG_EVENT.whitelistOperationCompleted,
             message: "Device removed in router whitelist",
-            context: `Router: ${routerId}, device: ${id}, operation: delete, duration: ${performance.now() - started} ms`
+            context: `Router: ${routerId}\nDevice: ${id}\nOperation: delete\nDuration: ${performance.now() - started} ms`
         });
         return result;
     }

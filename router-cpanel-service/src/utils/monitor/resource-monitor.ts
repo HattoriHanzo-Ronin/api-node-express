@@ -183,15 +183,15 @@ export default class ResourceMonitor {
         }
 
         const cpu = this.cpuPeak
-            ? `${this.cpuPeak.value * 100}%, sessions: ${this.cpuPeak.sessions}, at: ${this.cpuPeak.timestamp}`
+            ? `${this.cpuPeak.value * 100}% (sessions: ${this.cpuPeak.sessions}, at: ${this.cpuPeak.timestamp})`
             : "unavailable";
         const memory = this.memoryPeak
-            ? `${this.memoryPeak.value * 100}%, sessions: ${this.memoryPeak.sessions}, at: ${this.memoryPeak.timestamp}`
+            ? `${this.memoryPeak.value * 100}% (sessions: ${this.memoryPeak.sessions}, at: ${this.memoryPeak.timestamp})`
             : "unavailable";
         ResourceMonitor.LOGGER.info({
             event: LOG_EVENT.resourcePeak,
             message: "Router panel container resource peak",
-            context: `Reason: ${reason}, CPU peak: ${cpu}, CPU limit reached: ${this.cpuPeak ? this.cpuPeak.value >= 1 : "unknown"}, memory peak: ${memory}, memory limit reached: ${this.memoryPeak ? this.memoryPeak.value >= 1 : "unknown"}, sampling interval: ${ResourceMonitor.SAMPLE_INTERVAL} ms`
+            context: `Reason: ${reason}\nCPU peak: ${cpu}\nCPU limit reached: ${this.cpuPeak ? this.cpuPeak.value >= 1 : "unknown"}\nMemory peak: ${memory}\nMemory limit reached: ${this.memoryPeak ? this.memoryPeak.value >= 1 : "unknown"}\nSampling interval: ${ResourceMonitor.SAMPLE_INTERVAL} ms`
         });
         this.cpuPeak = undefined;
         this.memoryPeak = undefined;

@@ -216,7 +216,7 @@ describe("RouterSessionService", () => {
         expect(logger.warn).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: "authorization.denied",
-                context: `User: other-user-id, session: ${session.id}`
+                context: `User: other-user-id\nSession: ${session.id}`
             })
         );
         await expect(service.close({ sessionId: session.id, ownerId: "other-user-id" })).rejects.toMatchObject({
@@ -261,7 +261,7 @@ describe("RouterSessionService", () => {
         expect(logger.info).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: "router.session.closed",
-                context: expect.stringContaining("reason: replaced, lifetime:")
+                context: expect.stringContaining("Reason: replaced\nLifetime:")
             })
         );
         expect(secondSession.id).not.toBe(firstSession.id);
@@ -289,7 +289,7 @@ describe("RouterSessionService", () => {
         expect(logger.info).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: "router.session.capacity_reached",
-                context: "User: other-user-id, limit: 1"
+                context: "User: other-user-id\nLimit: 1"
             })
         );
         await service.close({ sessionId: session.id });
@@ -303,7 +303,7 @@ describe("RouterSessionService", () => {
         expect(logger.info).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: "router.session.closed",
-                context: expect.stringContaining("reason: expired, lifetime:")
+                context: expect.stringContaining("Reason: expired\nLifetime:")
             })
         );
         await expect(service.openVncSocket({ sessionId: session.id, token: "token" })).rejects.toMatchObject({
@@ -353,7 +353,7 @@ describe("RouterSessionService", () => {
         expect(logger.info).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: "router.vnc.capacity_reached",
-                context: `User: user-id, session: ${session.id}, router: Router, limit: 1`
+                context: `User: user-id\nSession: ${session.id}\nRouter: Router\nLimit: 1`
             })
         );
         firstSocket.destroy();

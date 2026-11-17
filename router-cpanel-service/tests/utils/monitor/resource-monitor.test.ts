@@ -60,7 +60,7 @@ describe("ResourceMonitor", () => {
             expect.objectContaining({
                 event: "router.resources.peak",
                 context: expect.stringMatching(
-                    /Reason: scheduled, CPU peak: 50%, sessions: 2, at: .*, CPU limit reached: false, memory peak: 80%, sessions: 2, at:/
+                    /Reason: scheduled\nCPU peak: 50% \(sessions: 2, at: .*\)\nCPU limit reached: false\nMemory peak: 80% \(sessions: 2, at:/s
                 )
             })
         );
@@ -95,7 +95,7 @@ describe("ResourceMonitor", () => {
         expect(mocks.info).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: "router.resources.peak",
-                context: expect.stringMatching(/CPU peak: 10%, sessions: 1,.*memory peak: 30%, sessions: 1/)
+                context: expect.stringMatching(/CPU peak: 10% \(sessions: 1,.*Memory peak: 30% \(sessions: 1/s)
             })
         );
         await monitor.stop();

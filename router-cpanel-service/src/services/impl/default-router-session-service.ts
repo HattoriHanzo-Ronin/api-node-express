@@ -132,7 +132,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
                         DefaultRouterSessionService.LOGGER.warn({
                             event: LOG_EVENT.authorizationDenied,
                             message: "Authenticated user attempted to navigate another user's router session",
-                            context: `User: ${ownerId}, session: ${sessionId}`
+                            context: `User: ${ownerId}\nSession: ${sessionId}`
                         });
                     }
                 },
@@ -159,7 +159,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
                     DefaultRouterSessionService.LOGGER.info({
                         event: sessionNavigated,
                         message: "Router panel navigation completed",
-                        context: `User: ${ownerId}, session: ${activeSession.id}, router: ${activeSession.routerName}, action: ${action}, duration: ${performance.now() - started} ms`
+                        context: `User: ${ownerId}\nSession: ${activeSession.id}\nRouter: ${activeSession.routerName}\nAction: ${action}\nDuration: ${performance.now() - started} ms`
                     });
                     return;
                 case "reload":
@@ -168,14 +168,14 @@ export default class DefaultRouterSessionService implements RouterSessionService
                     DefaultRouterSessionService.LOGGER.info({
                         event: sessionNavigated,
                         message: "Router panel navigation completed",
-                        context: `User: ${ownerId}, session: ${activeSession.id}, router: ${activeSession.routerName}, action: ${action}, duration: ${performance.now() - started} ms`
+                        context: `User: ${ownerId}\nSession: ${activeSession.id}\nRouter: ${activeSession.routerName}\nAction: ${action}\nDuration: ${performance.now() - started} ms`
                     });
             }
         } catch (error) {
             DefaultRouterSessionService.LOGGER.error({
                 event: sessionOperationFailed,
                 message: "Router panel navigation failed",
-                context: `User: ${ownerId}, session: ${activeSession.id}, router: ${activeSession.routerName}`,
+                context: `User: ${ownerId}\nSession: ${activeSession.id}\nRouter: ${activeSession.routerName}`,
                 error
             });
             throw new ApiError({
@@ -204,7 +204,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
                     DefaultRouterSessionService.LOGGER.info({
                         event: LOG_EVENT.vncCapacityReached,
                         message: "Router panel VNC connection limit reached",
-                        context: `User: ${session.ownerId}, session: ${session.id}, router: ${session.routerName}, limit: ${maxVncConnectionsPerSession}`
+                        context: `User: ${session.ownerId}\nSession: ${session.id}\nRouter: ${session.routerName}\nLimit: ${maxVncConnectionsPerSession}`
                     });
                 },
                 message: "La sesión de panel de router ya tiene el máximo de conexiones VNC",
@@ -230,7 +230,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
             DefaultRouterSessionService.LOGGER.error({
                 event: vncConnectionFailed,
                 message: "VNC connection failed",
-                context: `User: ${session.ownerId}, session: ${session.id}, router: ${session.routerName}`,
+                context: `User: ${session.ownerId}\nSession: ${session.id}\nRouter: ${session.routerName}`,
                 error
             });
             throw new ApiError({
@@ -290,7 +290,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
                     DefaultRouterSessionService.LOGGER.warn({
                         event: LOG_EVENT.authorizationDenied,
                         message: "Authenticated user attempted to close another user's router session",
-                        context: `User: ${ownerId}, session: ${sessionId}`
+                        context: `User: ${ownerId}\nSession: ${sessionId}`
                     });
                 },
                 message: "La sesión de panel de router no existe",
@@ -312,13 +312,13 @@ export default class DefaultRouterSessionService implements RouterSessionService
             DefaultRouterSessionService.LOGGER.info({
                 event: sessionClosed,
                 message: "Router panel session closed",
-                context: `User: ${session.ownerId}, session: ${session.id}, router: ${session.routerName}, reason: ${reason}, lifetime: ${performance.now() - session.startedAt} ms, cleanup duration: ${performance.now() - started} ms`
+                context: `User: ${session.ownerId}\nSession: ${session.id}\nRouter: ${session.routerName}\nReason: ${reason}\nLifetime: ${performance.now() - session.startedAt} ms\nCleanup duration: ${performance.now() - started} ms`
             });
         } catch (error) {
             DefaultRouterSessionService.LOGGER.error({
                 event: sessionOperationFailed,
                 message: "Router panel session close failed",
-                context: `User: ${session.ownerId}, session: ${session.id}, router: ${session.routerName}`,
+                context: `User: ${session.ownerId}\nSession: ${session.id}\nRouter: ${session.routerName}`,
                 error
             });
             throw new ApiError({
@@ -355,7 +355,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
                         DefaultRouterSessionService.LOGGER.info({
                             event: LOG_EVENT.sessionCapacityReached,
                             message: "Router panel active user capacity reached",
-                            context: `User: ${ownerId}, limit: ${maxActiveUsers}`
+                            context: `User: ${ownerId}\nLimit: ${maxActiveUsers}`
                         });
                     },
                     message: "Se ha alcanzado el número máximo de sesiones activas",
@@ -368,7 +368,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
                 DefaultRouterSessionService.LOGGER.info({
                     event: LOG_EVENT.sessionCapacityReached,
                     message: "Router panel per-user session limit reached",
-                    context: `User: ${ownerId}, active sessions: ${ownerSessions.size}, limit: ${maxSessionsPerUser}`
+                    context: `User: ${ownerId}\nActive sessions: ${ownerSessions.size}\nLimit: ${maxSessionsPerUser}`
                 });
                 await Promise.all(
                     [...ownerSessions].map((sessionId) => this.closeSession({ sessionId, reason: "replaced" }))
@@ -488,7 +488,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
                         DefaultRouterSessionService.LOGGER.error({
                             event: sessionAutofillFailed,
                             message: "Router panel autofill failed",
-                            context: `User: ${ownerId}, session: ${id}, router: ${routerName}`,
+                            context: `User: ${ownerId}\nSession: ${id}\nRouter: ${routerName}`,
                             error,
                             redact: [routerPassword]
                         });
@@ -499,7 +499,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
             DefaultRouterSessionService.LOGGER.info({
                 event: sessionCreated,
                 message: "Router panel session created",
-                context: `User: ${ownerId}, session: ${id}, router: ${routerName}, duration: ${performance.now() - started} ms`
+                context: `User: ${ownerId}\nSession: ${id}\nRouter: ${routerName}\nDuration: ${performance.now() - started} ms`
             });
             return {
                 id,
@@ -511,14 +511,14 @@ export default class DefaultRouterSessionService implements RouterSessionService
                 DefaultRouterSessionService.LOGGER.warn({
                     event: sessionCleanupFailed,
                     message: "Router panel cleanup failed",
-                    context: `User: ${ownerId}, session: ${id}, router: ${routerName}`,
+                    context: `User: ${ownerId}\nSession: ${id}\nRouter: ${routerName}`,
                     error: cleanupError
                 });
             });
             DefaultRouterSessionService.LOGGER.error({
                 event: sessionOperationFailed,
                 message: "Router panel session creation failed",
-                context: `User: ${ownerId}, session: ${id}, router: ${routerName}`,
+                context: `User: ${ownerId}\nSession: ${id}\nRouter: ${routerName}`,
                 error,
                 redact: [routerIp, routerPassword ?? ""]
             });
@@ -725,7 +725,7 @@ export default class DefaultRouterSessionService implements RouterSessionService
             DefaultRouterSessionService.LOGGER.warn({
                 event: sessionCleanupFailed,
                 message: "Router panel browser cleanup failed",
-                context: `User: ${session.ownerId}, session: ${session.id}, router: ${session.routerName}`,
+                context: `User: ${session.ownerId}\nSession: ${session.id}\nRouter: ${session.routerName}`,
                 error
             });
         });

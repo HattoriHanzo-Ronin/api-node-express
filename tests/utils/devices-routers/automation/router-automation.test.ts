@@ -63,7 +63,7 @@ describe("RouterAutomation", () => {
             expect.objectContaining({
                 event: "router.automation.error",
                 message: "Router automation failed",
-                context: "Router: router-1, device MAC: AA:BB:CC:DD:EE:01, key: key-1, operation: delete",
+                context: "Router: router-1\nDevice MAC: AA:BB:CC:DD:EE:01\nKey: key-1\nOperation: delete",
                 error: {
                     cause: expect.objectContaining({ message: expect.stringContaining("code 42") }),
                     result: { error_code: 42, password: "secret" }
@@ -126,7 +126,7 @@ describe("RouterAutomation", () => {
         expect(logger.warn).toHaveBeenCalledWith({
             event: "router.operation.failed",
             message: "Router automation is unavailable",
-            context: "Router: router-1, model: Unknown"
+            context: "Router: router-1\nModel: Unknown"
         });
     });
 });

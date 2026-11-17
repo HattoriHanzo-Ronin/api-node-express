@@ -312,7 +312,7 @@ describe("DevicesFacade", () => {
         });
         expect(logger.warn).toHaveBeenCalledWith(
             expect.objectContaining({
-                context: "Router: router-1, device: device-1, other affected routers: none"
+                context: "Router: router-1\nDevice: device-1\nOther affected routers: none"
             })
         );
     });
@@ -354,7 +354,7 @@ describe("DevicesFacade", () => {
         expect(logger.warn).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: "Router whitelist rollback failed",
-                context: "Router: router-1, device: device-1, other affected routers: none"
+                context: "Router: router-1\nDevice: device-1\nOther affected routers: none"
             })
         );
         expect(devicesService.delete).not.toHaveBeenCalled();
@@ -403,7 +403,7 @@ describe("DevicesFacade", () => {
         expect(logger.warn).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: "Router whitelist rollback failed",
-                context: "Router: router-1, device: device-1, other affected routers: Router 2"
+                context: "Router: router-1\nDevice: device-1\nOther affected routers: Router 2"
             })
         );
     });

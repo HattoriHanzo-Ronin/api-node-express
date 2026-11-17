@@ -42,7 +42,7 @@ describe("Logger", () => {
     it("writes filtered JSON records to UTC daily files and appends after restart", async () => {
         const logger = Logger.getLogger({ name: "first" });
         logger.debug({ event: "ignored", message: "ignored" });
-        logger.info({ event: "first", message: "first", context: "User: user-id, limit: 4" });
+        logger.info({ event: "first", message: "first", context: "User: user-id, office\nLimit: 4" });
         Logger.getLogger({ name: "another" });
         expect(vi.getTimerCount()).toBe(1);
         vi.resetModules();
@@ -60,7 +60,7 @@ describe("Logger", () => {
             level: "info",
             service: "main-api",
             source: "first",
-            context: "User: user-id, limit: 4"
+            context: "User: user-id, office\nLimit: 4"
         });
         expect(JSON.parse(readFileSync(path.join(directory, "2026-01", "2026-01-05.log"), "utf8")).event).toBe("third");
     });
@@ -155,12 +155,12 @@ describe("Logger", () => {
         logger.warn({
             event: "router.automation.error",
             message: "Router automation failed",
-            context: "Router: router-1, device MAC: AA:BB:CC:DD:EE:FF, key: white_list_1",
+            context: "Router: router-1\nDevice MAC: AA:BB:CC:DD:EE:FF\nKey: white_list_1",
             error: { result },
             completeResult: true
         });
         const record = JSON.parse(readFileSync(path.join(directory, "2026-01", "2026-01-04.log"), "utf8"));
-        expect(record.context).toContain("AA:BB:CC:DD:EE:FF, key: white_list_1");
+        expect(record.context).toContain("AA:BB:CC:DD:EE:FF\nKey: white_list_1");
         expect(record.error.result).toEqual({ ...result, password: "[redacted]", token: "[redacted]" });
     });
 });

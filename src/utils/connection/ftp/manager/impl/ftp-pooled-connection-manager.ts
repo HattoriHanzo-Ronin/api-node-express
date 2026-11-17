@@ -243,7 +243,7 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
             FtpPooledConnectionManager.LOGGER.info({
                 event: LOG_EVENT.sftpTransferLimitReached,
                 message: "SFTP transfer capacity has waiting operations",
-                context: `User: ${ownerId}, global limit: ${ftpMaxTransfers}`
+                context: `User: ${ownerId}\nGlobal limit: ${ftpMaxTransfers}`
             });
         }
 
@@ -371,7 +371,7 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
                 FtpPooledConnectionManager.LOGGER.error({
                     event: sftpConnectionFailed,
                     message: "SFTP pool expansion failed",
-                    context: `User: ${session.ownerId}, pool: ${type}`,
+                    context: `User: ${session.ownerId}\nPool: ${type}`,
                     error
                 });
             }
@@ -447,7 +447,7 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
             FtpPooledConnectionManager.LOGGER.info({
                 event: sftpConnectionOpened,
                 message: "SFTP connection opened",
-                context: `User: ${session.ownerId}, pool: ${type}`
+                context: `User: ${session.ownerId}\nPool: ${type}`
             });
             return connection;
         } catch (error) {
@@ -467,7 +467,7 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
                     FtpPooledConnectionManager.LOGGER.info({
                         event: LOG_EVENT.sftpCapacitySaturated,
                         message: "SFTP connection capacity has waiting operations",
-                        context: `User: ${requestSession.ownerId}, global limit: ${ftpMaxConnections}`
+                        context: `User: ${requestSession.ownerId}\nGlobal limit: ${ftpMaxConnections}`
                     });
                 }
 
@@ -536,14 +536,14 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
             FtpPooledConnectionManager.LOGGER.info({
                 event: sftpConnectionClosed,
                 message: "SFTP connection closed",
-                context: `User: ${session.ownerId}, pool: ${type}`
+                context: `User: ${session.ownerId}\nPool: ${type}`
             });
         } catch (error) {
             if (!(error instanceof ApiError)) {
                 FtpPooledConnectionManager.LOGGER.error({
                     event: sftpConnectionFailed,
                     message: "SFTP connection close failed",
-                    context: `User: ${session.ownerId}, pool: ${type}`,
+                    context: `User: ${session.ownerId}\nPool: ${type}`,
                     error
                 });
             }
@@ -573,7 +573,7 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
                 FtpPooledConnectionManager.LOGGER.error({
                     event: sftpConnectionFailed,
                     message: "SFTP pool restoration failed",
-                    context: `User: ${session.ownerId}, pool: ${type}`,
+                    context: `User: ${session.ownerId}\nPool: ${type}`,
                     error
                 });
             }
@@ -780,7 +780,7 @@ export default class FtpPooledConnectionManager implements FtpConnectionManager<
         FtpPooledConnectionManager.LOGGER.info({
             event: LOG_EVENT.sftpPoolSaturated,
             message: "SFTP pool has waiting operations at its connection limit",
-            context: `User: ${session.ownerId}, pool: ${type}, limit: ${FtpPooledConnectionManager.POOL_CONFIG[type].max}, waiting operations: ${session.pools[type].queue.length}`
+            context: `User: ${session.ownerId}\nPool: ${type}\nLimit: ${FtpPooledConnectionManager.POOL_CONFIG[type].max}\nWaiting operations: ${session.pools[type].queue.length}`
         });
     }
 

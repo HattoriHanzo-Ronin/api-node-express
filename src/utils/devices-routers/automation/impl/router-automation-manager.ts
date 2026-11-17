@@ -39,7 +39,7 @@ export default class RouterAutomationManager implements RouterAutomation {
                     RouterAutomationManager.LOGGER.warn({
                         event: LOG_EVENT.routerOperationFailed,
                         message: "Router automation is unavailable",
-                        context: `Router: ${router.id}, model: ${router.model}`
+                        context: `Router: ${router.id}\nModel: ${router.model}`
                     });
                 },
                 message: `${router.name} no tiene implementación disponible`,

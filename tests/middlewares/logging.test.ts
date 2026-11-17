@@ -121,7 +121,7 @@ describe("authorization logging", () => {
             expect(logger.warn).toHaveBeenCalledWith(
                 expect.objectContaining({
                     event: "authorization.denied",
-                    context: "User: user-id, method: GET, route: users > :id"
+                    context: "User: user-id\nMethod: GET\nRoute: users > :id"
                 })
             );
         } finally {

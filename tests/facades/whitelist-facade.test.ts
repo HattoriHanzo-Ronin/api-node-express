@@ -77,7 +77,7 @@ describe("WhitelistFacade", () => {
             expect.objectContaining({
                 event: "whitelist.operation.completed",
                 context: expect.stringMatching(
-                    /^Router: router-1, device: device-1, operation: add, duration: \d+(\.\d+)? ms$/
+                    /^Router: router-1\nDevice: device-1\nOperation: add\nDuration: \d+(\.\d+)? ms$/s
                 )
             })
         );

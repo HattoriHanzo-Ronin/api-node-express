@@ -63,7 +63,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
                     DefaultUsersFacade.LOGGER.warn({
                         event: LOG_EVENT.authorizationDenied,
                         message: "Authenticated user attempted to access a user outside their scope",
-                        context: `User: ${authUser?.id}, operation: view user`
+                        context: `User: ${authUser?.id}\nOperation: view user`
                     });
                 },
                 message: "El usuario no existe",
@@ -109,7 +109,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
         DefaultUsersFacade.LOGGER.info({
             event: LOG_EVENT.userOperationCompleted,
             message: "User created",
-            context: `User: ${authUser.id}, affected user: ${result.id}, operation: create`
+            context: `User: ${authUser.id}\nAffected user: ${result.id}\nOperation: create`
         });
         return result;
     }
@@ -229,7 +229,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
         DefaultUsersFacade.LOGGER.info({
             event: LOG_EVENT.userOperationCompleted,
             message: "User updated",
-            context: `User: ${authUser.id}, affected user: ${updatedUserId}, operation: ${changePassword ? "change password" : "update"}`
+            context: `User: ${authUser.id}\nAffected user: ${updatedUserId}\nOperation: ${changePassword ? "change password" : "update"}`
         });
         return result;
     }
@@ -247,7 +247,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
         DefaultUsersFacade.LOGGER.info({
             event: LOG_EVENT.userOperationCompleted,
             message: "User deleted",
-            context: `${authUser ? `User: ${authUser.id}, ` : ""}affected user: ${id}, operation: delete`
+            context: `${authUser ? `User: ${authUser.id}\n` : ""}Affected user: ${id}\nOperation: delete`
         });
         return result;
     }
@@ -276,7 +276,7 @@ export default class DefaultUsersFacade<Transaction> implements UsersFacade {
                     DefaultUsersFacade.LOGGER.warn({
                         event: LOG_EVENT.authorizationDenied,
                         message: "Authenticated user attempted a restricted user management operation",
-                        context: `User: ${authUser.id}, operation: user management`
+                        context: `User: ${authUser.id}\nOperation: user management`
                     });
                 },
                 message: "No tiene permisos para realizar esa acción",

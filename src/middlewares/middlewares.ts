@@ -179,7 +179,7 @@ export default class Middlewares {
                             Middlewares.LOGGER.warn({
                                 event: LOG_EVENT.authorizationDenied,
                                 message: "Authenticated user attempted to access a restricted route",
-                                context: `User: ${req.user.id}, method: ${req.method}, route: ${`${req.baseUrl}/${String(req.route.path)}`.split("/").filter(Boolean).join(" > ")}`
+                                context: `User: ${req.user.id}\nMethod: ${req.method}\nRoute: ${`${req.baseUrl}/${String(req.route.path)}`.split("/").filter(Boolean).join(" > ")}`
                             });
                         },
                         message: "No tiene permisos para realizar esa acción",

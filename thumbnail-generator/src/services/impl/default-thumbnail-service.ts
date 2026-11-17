@@ -124,7 +124,7 @@ export default class DefaultThumbnailService implements ThumbnailService {
         DefaultThumbnailService.LOGGER.info({
             event: LOG_EVENT.thumbnailBatchStarted,
             message: "Thumbnail batch started",
-            context: `User: ${userId}, batch: ${id}, files: ${files.length}, source size: ${batch.totalSize} bytes`
+            context: `User: ${userId}\nBatch: ${id}\nFiles: ${files.length}\nSource size: ${batch.totalSize} bytes`
         });
         this.finishBatch(id, batch);
     }
@@ -171,7 +171,7 @@ export default class DefaultThumbnailService implements ThumbnailService {
             DefaultThumbnailService.LOGGER.error({
                 event: thumbnailGenerationFailedEvent,
                 message: "Thumbnail generation failed",
-                context: `Request: ${job.id}, batch: ${job.batchId ?? "unknown"}`,
+                context: `Request: ${job.id}\nBatch: ${job.batchId ?? "unknown"}`,
                 error
             });
             job.reject(
@@ -204,7 +204,7 @@ export default class DefaultThumbnailService implements ThumbnailService {
             DefaultThumbnailService.LOGGER.error({
                 event: thumbnailGenerationFailedEvent,
                 message: "FFmpeg is unavailable",
-                context: `Request: ${id}, batch: ${batchId ?? "unknown"}`
+                context: `Request: ${id}\nBatch: ${batchId ?? "unknown"}`
             });
             throw new ApiError({
                 message: "No se pudo generar la miniatura",
@@ -279,7 +279,7 @@ export default class DefaultThumbnailService implements ThumbnailService {
                     DefaultThumbnailService.LOGGER.warn({
                         event: thumbnailGenerationTimeoutEvent,
                         message: "Thumbnail generation timed out",
-                        context: `Request: ${id}, batch: ${batchId ?? "unknown"}`
+                        context: `Request: ${id}\nBatch: ${batchId ?? "unknown"}`
                     });
                     reject(
                         new ApiError({
@@ -377,7 +377,7 @@ export default class DefaultThumbnailService implements ThumbnailService {
                 : batch.failed
                   ? "Thumbnail batch finished with failures"
                   : "Thumbnail batch completed",
-            context: `User: ${batch.userId}, batch: ${id}, files: ${batch.totalFiles}, generated: ${batch.generated}, failed: ${batch.failed}, expired: ${batch.expired}, source size: ${batch.totalSize} bytes, duration: ${performance.now() - batch.startedAt} ms, peak active jobs: ${batch.peakActive}, container peak CPU: ${batch.peakCpu === undefined ? "unavailable" : `${batch.peakCpu * 100}%`}, CPU target: ${thumbnailCpuTarget}%, CPU target reached: ${batch.peakCpu === undefined ? "unknown" : batch.peakCpu * 100 >= thumbnailCpuTarget}, container peak memory: ${batch.peakMemory === undefined ? "unavailable" : `${batch.peakMemory * 100}%`}, memory target: ${thumbnailMemoryTarget}%, memory target reached: ${batch.peakMemory === undefined ? "unknown" : batch.peakMemory * 100 >= thumbnailMemoryTarget}, sampling interval: ${thumbnailSchedulerInterval} ms`
+            context: `User: ${batch.userId}\nBatch: ${id}\nFiles: ${batch.totalFiles}\nGenerated: ${batch.generated}\nFailed: ${batch.failed}\nExpired: ${batch.expired}\nSource size: ${batch.totalSize} bytes\nDuration: ${performance.now() - batch.startedAt} ms\nPeak active jobs: ${batch.peakActive}\nContainer peak CPU: ${batch.peakCpu === undefined ? "unavailable" : `${batch.peakCpu * 100}%`}\nCPU target: ${thumbnailCpuTarget}%\nCPU target reached: ${batch.peakCpu === undefined ? "unknown" : batch.peakCpu * 100 >= thumbnailCpuTarget}\nContainer peak memory: ${batch.peakMemory === undefined ? "unavailable" : `${batch.peakMemory * 100}%`}\nMemory target: ${thumbnailMemoryTarget}%\nMemory target reached: ${batch.peakMemory === undefined ? "unknown" : batch.peakMemory * 100 >= thumbnailMemoryTarget}\nSampling interval: ${thumbnailSchedulerInterval} ms`
         });
     }
 

@@ -107,7 +107,7 @@ describe("ThumbnailService queue", () => {
             expect.objectContaining({
                 event: "thumbnail.batch.completed",
                 context: expect.stringMatching(
-                    /User: user-1, batch: batch-1, files: 2, generated: 2, failed: 0, expired: 0, source size: 300 bytes, duration: .*container peak memory: 70%/
+                    /User: user-1\nBatch: batch-1\nFiles: 2\nGenerated: 2\nFailed: 0\nExpired: 0\nSource size: 300 bytes\nDuration: .*Container peak memory: 70%/s
                 )
             })
         );
@@ -130,7 +130,7 @@ describe("ThumbnailService queue", () => {
         expect(logger.info).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: "thumbnail.batch.expired",
-                context: expect.stringContaining("files: 2, generated: 0, failed: 1, expired: 1")
+                context: expect.stringContaining("Files: 2\nGenerated: 0\nFailed: 1\nExpired: 1")
             })
         );
     });
@@ -168,7 +168,7 @@ describe("ThumbnailService queue", () => {
         expect(logger.info).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: "thumbnail.batch.completed",
-                context: expect.not.stringContaining("container peak memory: unavailable")
+                context: expect.not.stringContaining("Container peak memory: unavailable")
             })
         );
     });
@@ -214,7 +214,7 @@ describe("ThumbnailService queue", () => {
         expect(logger.error).toHaveBeenCalledWith(
             expect.objectContaining({
                 event: "thumbnail.generation.failed",
-                context: "Request: test, batch: unknown",
+                context: "Request: test\nBatch: unknown",
                 error
             })
         );

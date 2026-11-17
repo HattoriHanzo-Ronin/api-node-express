@@ -111,7 +111,7 @@ export default class TLWDR5620GigabitEditionRouter extends AbstractRouter {
             TLWDR5620GigabitEditionRouter.LOGGER.warn({
                 event: LOG_EVENT.routerAutomationError,
                 message: "Router automation failed",
-                context: `Router: ${id}, device MAC: ${mac}, key: ${key}, operation: ${operation}`,
+                context: `Router: ${id}\nDevice MAC: ${mac}\nKey: ${key}\nOperation: ${operation}`,
                 error: { cause: error, result: resultData },
                 redact: [admin_pass, ip],
                 completeResult: true

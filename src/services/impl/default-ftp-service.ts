@@ -128,7 +128,7 @@ export default class DefaultFtpService implements FtpService<
                 message: "Error al listar la carpeta",
                 apiError: ftpDirFailed,
                 cause: err,
-                context: `User: ${authUser.id}, pool: ${watcher ? "watcher" : "interactive"}`
+                context: `User: ${authUser.id}\nPool: ${watcher ? "watcher" : "interactive"}`
             });
         }
     }
@@ -154,7 +154,7 @@ export default class DefaultFtpService implements FtpService<
                                     DefaultFtpService.LOGGER.warn({
                                         event: backgroundFailed,
                                         message: "Thumbnail file inspection failed",
-                                        context: `User: ${authUser.id}, batch: ${batchId}, file: ${name}`,
+                                        context: `User: ${authUser.id}\nBatch: ${batchId}\nFile: ${name}`,
                                         error
                                     });
                                 }
@@ -177,14 +177,14 @@ export default class DefaultFtpService implements FtpService<
                                 DefaultFtpService.LOGGER.warn({
                                     event: backgroundFailed,
                                     message: "Thumbnail batch registration failed",
-                                    context: `User: ${authUser.id}, batch: ${batchId}, HTTP status: ${response.status}`
+                                    context: `User: ${authUser.id}\nBatch: ${batchId}\nHTTP status: ${response.status}`
                                 });
                             }
                         } catch (error) {
                             DefaultFtpService.LOGGER.warn({
                                 event: backgroundFailed,
                                 message: "Thumbnail batch registration failed",
-                                context: `User: ${authUser.id}, batch: ${batchId}`,
+                                context: `User: ${authUser.id}\nBatch: ${batchId}`,
                                 error
                             });
                         }
@@ -206,7 +206,7 @@ export default class DefaultFtpService implements FtpService<
                                     DefaultFtpService.LOGGER.warn({
                                         event: backgroundFailed,
                                         message: "Thumbnail generation failed",
-                                        context: `User: ${authUser.id}, batch: ${batchId}, file: ${name}`,
+                                        context: `User: ${authUser.id}\nBatch: ${batchId}\nFile: ${name}`,
                                         error
                                     });
                                 }
@@ -228,7 +228,7 @@ export default class DefaultFtpService implements FtpService<
                 message: "Error al generar las miniaturas",
                 cause: err,
                 apiError: ftpThumbnailFailed,
-                context: `User: ${authUser.id}, batch: ${batchId}`
+                context: `User: ${authUser.id}\nBatch: ${batchId}`
             });
         }
     }
@@ -536,7 +536,7 @@ export default class DefaultFtpService implements FtpService<
                 message: "Error al preparar la subida",
                 apiError: ftpUploadFailed,
                 cause: err,
-                context: `User: ${authUser.id}, transfer: ${id}, operation: upload`
+                context: `User: ${authUser.id}\nTransfer: ${id}\nOperation: upload`
             });
         }
     }
@@ -658,7 +658,7 @@ export default class DefaultFtpService implements FtpService<
                 message: "Error al subir los datos",
                 apiError: ftpUploadFailed,
                 cause: err,
-                context: `User: ${authUser.id}, transfer: ${id}, path: ${entryPath}`,
+                context: `User: ${authUser.id}\nTransfer: ${id}\nPath: ${entryPath}`,
                 cancelled: alreadyCancelled
             });
         } finally {
@@ -698,7 +698,7 @@ export default class DefaultFtpService implements FtpService<
             DefaultFtpService.LOGGER.info({
                 event: LOG_EVENT.sftpOperationCompleted,
                 message: "SFTP transfer completed",
-                context: `User: ${authUser.id}, transfer: ${id}, operation: upload, size: ${size} bytes, duration: ${performance.now() - session.startedAt} ms`
+                context: `User: ${authUser.id}\nTransfer: ${id}\nOperation: upload\nSize: ${size} bytes\nDuration: ${performance.now() - session.startedAt} ms`
             });
             return result;
         } finally {
@@ -718,7 +718,7 @@ export default class DefaultFtpService implements FtpService<
             DefaultFtpService.LOGGER.info({
                 event: LOG_EVENT.sftpOperationCancelled,
                 message: "SFTP operation cancelled",
-                context: `User: ${authUser.id}, transfer: ${id}, operation: ${session.type.toLowerCase()}`
+                context: `User: ${authUser.id}\nTransfer: ${id}\nOperation: ${session.type.toLowerCase()}`
             });
         }
     }
@@ -801,7 +801,7 @@ export default class DefaultFtpService implements FtpService<
                 message: "Error al preparar la descarga",
                 apiError: ftpDownloadFailed,
                 cause: err,
-                context: `User: ${authUser.id}, transfer: ${id}, operation: download`
+                context: `User: ${authUser.id}\nTransfer: ${id}\nOperation: download`
             });
         }
     }
@@ -859,7 +859,7 @@ export default class DefaultFtpService implements FtpService<
                     } catch (error) {
                         throw DefaultFtpService.createStaleDownloadError(
                             error,
-                            `User: ${authUser.id}, transfer: ${id}, file: ${entryPath}`
+                            `User: ${authUser.id}\nTransfer: ${id}\nFile: ${entryPath}`
                         );
                     }
 
@@ -908,7 +908,7 @@ export default class DefaultFtpService implements FtpService<
                 DefaultFtpService.LOGGER.info({
                     event: LOG_EVENT.sftpOperationCancelled,
                     message: "SFTP operation cancelled by client",
-                    context: `User: ${authUser.id}, transfer: ${id}, operation: download`
+                    context: `User: ${authUser.id}\nTransfer: ${id}\nOperation: download`
                 });
             }
 
@@ -916,7 +916,7 @@ export default class DefaultFtpService implements FtpService<
                 message: "Error al descargar",
                 apiError: ftpDownloadFailed,
                 cause: err,
-                context: `User: ${authUser.id}, transfer: ${id}, path: ${entryPath}`,
+                context: `User: ${authUser.id}\nTransfer: ${id}\nPath: ${entryPath}`,
                 cancelled: alreadyCancelled || clientCancelled
             });
         } finally {
@@ -942,7 +942,7 @@ export default class DefaultFtpService implements FtpService<
                 DefaultFtpService.LOGGER.info({
                     event: LOG_EVENT.sftpOperationCompleted,
                     message: "SFTP transfer completed",
-                    context: `User: ${authUser.id}, transfer: ${id}, operation: download, size: ${size} bytes, duration: ${performance.now() - session.startedAt} ms`
+                    context: `User: ${authUser.id}\nTransfer: ${id}\nOperation: download\nSize: ${size} bytes\nDuration: ${performance.now() - session.startedAt} ms`
                 });
             }
 
@@ -1011,7 +1011,7 @@ export default class DefaultFtpService implements FtpService<
                     DefaultFtpService.LOGGER.warn({
                         event: backgroundFailed,
                         message: "Thumbnail service request failed",
-                        context: `Request: ${id}, batch: ${batchId}, HTTP status: ${response.status}`
+                        context: `Request: ${id}\nBatch: ${batchId}\nHTTP status: ${response.status}`
                     });
                 }
 
@@ -1225,7 +1225,7 @@ export default class DefaultFtpService implements FtpService<
             DefaultFtpService.LOGGER.info({
                 event: LOG_EVENT.sftpOperationCancelled,
                 message: "SFTP transfer expired",
-                context: `User: ${session.ownerId}, transfer: ${id}, operation: ${session.type.toLowerCase()}`
+                context: `User: ${session.ownerId}\nTransfer: ${id}\nOperation: ${session.type.toLowerCase()}`
             });
         }
     }
@@ -1385,7 +1385,7 @@ export default class DefaultFtpService implements FtpService<
             DefaultFtpService.LOGGER.error({
                 event: LOG_EVENT.sftpOperationFailed,
                 message: "SFTP operation failed",
-                context: `Error code: ${apiError}${context ? `, ${context}` : ""}`,
+                context: `Error code: ${apiError}${context ? `\n${context}` : ""}`,
                 error: cause
             });
         }

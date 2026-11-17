@@ -128,7 +128,7 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
         DefaultDevicesFacade.LOGGER.info({
             event: deviceOperationCompleted,
             message: "Device operation completed",
-            context: `Device: ${result.id}, operation: create`
+            context: `Device: ${result.id}\nOperation: create`
         });
         return result;
     }
@@ -200,7 +200,7 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
         DefaultDevicesFacade.LOGGER.info({
             event: deviceOperationCompleted,
             message: "Device operation completed",
-            context: `Device: ${id}, operation: update, duration: ${performance.now() - started} ms`
+            context: `Device: ${id}\nOperation: update\nDuration: ${performance.now() - started} ms`
         });
         return device;
     }
@@ -216,7 +216,7 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
         DefaultDevicesFacade.LOGGER.info({
             event: deviceOperationCompleted,
             message: "Device operation completed",
-            context: `Device: ${id}, operation: delete, duration: ${performance.now() - started} ms`
+            context: `Device: ${id}\nOperation: delete\nDuration: ${performance.now() - started} ms`
         });
         return result;
     }
@@ -288,7 +288,7 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
                         DefaultDevicesFacade.LOGGER.warn({
                             event: LOG_EVENT.routerRollbackFailed,
                             message: "Router whitelist rollback failed",
-                            context: `Router: ${updatedRouterId}, device: ${id}, other affected routers: ${affectedRouters.join(", ") || "none"}`
+                            context: `Router: ${updatedRouterId}\nDevice: ${id}\nOther affected routers: ${affectedRouters.join(", ") || "none"}`
                         });
                         ApiError.handle([
                             {
@@ -313,7 +313,7 @@ export default class DefaultDevicesFacade<Transaction> implements DevicesFacade 
                             DefaultDevicesFacade.LOGGER.warn({
                                 event: LOG_EVENT.routerRollbackFailed,
                                 message: "Router whitelist entry could not be restored",
-                                context: `Router: ${routerId}, device: ${id}, other affected routers: none`
+                                context: `Router: ${routerId}\nDevice: ${id}\nOther affected routers: none`
                             });
                         },
                         message,
