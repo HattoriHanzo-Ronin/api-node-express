@@ -130,6 +130,8 @@ Logs are appended to daily UTC files at `<LOG_DIRECTORY>/YYYY-MM/YYYY-MM-DD.log`
 
 Each record includes a timestamp, level, service, source, event and message. An optional text context provides diagnostic details, and unexpected failures may include the original error and its cause. Events cover relevant activity, capacity limits, authorization denials and failures. Expected client errors and ordinary stream cancellations do not produce unnecessary error logs. The loggers redact credentials and other sensitive data before writing.
 
+Context fields are separated by newline characters so they can be displayed individually after reading the JSON record. Each record remains on a single line in the log file.
+
 ### Building and running
 
 Each service is written in TypeScript and compiles to its own `dist/` directory. Build all three services before starting them:
