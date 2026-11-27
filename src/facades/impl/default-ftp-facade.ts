@@ -6,22 +6,21 @@ import type { FtpEntrySource } from "../../types/ftp/ftp-mapper.js";
 import type { FtpMediaParams, FtpDirectoryParams } from "../../types/ftp/ftp-service.js";
 import type {
     FtpFacadeCreateUploadParams,
-    FtpFacadeDeleteParams,
     FtpFacadeDirectoryParams,
     FtpFacadeDownloadParams,
     FtpFacadeEntriesParams,
     FtpFacadeMakeDirParams,
     FtpFacadeMoveParams,
+    FtpDirectoryResponse,
+    FtpMoveResponse,
     FtpFacadeRenameParams,
     FtpFacadeTransferParams,
     FtpFacadeUploadParams,
     FtpThumbnailParams
 } from "../../types/ftp/ftp-facade.js";
 import type {
-    FtpProgressStream,
     FtpFacadeDependencies,
     FtpNotificationParams,
-    FtpProgressParams,
     FtpThumbnailFetchParams,
     FtpThumbnailQueueParams,
     FtpThumbnailSyncParams,
@@ -46,13 +45,7 @@ const { ftpDirectoryCheckTimeout } = ENV;
  *
  * @author HattoriHanzo-Ronin
  */
-export default class DefaultFtpFacade implements FtpFacade<
-    ServerResponse,
-    FtpProgressStream,
-    FtpDownloadStream,
-    UploadedFile,
-    Buffer
-> {
+export default class DefaultFtpFacade implements FtpFacade<ServerResponse, FtpDownloadStream, UploadedFile, Buffer> {
     private static readonly LOGGER = Logger.getLogger(DefaultFtpFacade);
     private static readonly HASH_ALGORITHM = "sha256";
     private readonly thumbnailJobs = new Map<string, Set<string>>();
@@ -99,10 +92,9 @@ export default class DefaultFtpFacade implements FtpFacade<
         return result;
     }
 
-    async move({ dir, entries, destination, authUser, stream }: FtpFacadeMoveParams<FtpProgressStream>) {
+    async move({ dir, entries, destination, authUser }: FtpFacadeMoveParams) {
         const started = performance.now();
-        let completed = 0;
-        let cacheCleared = false;
+        let result!: FtpMoveResponse;
         try {
             await this.dependencies.ftpService.move({
                 dir,
@@ -110,7 +102,6 @@ export default class DefaultFtpFacade implements FtpFacade<
                 destination,
                 authUser,
                 onEntry: async (entry, newName) => {
-                    completed += 1;
                     if (entry.type === directoryType) {
                         await this.moveCachedDirectory(
                             authUser.id,
@@ -118,38 +109,17 @@ export default class DefaultFtpFacade implements FtpFacade<
                             path.posix.join(destination, newName)
                         );
                     }
-
-                    await this.writeProgress({
-                        stream,
-                        progress: {
-                            event: "entry",
-                            path: entry.name,
-                            targetPath: newName,
-                            type: entry.type,
-                            completed,
-                            total: entries.length
-                        }
-                    });
                 },
                 onComplete: async () => {
                     this.clearDirectoryCache(authUser.id, dir);
                     this.clearDirectoryCache(authUser.id, destination);
-                    cacheCleared = true;
-                    const [{ hash: sourceVersion }, { hash: destinationVersion }] = await Promise.all([
+                    const [origin, target] = await Promise.all([
                         this.dir({ dir, authUser }),
                         this.dir({ dir: destination, authUser })
                     ]);
-                    this.notify({ authUser, dir, version: sourceVersion });
-                    this.notify({ authUser, dir: destination, version: destinationVersion });
-                    await this.writeProgress({
-                        stream,
-                        progress: {
-                            event: "complete",
-                            source: { dir, version: sourceVersion },
-                            destination: { dir: destination, version: destinationVersion }
-                        }
-                    });
-                    stream.end();
+                    this.notify({ authUser, dir, version: origin.hash });
+                    this.notify({ authUser, dir: destination, version: target.hash });
+                    result = { origin, destination: target };
                 }
             });
             DefaultFtpFacade.LOGGER.info({
@@ -157,11 +127,11 @@ export default class DefaultFtpFacade implements FtpFacade<
                 message: "SFTP operation completed",
                 context: `User: ${authUser.id}\nOperation: move\nDuration: ${performance.now() - started} ms`
             });
-        } finally {
-            if (!cacheCleared) {
-                this.clearDirectoryCache(authUser.id, dir);
-                this.clearDirectoryCache(authUser.id, destination);
-            }
+            return result;
+        } catch (error) {
+            this.clearDirectoryCache(authUser.id, dir);
+            this.clearDirectoryCache(authUser.id, destination);
+            throw error;
         }
     }
 
@@ -213,39 +183,23 @@ export default class DefaultFtpFacade implements FtpFacade<
         await this.dependencies.ftpService.download({ id, entryPath, offset, authUser, stream });
     }
 
-    async delete({ dir, entries, authUser, stream }: FtpFacadeDeleteParams<FtpProgressStream>) {
+    async delete({ dir, entries, authUser }: FtpFacadeEntriesParams) {
         const started = performance.now();
-        let completed = 0;
-        let cacheCleared = false;
+        let result!: FtpDirectoryResponse;
         try {
             await this.dependencies.ftpService.delete({
                 dir,
                 entries,
                 authUser,
                 onEntry: async (entry) => {
-                    completed += 1;
                     if (entry.type === directoryType) {
                         this.clearDirectoryCache(authUser.id, path.posix.join(dir, entry.name));
                     }
-
-                    await this.writeProgress({
-                        stream,
-                        progress: {
-                            event: "entry",
-                            path: entry.name,
-                            type: entry.type,
-                            completed,
-                            total: entries.length
-                        }
-                    });
                 },
                 onComplete: async () => {
                     this.clearDirectoryCache(authUser.id, dir);
-                    cacheCleared = true;
-                    const { hash } = await this.dir({ dir, authUser });
-                    this.notify({ authUser, dir, version: hash });
-                    await this.writeProgress({ stream, progress: { event: "complete", version: hash } });
-                    stream.end();
+                    result = await this.dir({ dir, authUser });
+                    this.notify({ authUser, dir, version: result.hash });
                 }
             });
             DefaultFtpFacade.LOGGER.info({
@@ -253,10 +207,10 @@ export default class DefaultFtpFacade implements FtpFacade<
                 message: "SFTP operation completed",
                 context: `User: ${authUser.id}\nOperation: delete\nDuration: ${performance.now() - started} ms`
             });
-        } finally {
-            if (!cacheCleared) {
-                this.clearDirectoryCache(authUser.id, dir);
-            }
+            return result;
+        } catch (error) {
+            this.clearDirectoryCache(authUser.id, dir);
+            throw error;
         }
     }
 
@@ -456,19 +410,5 @@ export default class DefaultFtpFacade implements FtpFacade<
             .sort()
             .join("|");
         return createHash(DefaultFtpFacade.HASH_ALGORITHM).update(source).digest("hex");
-    }
-
-    private writeProgress({ stream, progress }: FtpProgressParams): Promise<void> {
-        if (!stream.headersSent) {
-            stream.set?.({
-                "Cache-Control": "no-cache, no-transform",
-                "Content-Type": "application/x-ndjson",
-                "X-Accel-Buffering": "no"
-            });
-        }
-
-        return new Promise((resolve, reject) => {
-            stream.write(`${JSON.stringify(progress)}\n`, (error) => (error ? reject(error) : resolve()));
-        });
     }
 }

@@ -285,11 +285,10 @@ Authorization: Bearer {{token}}
 #
 # Expected:
 # Status: 200
-# Content-Type: application/x-ndjson
-#
-# Response stream:
-# {"event":"entry","path":"test.txt","targetPath":"test.txt","type":"FILE","completed":1,"total":1}
-# {"event":"complete","version":"<SHA-256 destination hash>"}
+# Content-Type: application/json
+# Origin-Version: <SHA-256 origin hash>
+# Destination-Version: <SHA-256 destination hash>
+# Body: {"origin": [...], "destination": [...]}
 ############################################################
 
 POST {{baseUrl}}/move
@@ -345,11 +344,9 @@ Content-Type: application/json
 #
 # Expected:
 # Status: 200
-# Content-Type: application/x-ndjson
-#
-# Response stream:
-# {"event":"entry","path":"test.txt","type":"FILE","completed":1,"total":1}
-# {"event":"complete","version":"<SHA-256 directory hash>"}
+# Content-Type: application/json
+# Data-Version: <SHA-256 directory hash>
+# Body: updated directory listing
 ############################################################
 
 DELETE {{baseUrl}}

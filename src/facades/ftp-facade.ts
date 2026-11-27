@@ -1,12 +1,12 @@
 import type {
     FtpDirectoryResponse,
     FtpFacadeCreateUploadParams,
-    FtpFacadeDeleteParams,
     FtpFacadeDirectoryParams,
     FtpFacadeDownloadParams,
     FtpFacadeEntriesParams,
     FtpFacadeMakeDirParams,
     FtpFacadeMoveParams,
+    FtpMoveResponse,
     FtpFacadeRenameParams,
     FtpFacadeTransferParams,
     FtpFacadeUploadParams,
@@ -14,7 +14,7 @@ import type {
 } from "../types/ftp/ftp-facade.js";
 import type { FtpDownloadSession, FtpMediaParams, FtpUploadSession } from "../types/ftp/ftp-service.js";
 
-export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, UploadFile, Thumbnail> {
+export default interface FtpFacade<MediaStream, DownloadStream, UploadFile, Thumbnail> {
     /**
      * Returns FTP directory content
      *
@@ -62,9 +62,9 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      * @param params.entries Entries to move
      * @param params.destination Destination directory
      * @param params.authUser Authenticated user
-     * @param params.stream Progress stream
+     * @returns Updated source and destination directories
      */
-    move(params: FtpFacadeMoveParams<ProgressStream>): Promise<void>;
+    move(params: FtpFacadeMoveParams): Promise<FtpMoveResponse>;
 
     /**
      * Renames an FTP entry
@@ -143,7 +143,7 @@ export default interface FtpFacade<MediaStream, ProgressStream, DownloadStream, 
      * @param params.dir Directory path
      * @param params.entries Entries to delete
      * @param params.authUser Authenticated user
-     * @param params.stream Progress stream
+     * @returns Updated directory
      */
-    delete(params: FtpFacadeDeleteParams<ProgressStream>): Promise<void>;
+    delete(params: FtpFacadeEntriesParams): Promise<FtpDirectoryResponse>;
 }

@@ -170,14 +170,22 @@ describe("FtpController", () => {
         it("should move ftp entries", async () => {
             const entries = [{ name: "file.txt", type: "file" }];
             req.body = { dir: "files", destination: "backup", entries };
+            ftpFacade.move.mockResolvedValue({
+                origin: { hash: "origin-hash", data: [] },
+                destination: { hash: "destination-hash", data: entries }
+            });
             await controller.move(req, res, NEXT);
             expect(ftpFacade.move).toHaveBeenCalledWith({
                 dir: "files",
                 destination: "backup",
                 entries: [{ name: "file.txt", type: "FILE" }],
-                authUser: req.user,
-                stream: res
+                authUser: req.user
             });
+            expect(res.set).toHaveBeenCalledWith({
+                "Origin-Version": "origin-hash",
+                "Destination-Version": "destination-hash"
+            });
+            expect(res.json).toHaveBeenCalledWith({ origin: [], destination: entries });
         });
 
         it("should fail when destination contains traversal", async () => {
@@ -300,13 +308,15 @@ describe("FtpController", () => {
         it("should delete ftp entries", async () => {
             const entries = [{ name: "file.txt", type: "file" }];
             req.body = { dir: "files", entries };
+            ftpFacade.delete.mockResolvedValue({ hash: "directory-hash", data: [] });
             await controller.delete(req, res, NEXT);
             expect(ftpFacade.delete).toHaveBeenCalledWith({
                 dir: "files",
                 entries: [{ name: "file.txt", type: "FILE" }],
-                authUser: req.user,
-                stream: res
+                authUser: req.user
             });
+            expect(res.set).toHaveBeenCalledWith("Data-Version", "directory-hash");
+            expect(res.json).toHaveBeenCalledWith([]);
         });
 
         it("should fail when entries are missing", async () => {
