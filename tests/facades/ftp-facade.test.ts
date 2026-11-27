@@ -1,6 +1,5 @@
 import type { Role } from "../../src/types/user-roles/user-roles-model.js";
 import type { FtpEntry } from "../../src/types/ftp/ftp-service.js";
-import type { FtpProgressStream } from "../../src/types/ftp/default-ftp-facade.js";
 import type { FtpFacadeDependencies } from "../../src/types/ftp/default-ftp-facade.js";
 import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -427,45 +426,29 @@ describe("FtpFacade", () => {
             });
         });
 
-        it("should stream moved entries and relocate folder caches", async () => {
+        it("should return both directories and relocate folder caches", async () => {
             const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
             const thumbnail = new Map([["photo.jpg", Buffer.from("thumbnail")]]);
             const directory = { hash: "hash" };
             memoryCache.set("user-id", "source/photos", thumbnail);
             directoryCache.set("user-id", "source/photos", directory);
             const entries: FtpEntry[] = [{ name: "photos", type: "DIR" }];
+            ftpService.dir.mockImplementation(async ({ dir }) => {
+                return dir === "source"
+                    ? [{ name: "remaining", type: "d", size: 0, modifyTime: 0 }]
+                    : [{ name: "moved-photos", type: "d", size: 0, modifyTime: 0 }];
+            });
             ftpService.move.mockImplementation(async ({ onEntry, onComplete }) => {
                 await onEntry(entries[0], "moved-photos");
                 await onComplete();
+                expect(ftpService.dir).toHaveBeenCalledTimes(2);
             });
-            const stream = new PassThrough() as PassThrough & FtpProgressStream;
-            let headersSent = false;
-            Object.defineProperty(stream, "headersSent", { get: () => headersSent });
-            stream.set = vi.fn(() => {
-                headersSent = true;
+            await expect(
+                ftpFacade.move({ dir: "source", destination: "destination", entries, authUser })
+            ).resolves.toEqual({
+                origin: { hash: expect.any(String), data: [{ name: "remaining", type: "DIR" }] },
+                destination: { hash: expect.any(String), data: [{ name: "moved-photos", type: "DIR" }] }
             });
-            await ftpFacade.move({ dir: "source", destination: "destination", entries, authUser, stream });
-            expect(stream.set).toHaveBeenCalledOnce();
-            expect(stream.set).toHaveBeenCalledWith({
-                "Cache-Control": "no-cache, no-transform",
-                "Content-Type": "application/x-ndjson",
-                "X-Accel-Buffering": "no"
-            });
-            expect(readEvents(stream)).toEqual([
-                {
-                    event: "entry",
-                    path: "photos",
-                    targetPath: "moved-photos",
-                    type: "DIR",
-                    completed: 1,
-                    total: 1
-                },
-                {
-                    event: "complete",
-                    source: { dir: "source", version: expect.any(String) },
-                    destination: { dir: "destination", version: expect.any(String) }
-                }
-            ]);
             expect(ftpService.dir).toHaveBeenCalledWith({ dir: "source", authUser, thumbnail: undefined });
             expect(ftpService.dir).toHaveBeenCalledWith({ dir: "destination", authUser, thumbnail: undefined });
             expect(socketSessionsFacade.notify).toHaveBeenCalledWith({
@@ -505,7 +488,7 @@ describe("FtpFacade", () => {
             expect(ftpService.dir).toHaveBeenCalledWith({ dir: "files", authUser, thumbnail: undefined });
         });
 
-        it("should stream deleted entries and clear folder caches", async () => {
+        it("should return the updated directory and clear folder caches", async () => {
             const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
             const directory = { hash: "hash" };
             memoryCache.set("user-id", "files/photos", new Map());
@@ -514,25 +497,18 @@ describe("FtpFacade", () => {
             ftpService.delete.mockImplementation(async ({ onEntry, onComplete }) => {
                 await onEntry(entries[0]);
                 await onComplete();
+                expect(ftpService.dir).toHaveBeenCalledOnce();
             });
-            const stream = new PassThrough() as PassThrough & FtpProgressStream;
-            await ftpFacade.delete({ dir: "files", entries, authUser, stream });
-            expect(readEvents(stream)).toEqual([
-                {
-                    event: "entry",
-                    path: "photos",
-                    type: "DIR",
-                    completed: 1,
-                    total: 1
-                },
-                { event: "complete", version: expect.any(String) }
-            ]);
+            await expect(ftpFacade.delete({ dir: "files", entries, authUser })).resolves.toEqual({
+                hash: expect.any(String),
+                data: []
+            });
             expect(ftpService.dir).toHaveBeenCalledWith({ dir: "files", authUser, thumbnail: undefined });
             expect(memoryCache.has("user-id", "files/photos")).toBe(false);
             expect(directoryCache.has("user-id", "files/photos")).toBe(false);
         });
 
-        it("should omit the complete event after a partial failure", async () => {
+        it("should propagate a partial failure and invalidate the directory cache", async () => {
             const authUser = { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] };
             const entries: FtpEntry[] = [
                 { name: "first.txt", type: "FILE" },
@@ -543,42 +519,9 @@ describe("FtpFacade", () => {
                 await onEntry(entries[0]);
                 throw new Error("FTP error");
             });
-            const stream = new PassThrough() as PassThrough & FtpProgressStream;
-            await expect(ftpFacade.delete({ dir: "files", entries, authUser, stream })).rejects.toThrow("FTP error");
-            expect(readEvents(stream)).toEqual([
-                {
-                    event: "entry",
-                    path: "first.txt",
-                    type: "FILE",
-                    completed: 1,
-                    total: 2
-                }
-            ]);
+            await expect(ftpFacade.delete({ dir: "files", entries, authUser })).rejects.toThrow("FTP error");
             expect(directoryCache.has("user-id", "files")).toBe(false);
             expect(ftpService.dir).not.toHaveBeenCalled();
         });
-
-        it("should propagate write errors", async () => {
-            const stream = new PassThrough() as PassThrough & FtpProgressStream;
-            stream.set = vi.fn();
-            const data = {
-                dir: "files",
-                entries: [],
-                authUser: { iat: 1_800_000_000, exp: 1_900_000_000, id: "user-id", roles: ["FTP"] as Role[] },
-                stream
-            };
-            ftpService.delete.mockRejectedValue(new Error("FTP error"));
-            await expect(ftpFacade.delete(data)).rejects.toThrow("FTP error");
-            expect(stream.set).not.toHaveBeenCalled();
-        });
     });
 });
-
-function readEvents(stream: PassThrough) {
-    return stream
-        .read()
-        .toString()
-        .trim()
-        .split("\n")
-        .map((line: string) => JSON.parse(line));
-}

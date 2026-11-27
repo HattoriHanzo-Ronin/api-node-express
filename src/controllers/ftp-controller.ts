@@ -81,7 +81,11 @@ export default class FtpController {
     move: FtpMoveHandler = async (req, res) => {
         const { body, user: authUser } = req;
         const { dir, entries, destination } = validateData(body, getMoveSchema());
-        await this.ftpFacade.move({ dir, entries, destination, authUser, stream: res });
+        const { origin, destination: target } = await this.ftpFacade.move({ dir, entries, destination, authUser });
+        res.set({ "Origin-Version": origin.hash, "Destination-Version": target.hash }).json({
+            origin: origin.data,
+            destination: target.data
+        });
     };
 
     rename: FtpRenameHandler = async (req, res) => {
@@ -138,6 +142,7 @@ export default class FtpController {
     delete: FtpDeleteHandler = async (req, res) => {
         const { body, user: authUser } = req;
         const { dir, entries } = validateData(body, getDeleteSchema());
-        await this.ftpFacade.delete({ dir, entries, authUser, stream: res });
+        const { hash, data } = await this.ftpFacade.delete({ dir, entries, authUser });
+        res.set("Data-Version", hash).json(data);
     };
 }
